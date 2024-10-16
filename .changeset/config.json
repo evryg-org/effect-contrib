@@ -1,6 +1,11 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@1.6.4/schema.json",
-  "changelog": ["@changesets/changelog-github", { "repo": "Effect-TS/effect" }],
+  "changelog": [
+    "@changesets/changelog-github",
+    {
+      "repo": "evryg-org/effect-contrib"
+    }
+  ],
   "commit": false,
   "linked": [],
   "access": "restricted",
