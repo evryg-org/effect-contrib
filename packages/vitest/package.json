@@ -1,5 +1,5 @@
 {
-  "name": "@effect/vitest",
+  "name": "@evryg/integresql",
   "version": "0.12.0",
   "type": "module",
   "license": "MIT",
@@ -28,11 +28,11 @@
     "coverage": "vitest --coverage"
   },
   "peerDependencies": {
-    "effect": "workspace:^",
+    "effect": "^3.9.2",
     "vitest": "^2.0.5"
   },
   "devDependencies": {
-    "effect": "workspace:^",
+    "effect": "^3.9.2",
     "vitest": "^2.0.5"
   }
 }
