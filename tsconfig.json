@@ -3,6 +3,6 @@
   "include": [],
   "references": [
     //
-    { "path": "packages/vitest" }
+    { "path": "packages/integresql"}
   ]
 }
