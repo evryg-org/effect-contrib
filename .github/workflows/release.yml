@@ -10,7 +10,7 @@ permissions: {}
 
 jobs:
   release:
-    if: github.repository_owner == 'Effect-Ts'
+    if: github.repository_owner == 'evryg-org'
     name: Release
     runs-on: ubuntu-latest
     timeout-minutes: 10

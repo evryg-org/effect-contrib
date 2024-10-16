@@ -3,15 +3,15 @@
   "version": "0.0.1",
   "type": "module",
   "license": "MIT",
-  "description": "A set of helpers for testing Effects with vitest",
-  "homepage": "https://effect.website",
+  "description": "An effect-ts based client of the integresql tool used for creating isolated potgresql databases used in integration tests",
+  "homepage": "https://www.evryg.com",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Effect-TS/effect.git",
-    "directory": "packages/vitest"
+    "url": "https://github.com/evryg-org/effect-contrib.git",
+    "directory": "packages/integresql"
   },
   "bugs": {
-    "url": "https://github.com/Effect-TS/effect/issues"
+    "url": "https://github.com/evryg-org/effect-contrib/issues"
   },
   "publishConfig": {
     "access": "public",

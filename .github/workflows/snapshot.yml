@@ -9,7 +9,7 @@ permissions: {}
 jobs:
   snapshot:
     name: Snapshot
-    if: github.repository_owner == 'Effect-Ts'
+    if: github.repository_owner == 'evryg-org'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

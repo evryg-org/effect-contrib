@@ -11,7 +11,7 @@ permissions: {}
 
 jobs:
   update:
-    if: github.repository_owner == 'Effect-Ts'
+    if: github.repository_owner == 'evryg-org'
     name: Update
     runs-on: ubuntu-latest
     timeout-minutes: 10
