@@ -1,0 +1,57 @@
+import { PostgreSqlContainer } from "@testcontainers/postgresql"
+import { GenericContainer, TestContainers, Wait } from "testcontainers"
+
+export async function startContainers(): Promise<{
+  config: {
+    integreAPIUrl: string
+  }
+  teardown: () => Promise<void>
+}> {
+  const postgres = await new PostgreSqlContainer("postgres:12.2-alpine")
+    .withExposedPorts(5432)
+    .withCommand([
+      "postgres",
+      "-c",
+      "shared_buffers=128MB",
+      "-c",
+      "fsync=off",
+      "-c",
+      "synchronous_commit=off",
+      "-c",
+      "full_page_writes=off",
+      "-c",
+      "max_connections=100",
+      "-c",
+      "client_min_messages=warning"
+    ])
+    .start()
+
+  await TestContainers.exposeHostPorts(postgres.getFirstMappedPort())
+
+  const integreSQL = await new GenericContainer(
+    "ghcr.io/allaboutapps/integresql:v1.1.0"
+  )
+    .withExposedPorts(5000)
+    .withEnvironment({
+      PGDATABASE: postgres.getDatabase(),
+      PGUSER: postgres.getUsername(),
+      PGPASSWORD: postgres.getPassword(),
+      PGHOST: "host.testcontainers.internal",
+      PGPORT: postgres.getFirstMappedPort().toString(),
+      PGSSLMODE: "disable"
+    })
+    .withWaitStrategy(Wait.forLogMessage("server started on"))
+    .start()
+
+  const integreAPIUrl = `http://${integreSQL.getHost()}:${integreSQL.getFirstMappedPort()}`
+
+  return {
+    config: {
+      integreAPIUrl
+    },
+    teardown: async () => {
+      await integreSQL.stop()
+      await postgres.stop()
+    }
+  }
+}

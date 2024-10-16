@@ -1,4 +1,6 @@
+__fixtures__
 coverage/
+.references
 *.tsbuildinfo
 node_modules/
 .DS_Store

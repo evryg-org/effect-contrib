@@ -38,6 +38,23 @@ jobs:
       - run: pnpm circular
       - run: pnpm lint
 
+  examples:
+    name: Examples
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        uses: ./.github/actions/setup
+      - name: Build @evryg/integresql
+        run: pnpm --filter @evryg/integresql build
+      - name: Install example dependencies
+        run: pnpm --filter @evryg/integresql examples:install
+      - name: Typecheck examples
+        run: pnpm --filter @evryg/integresql examples:check
+      - name: Run examples
+        run: pnpm --filter @evryg/integresql examples:test
+
   test:
     name: Test (${{ matrix.runtime }} ${{ matrix.shard }})
     runs-on: ubuntu-latest
