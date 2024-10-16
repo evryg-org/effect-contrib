@@ -35,6 +35,7 @@
     "module": "NodeNext",
     "incremental": true,
     "removeComments": false,
+    "allowSyntheticDefaultImports": true,
     "plugins": [{ "name": "@effect/language-service" }],
     "paths": {
       "@evryg/integresql": ["./packages/integresql/src/index.js"]
