@@ -148,7 +148,6 @@ const getNewTestDatabase = (
 // @todo: What happens when someone tries to get a DB for a NON EXISTING template? -> 404
 // @todo: What happens when someone tries to finalize an already finalized template -> Idempotent, success 204
 // @todo: hash breaks for monorepo (user CWD)
-
 export const _getConnection = <R>(config: {
   hash: string
   initializeTemplate: (
@@ -185,11 +184,13 @@ export const _getConnection = <R>(config: {
     )
   )
 
+export interface InitializeTemplate<R> {
+  (connection: PostgresConnection): Effect.Effect<void, never, R>
+}
+
 export const getConnection = <R>(config: {
   databaseFiles: string[]
-  initializeTemplate: (
-    connection: PostgresConnection
-  ) => Effect.Effect<void, never, R>
+  initializeTemplate: InitializeTemplate<R>
 }): Effect.Effect<PostgresConnection, never, R> =>
   pipe(
     createHash(config.databaseFiles),
