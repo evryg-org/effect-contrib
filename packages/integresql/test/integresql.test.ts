@@ -58,7 +58,7 @@ describe(`getConnection`, () => {
     expect(result[0].database).not.toBe(result[1].database)
   })
 
-  test.skip(`Template not finalized but new DB required`, async () =>
+  test(`Template not finalized but new DB required`, async () =>
     pipe(
       Effect.gen(function* () {
         const hash = makeRandomHash()
@@ -109,7 +109,7 @@ describe(`getConnection`, () => {
             Layer.unwrapEffect(
               pipe(
                 getConnection({
-                  databaseFiles: ["knex/**/*.{js,ts}"],
+                  databaseFiles: ["test/knex/**/*.{js,ts}"],
                   initializeTemplate: (connection) =>
                     pipe(
                       DatabaseClient,
@@ -124,7 +124,7 @@ describe(`getConnection`, () => {
                             database: connection.database
                           },
                           migrations: {
-                            directory: "knex/migrations"
+                            directory: "test/knex/migrations"
                           }
                         })
                       ),
@@ -141,7 +141,7 @@ describe(`getConnection`, () => {
                       database: _.database
                     },
                     migrations: {
-                      directory: "knex/migrations"
+                      directory: "test/knex/migrations"
                     }
                   })
                 )
