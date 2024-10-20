@@ -1,11 +1,6 @@
 import { describe, expect, it, vi } from "@effect/vitest"
-import type { Context } from "effect"
-import { Deferred, Duration, Effect, Exit, Layer, pipe } from "effect"
+import { Deferred, Duration, Effect, Exit, Layer, pipe, Context } from "effect"
 import { GenericContainer, Network, Wait } from "testcontainers"
-import {
-  DatabaseClient,
-  makeLivePostgresDatabaseClient
-} from "../src/DatabaseClient.js"
 import type { InitializeTemplate } from "../src/integresql.js"
 import { _getConnection } from "../src/integresql.js"
 import type { DatabaseTemplateId } from "../src/IntegreSqlClient.js"
@@ -15,6 +10,8 @@ import {
 } from "../src/IntegreSqlClient.js"
 import crypto, { randomUUID } from "node:crypto"
 import { PostgreSqlContainer } from "@testcontainers/postgresql"
+import type { Knex } from "knex"
+import knex from "knex"
 
 it.effect(
   `No template created for hash initializes template and returns new connection`,
@@ -331,3 +328,63 @@ const startContainers = pipe(
   Effect.acquireRelease((a) => a.close),
   Effect.map(({ close: _, ...a }) => a)
 )
+
+class DatabaseClient extends Context.Tag("DatabaseClient")<
+  DatabaseClient,
+  {
+    connection: Knex
+    isConnected: Effect.Effect<boolean>
+    migrateUp: Effect.Effect<void>
+    migrateDown: Effect.Effect<void>
+    close: Effect.Effect<void>
+  }
+>() {}
+
+const makeLivePostgresDatabaseClient = (config: {
+  connection: {
+    host: string
+    port: number
+    user: string
+    password: string
+    database: string
+  }
+  migrations: {
+    directory: string
+  }
+}) =>
+  pipe(
+    Effect.sync(() => {
+      return knex({
+        client: "pg",
+        connection: config.connection
+      })
+    }),
+    Effect.map(
+      (knex): Context.Tag.Service<DatabaseClient> => ({
+        connection: knex,
+        isConnected: pipe(
+          Effect.promise(() => knex.raw("select 1+1")),
+          Effect.as(true),
+          Effect.catchAllCause(() => Effect.succeed(false))
+        ),
+        migrateUp: Effect.promise(() =>
+          knex.migrate.up({ directory: config.migrations.directory })
+        ),
+        migrateDown: Effect.promise(() =>
+          knex.migrate.down({ directory: config.migrations.directory })
+        ),
+        close: Effect.async((cb) => knex.destroy(() => cb(Effect.void)))
+      })
+    ),
+    Effect.tap((client) =>
+      pipe(
+        client.isConnected,
+        Effect.if({
+          onTrue: () => Effect.void,
+          onFalse: () => Effect.die("Database not connected")
+        })
+      )
+    ),
+    Effect.acquireRelease((client) => client.close),
+    Layer.effect(DatabaseClient)
+  )

@@ -1,9 +1,18 @@
+/**
+ * @since 0.0.1
+ */
 import { Schema } from "@effect/schema"
 import { Data, Effect, Either, flow, Option, pipe } from "effect"
 import type { Branded } from "effect/Brand"
 
+/**
+ * @since 0.0.1
+ */
 export type DatabaseTemplateId = Branded<string, "DATABASE_TEMPLATE_ID">
 
+/**
+ * @since 0.0.1
+ */
 export class DatabaseConfiguration extends Data.Class<{
   host: string
   port: number
@@ -12,6 +21,9 @@ export class DatabaseConfiguration extends Data.Class<{
   database: string
 }> {}
 
+/**
+ * @internal
+ */
 export interface IntegreSqlClient {
   createTemplate(
     hash: string
@@ -37,6 +49,9 @@ const DatabaseConnectionSchema = Schema.Struct({
   })
 })
 
+/**
+ * @internal
+ */
 export class IntegreSqlApiClient implements IntegreSqlClient {
   private readonly baseUrl: string
 
