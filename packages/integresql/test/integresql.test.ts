@@ -1,113 +1,199 @@
-import { describe, expect, vi, it } from "@effect/vitest"
-import { pipe, Effect, Layer, Deferred, Duration, Exit, Context } from "effect"
-import { _getConnection, InitializeTemplate } from "../src/integresql.js"
-import crypto, { randomUUID } from "node:crypto"
+import { describe, expect, it, vi } from "@effect/vitest"
+import type { Context } from "effect"
+import { Deferred, Duration, Effect, Exit, Layer, pipe } from "effect"
+import { GenericContainer, Network, Wait } from "testcontainers"
 import {
   DatabaseClient,
   makeLivePostgresDatabaseClient
 } from "../src/DatabaseClient.js"
+import type { InitializeTemplate } from "../src/integresql.js"
+import { _getConnection } from "../src/integresql.js"
+import type { DatabaseTemplateId } from "../src/IntegreSqlClient.js"
+import {
+  DatabaseConfiguration,
+  IntegreSqlApiClient
+} from "../src/IntegreSqlClient.js"
+import crypto, { randomUUID } from "node:crypto"
+import { PostgreSqlContainer } from "@testcontainers/postgresql"
 
-describe(`getConnection`, () => {
-  it.effect(
-    `No template created for hash initializes template and returns new connection`,
-    () =>
+it.effect(
+  `No template created for hash initializes template and returns new connection`,
+  () =>
+    pipe(
       Effect.gen(function* () {
+        const containers = yield* startContainers
+        const client = new IntegreSqlApiClient({
+          integrePort: containers.integreSQL.port,
+          integreHost: containers.integreSQL.host
+        })
         const hash = makeRandomHash()
         const initializeTemplateSpy = vi.fn(() => Effect.void)
 
-        const result = yield* _getConnection({
+        const result = yield* _getConnection(client)({
           hash,
           initializeTemplate: initializeTemplateSpy
         })
 
         expect(initializeTemplateSpy).toHaveBeenCalledTimes(1)
-        expect(initializeTemplateSpy).toHaveBeenCalledWith<[typeof result]>({
-          host: expect.any(String),
-          port: expect.any(Number),
-          username: expect.any(String),
-          password: expect.any(String),
-          database: expect.any(String)
-        })
-        expect(result).toStrictEqual<typeof result>({
-          host: expect.any(String),
-          port: expect.any(Number),
-          username: expect.any(String),
-          password: expect.any(String),
-          database: expect.any(String)
-        })
-      })
+
+        expect(initializeTemplateSpy).toHaveBeenCalledWith<[typeof result]>(
+          new DatabaseConfiguration({
+            host: expect.any(String),
+            port: expect.any(Number),
+            username: expect.any(String),
+            password: expect.any(String),
+            database: expect.any(String)
+          })
+        )
+        expect(result).toStrictEqual<typeof result>(
+          new DatabaseConfiguration({
+            host: expect.any(String),
+            port: expect.any(Number),
+            username: expect.any(String),
+            password: expect.any(String),
+            database: expect.any(String)
+          })
+        )
+      }),
+      Effect.scoped
+    ),
+  1000 * 60
+)
+
+describe(`getConnection`, () => {
+  it.effect(
+    `No template created for hash initializes template and returns new connection`,
+    () =>
+      pipe(
+        Effect.gen(function* () {
+          const containers = yield* startContainers
+          const client = new IntegreSqlApiClient({
+            integrePort: containers.integreSQL.port,
+            integreHost: containers.integreSQL.host
+          })
+          const hash = makeRandomHash()
+          const initializeTemplateSpy = vi.fn(() => Effect.void)
+
+          const result = yield* _getConnection(client)({
+            hash,
+            initializeTemplate: initializeTemplateSpy
+          })
+
+          expect(initializeTemplateSpy).toHaveBeenCalledTimes(1)
+          expect(initializeTemplateSpy).toHaveBeenCalledWith<[typeof result]>(
+            new DatabaseConfiguration({
+              host: expect.any(String),
+              port: expect.any(Number),
+              username: expect.any(String),
+              password: expect.any(String),
+              database: expect.any(String)
+            })
+          )
+          expect(result).toStrictEqual<typeof result>(
+            new DatabaseConfiguration({
+              host: expect.any(String),
+              port: expect.any(Number),
+              username: expect.any(String),
+              password: expect.any(String),
+              database: expect.any(String)
+            })
+          )
+        }),
+        Effect.scoped
+      )
   )
 
   it.effect(
     `Template already created for hash returns new connection from template`,
     () =>
-      Effect.gen(function* () {
-        const hash = makeRandomHash()
-        const initializeTemplateSpy = vi.fn(() => Effect.void)
+      pipe(
+        Effect.gen(function* () {
+          const containers = yield* startContainers
+          const client = new IntegreSqlApiClient({
+            integrePort: containers.integreSQL.port,
+            integreHost: containers.integreSQL.host
+          })
+          const hash = makeRandomHash()
+          const initializeTemplateSpy = vi.fn(() => Effect.void)
 
-        const result = yield* pipe(
-          _getConnection({
-            hash,
-            initializeTemplate: initializeTemplateSpy
-          }),
-          Effect.zip(
-            _getConnection({
+          const result = yield* pipe(
+            _getConnection(client)({
               hash,
               initializeTemplate: initializeTemplateSpy
-            })
+            }),
+            Effect.zip(
+              _getConnection(client)({
+                hash,
+                initializeTemplate: initializeTemplateSpy
+              })
+            )
           )
-        )
 
-        expect(initializeTemplateSpy).toHaveBeenCalledTimes(1)
-        expect(result[0].database).not.toBe(result[1].database)
-      })
+          expect(initializeTemplateSpy).toHaveBeenCalledTimes(1)
+          expect(result[0].database).not.toBe(result[1].database)
+        }),
+        Effect.scoped
+      )
   )
 
   // This always blocks for 2s, find a better way/lever to test this
   it.live(`Trying to get a new DB for a non finalized template blocks`, () =>
-    Effect.gen(function* () {
-      const hash = makeRandomHash()
-      const program2TemplateInitSpy = vi.fn(() => Effect.void)
-      const templateInitStartedDeferred = yield* Deferred.make<void>()
-      const result = yield* pipe(
-        _getConnection({
-          hash,
-          initializeTemplate: () =>
+    pipe(
+      Effect.gen(function* () {
+        const containers = yield* startContainers
+        const client = new IntegreSqlApiClient({
+          integrePort: containers.integreSQL.port,
+          integreHost: containers.integreSQL.host
+        })
+        const hash = makeRandomHash()
+        const program2TemplateInitSpy = vi.fn(() => Effect.void)
+        const templateInitStartedDeferred = yield* Deferred.make<void>()
+        const result = yield* pipe(
+          _getConnection(client)({
+            hash,
+            initializeTemplate: () =>
+              pipe(
+                templateInitStartedDeferred,
+                Deferred.succeed<void>(undefined),
+                Effect.zipRight(Effect.never)
+              )
+          }),
+          Effect.fork,
+          Effect.zipRight(
             pipe(
               templateInitStartedDeferred,
-              Deferred.succeed<void>(undefined),
-              Effect.zipRight(Effect.never)
-            )
-        }),
-        Effect.fork,
-        Effect.zipRight(
-          pipe(
-            templateInitStartedDeferred,
-            Effect.zipRight(
-              pipe(
-                _getConnection({
-                  hash,
-                  initializeTemplate: program2TemplateInitSpy
-                }),
-                Effect.timeoutFail({
-                  onTimeout: () => "timeout",
-                  duration: Duration.seconds(2)
-                }),
-                Effect.exit
+              Effect.zipRight(
+                pipe(
+                  _getConnection(client)({
+                    hash,
+                    initializeTemplate: program2TemplateInitSpy
+                  }),
+                  Effect.timeoutFail({
+                    onTimeout: () => "timeout",
+                    duration: Duration.seconds(2)
+                  }),
+                  Effect.exit
+                )
               )
             )
           )
         )
-      )
 
-      expect(program2TemplateInitSpy).not.toHaveBeenCalled()
-      expect(result).toStrictEqual(Exit.fail("timeout"))
-    })
+        expect(program2TemplateInitSpy).not.toHaveBeenCalled()
+        expect(result).toStrictEqual(Exit.fail("timeout"))
+      }),
+      Effect.scoped
+    )
   )
 
   it.effect(`Two programs creating the same template in parallel`, () =>
     pipe(
       Effect.gen(function* () {
+        const containers = yield* startContainers
+        const client = new IntegreSqlApiClient({
+          integrePort: containers.integreSQL.port,
+          integreHost: containers.integreSQL.host
+        })
         const hash = makeRandomHash()
         const initializeTemplate: InitializeTemplate<never> = vi.fn(
           (connection) =>
@@ -118,13 +204,13 @@ describe(`getConnection`, () => {
                 makeLivePostgresDatabaseClient({
                   connection: {
                     host: "127.0.0.1",
-                    port: connection.port,
+                    port: containers.postgres.port,
                     user: connection.username,
                     password: connection.password,
                     database: connection.database
                   },
                   migrations: {
-                    directory: "test/knex/migrations"
+                    directory: "packages/integresql/test/knex/migrations"
                   }
                 })
               ),
@@ -133,7 +219,7 @@ describe(`getConnection`, () => {
         )
         const LiveTestPostgresDatabaseClient = Layer.unwrapEffect(
           pipe(
-            _getConnection({
+            _getConnection(client)({
               hash, // Always use a new hash to be in the "new template" flow
               initializeTemplate
             }),
@@ -141,7 +227,7 @@ describe(`getConnection`, () => {
               makeLivePostgresDatabaseClient({
                 connection: {
                   host: "127.0.0.1",
-                  port: _.port,
+                  port: containers.postgres.port,
                   user: _.username,
                   password: _.password,
                   database: _.database
@@ -153,13 +239,14 @@ describe(`getConnection`, () => {
             )
           )
         )
-        const createUser = (username: string) => (client: Context.Tag.Service<DatabaseClient>) =>
-          Effect.promise(() =>
-            client
-              .connection("user")
-              .insert({ username }, "*")
-              .then(() => undefined)
-          )
+        const createUser =
+          (username: string) => (client: Context.Tag.Service<DatabaseClient>) =>
+            Effect.promise(() =>
+              client
+                .connection("user")
+                .insert({ username }, "*")
+                .then(() => undefined)
+            )
         const listUsers = (client: Context.Tag.Service<DatabaseClient>) =>
           Effect.promise(() => client.connection("user").select("*"))
 
@@ -197,5 +284,50 @@ describe(`getConnection`, () => {
 })
 
 const makeRandomHash = () =>
-  crypto.createHash("sha1").update(randomUUID()).digest("hex")
+  crypto
+    .createHash("sha1")
+    .update(randomUUID())
+    .digest("hex") as DatabaseTemplateId
 
+const startContainers = pipe(
+  Effect.promise(async () => {
+    const network = await new Network().start()
+    const postgres = await new PostgreSqlContainer("postgres:12.2-alpine")
+      .withNetwork(network)
+      .start()
+    const integreSQL = await new GenericContainer(
+      "ghcr.io/allaboutapps/integresql:v1.1.0"
+    )
+      .withExposedPorts(5000)
+      .withNetwork(network)
+      .withEnvironment({
+        PGDATABASE: postgres.getDatabase(),
+        PGUSER: postgres.getUsername(),
+        PGPASSWORD: postgres.getPassword(),
+        PGHOST: postgres.getIpAddress(network.getName()),
+        PGPORT: "5432", // Use the container port, we are reaching through container network
+        PGSSLMODE: "disable"
+      })
+      .withNetwork(network)
+      .withWaitStrategy(Wait.forLogMessage("server started on"))
+      .start()
+
+    return {
+      integreSQL: {
+        port: integreSQL.getFirstMappedPort(),
+        host: integreSQL.getHost()
+      },
+      postgres: {
+        port: postgres.getFirstMappedPort(),
+        host: postgres.getHost()
+      },
+      close: Effect.promise(async () => {
+        await integreSQL.stop()
+        await postgres.stop()
+        await network.stop()
+      })
+    }
+  }),
+  Effect.acquireRelease((a) => a.close),
+  Effect.map(({ close: _, ...a }) => a)
+)

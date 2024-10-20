@@ -1,5 +1,6 @@
-import knex, { Knex } from "knex"
-import { Effect, Context, pipe, Layer } from "effect"
+import type { Knex } from "knex"
+import knex from "knex"
+import { Context, Effect, pipe, Layer } from "effect"
 
 export class DatabaseClient extends Context.Tag("DatabaseClient")<
   DatabaseClient,

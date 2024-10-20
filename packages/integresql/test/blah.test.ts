@@ -1,7 +1,6 @@
 import { test } from "@effect/vitest"
 
-test(`Empty test`, async (  ) => {
-
+test(`Empty test`, async () => {
 })
 // import { describe, expect, it, layer } from "@effect/vitest"
 // import { Effect, Context, Layer, pipe, Config } from "effect"
