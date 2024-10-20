@@ -1,5 +1,5 @@
 import { describe, expect, vi, it } from "@effect/vitest"
-import { pipe, Effect, Layer, Deferred, Duration, Exit } from "effect"
+import { pipe, Effect, Layer, Deferred, Duration, Exit, Context } from "effect"
 import { _getConnection, InitializeTemplate } from "../src/integresql.js"
 import crypto, { randomUUID } from "node:crypto"
 import {
@@ -153,14 +153,14 @@ describe(`getConnection`, () => {
             )
           )
         )
-        const createUser = (username: string) => (client: DatabaseClient) =>
+        const createUser = (username: string) => (client: Context.Tag.Service<DatabaseClient>) =>
           Effect.promise(() =>
             client
               .connection("user")
               .insert({ username }, "*")
               .then(() => undefined)
           )
-        const listUsers = (client: DatabaseClient) =>
+        const listUsers = (client: Context.Tag.Service<DatabaseClient>) =>
           Effect.promise(() => client.connection("user").select("*"))
 
         const [programAResult, programBResult] = yield* pipe(
