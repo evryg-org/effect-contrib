@@ -1,23 +1,20 @@
 import { describe, expect, it, vi } from "@effect/vitest"
-import { Deferred, Duration, Effect, Exit, Layer, pipe, Context } from "effect"
+import { PostgreSqlContainer } from "@testcontainers/postgresql"
+import { Context, Deferred, Duration, Effect, Exit, Layer, pipe } from "effect"
+import type { Knex } from "knex"
+import knex from "knex"
+import crypto, { randomUUID } from "node:crypto"
 import { GenericContainer, Network, Wait } from "testcontainers"
 import type { InitializeTemplate } from "../src/integresql.js"
 import { _getConnection } from "../src/integresql.js"
 import type { DatabaseTemplateId } from "../src/IntegreSqlClient.js"
-import {
-  DatabaseConfiguration,
-  IntegreSqlApiClient
-} from "../src/IntegreSqlClient.js"
-import crypto, { randomUUID } from "node:crypto"
-import { PostgreSqlContainer } from "@testcontainers/postgresql"
-import type { Knex } from "knex"
-import knex from "knex"
+import { DatabaseConfiguration, IntegreSqlApiClient } from "../src/IntegreSqlClient.js"
 
 it.effect(
   `No template created for hash initializes template and returns new connection`,
   () =>
     pipe(
-      Effect.gen(function* () {
+      Effect.gen(function*() {
         const containers = yield* startContainers
         const client = new IntegreSqlApiClient({
           integrePort: containers.integreSQL.port,
@@ -62,7 +59,7 @@ describe(`getConnection`, () => {
     `No template created for hash initializes template and returns new connection`,
     () =>
       pipe(
-        Effect.gen(function* () {
+        Effect.gen(function*() {
           const containers = yield* startContainers
           const client = new IntegreSqlApiClient({
             integrePort: containers.integreSQL.port,
@@ -104,7 +101,7 @@ describe(`getConnection`, () => {
     `Template already created for hash returns new connection from template`,
     () =>
       pipe(
-        Effect.gen(function* () {
+        Effect.gen(function*() {
           const containers = yield* startContainers
           const client = new IntegreSqlApiClient({
             integrePort: containers.integreSQL.port,
@@ -136,7 +133,7 @@ describe(`getConnection`, () => {
   // This always blocks for 2s, find a better way/lever to test this
   it.live(`Trying to get a new DB for a non finalized template blocks`, () =>
     pipe(
-      Effect.gen(function* () {
+      Effect.gen(function*() {
         const containers = yield* startContainers
         const client = new IntegreSqlApiClient({
           integrePort: containers.integreSQL.port,
@@ -180,12 +177,11 @@ describe(`getConnection`, () => {
         expect(result).toStrictEqual(Exit.fail("timeout"))
       }),
       Effect.scoped
-    )
-  )
+    ))
 
   it.effect(`Two programs creating the same template in parallel`, () =>
     pipe(
-      Effect.gen(function* () {
+      Effect.gen(function*() {
         const containers = yield* startContainers
         const client = new IntegreSqlApiClient({
           integrePort: containers.integreSQL.port,
@@ -236,14 +232,13 @@ describe(`getConnection`, () => {
             )
           )
         )
-        const createUser =
-          (username: string) => (client: Context.Tag.Service<DatabaseClient>) =>
-            Effect.promise(() =>
-              client
-                .connection("user")
-                .insert({ username }, "*")
-                .then(() => undefined)
-            )
+        const createUser = (username: string) => (client: Context.Tag.Service<DatabaseClient>) =>
+          Effect.promise(() =>
+            client
+              .connection("user")
+              .insert({ username }, "*")
+              .then(() => undefined)
+          )
         const listUsers = (client: Context.Tag.Service<DatabaseClient>) =>
           Effect.promise(() => client.connection("user").select("*"))
 
@@ -276,8 +271,7 @@ describe(`getConnection`, () => {
         expect(initializeTemplate).toHaveBeenCalledTimes(1)
       }),
       Effect.scoped
-    )
-  )
+    ))
 })
 
 const makeRandomHash = () =>
@@ -367,12 +361,8 @@ const makeLivePostgresDatabaseClient = (config: {
           Effect.as(true),
           Effect.catchAllCause(() => Effect.succeed(false))
         ),
-        migrateUp: Effect.promise(() =>
-          knex.migrate.up({ directory: config.migrations.directory })
-        ),
-        migrateDown: Effect.promise(() =>
-          knex.migrate.down({ directory: config.migrations.directory })
-        ),
+        migrateUp: Effect.promise(() => knex.migrate.up({ directory: config.migrations.directory })),
+        migrateDown: Effect.promise(() => knex.migrate.down({ directory: config.migrations.directory })),
         close: Effect.async((cb) => knex.destroy(() => cb(Effect.void)))
       })
     ),
