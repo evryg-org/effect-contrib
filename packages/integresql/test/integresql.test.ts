@@ -5,9 +5,8 @@ import type { Knex } from "knex"
 import knex from "knex"
 import crypto, { randomUUID } from "node:crypto"
 import { GenericContainer, Network, Wait } from "testcontainers"
-import type { InitializeTemplate } from "../src/integresql.js"
+import type { DatabaseTemplateId, InitializeTemplate } from "../src/index.js"
 import { _getConnection } from "../src/integresql.js"
-import type { DatabaseTemplateId } from "../src/IntegreSqlClient.js"
 import { DatabaseConfiguration, IntegreSqlApiClient } from "../src/IntegreSqlClient.js"
 
 it.effect(
