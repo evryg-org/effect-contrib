@@ -1,32 +1,44 @@
 import { describe, expect, it, vi } from "@effect/vitest"
 import { PostgreSqlContainer } from "@testcontainers/postgresql"
-import {
-  Context,
-  Deferred,
-  Duration,
-  Effect,
-  Exit,
-  Layer,
-  pipe,
-  Array
-} from "effect"
+import { Array, Context, Deferred, Duration, Effect, Exit, Layer, pipe } from "effect"
 import type { Knex } from "knex"
 import knex from "knex"
 import crypto, { randomUUID } from "node:crypto"
+import path from "node:path"
 import { GenericContainer, Network, Wait } from "testcontainers"
 import type { DatabaseTemplateId, InitializeTemplate } from "../src/index.js"
-import { _getConnection } from "../src/integresql.js"
-import {
-  DatabaseConfiguration,
-  IntegreSqlApiClient
-} from "../src/IntegreSqlClient.js"
+import { _getConnection, createHash, NoMatchingFiles } from "../src/integresql.js"
+import { DatabaseConfiguration, IntegreSqlApiClient } from "../src/IntegreSqlClient.js"
+
+describe(`createHash`, () => {
+  it.effect(`File not found fails`, () =>
+    pipe(
+      Effect.gen(function*() {
+        const result = yield* pipe(
+          createHash(["packages/integresql/non_existing_folder/**/*.ts"]),
+          Effect.exit
+        )
+
+        expect(result).toStrictEqual<typeof result>(
+          Exit.fail(
+            new NoMatchingFiles([
+              path.join(
+                process.cwd(),
+                "packages/integresql/non_existing_folder/**/*.ts"
+              )
+            ])
+          )
+        )
+      })
+    ))
+})
 
 describe(`getConnection`, () => {
   it.effect(
     `No template created for hash initializes template and returns new connection`,
     () =>
       pipe(
-        Effect.gen(function* () {
+        Effect.gen(function*() {
           const containers = yield* startContainers
           const client = new IntegreSqlApiClient({
             integrePort: containers.integreSQL.port,
@@ -69,7 +81,7 @@ describe(`getConnection`, () => {
     `Template already created for hash returns new connection from template`,
     () =>
       pipe(
-        Effect.gen(function* () {
+        Effect.gen(function*() {
           const containers = yield* startContainers
           const client = new IntegreSqlApiClient({
             integrePort: containers.integreSQL.port,
@@ -104,7 +116,7 @@ describe(`getConnection`, () => {
     `Trying to get a new DB for a non finalized template blocks`,
     () =>
       pipe(
-        Effect.gen(function* () {
+        Effect.gen(function*() {
           const containers = yield* startContainers
           const client = new IntegreSqlApiClient({
             integrePort: containers.integreSQL.port,
@@ -156,7 +168,7 @@ describe(`getConnection`, () => {
     `Two programs creating the same template in parallel`,
     () =>
       pipe(
-        Effect.gen(function* () {
+        Effect.gen(function*() {
           const containers = yield* startContainers
           const client = new IntegreSqlApiClient({
             integrePort: containers.integreSQL.port,
@@ -207,15 +219,13 @@ describe(`getConnection`, () => {
               )
             )
           )
-          const createUser =
-            (username: string) =>
-            (client: Context.Tag.Service<DatabaseClient>) =>
-              Effect.promise(() =>
-                client
-                  .connection("user")
-                  .insert({ username }, "*")
-                  .then(() => undefined)
-              )
+          const createUser = (username: string) => (client: Context.Tag.Service<DatabaseClient>) =>
+            Effect.promise(() =>
+              client
+                .connection("user")
+                .insert({ username }, "*")
+                .then(() => undefined)
+            )
           const listUsers = (client: Context.Tag.Service<DatabaseClient>) =>
             Effect.promise(() => client.connection("user").select("*"))
 
@@ -256,16 +266,14 @@ describe(`getConnection`, () => {
     `Stress test`,
     () =>
       pipe(
-        Effect.gen(function* () {
+        Effect.gen(function*() {
           const containers = yield* startContainers
           const client = new IntegreSqlApiClient({
             integrePort: containers.integreSQL.port,
             integreHost: containers.integreSQL.host
           })
           const hash = makeRandomHash()
-          const initializeTemplate: InitializeTemplate<never> = vi.fn(() =>
-            pipe(Effect.void, Effect.delay(1000))
-          )
+          const initializeTemplate: InitializeTemplate<never> = vi.fn(() => pipe(Effect.void, Effect.delay(1000)))
 
           yield* pipe(
             Array.makeBy(15, (_) => _),
@@ -374,12 +382,8 @@ const makeLivePostgresDatabaseClient = (config: {
           Effect.as(true),
           Effect.catchAllCause(() => Effect.succeed(false))
         ),
-        migrateUp: Effect.promise(() =>
-          knex.migrate.up({ directory: config.migrations.directory })
-        ),
-        migrateDown: Effect.promise(() =>
-          knex.migrate.down({ directory: config.migrations.directory })
-        ),
+        migrateUp: Effect.promise(() => knex.migrate.up({ directory: config.migrations.directory })),
+        migrateDown: Effect.promise(() => knex.migrate.down({ directory: config.migrations.directory })),
         close: Effect.async((cb) => knex.destroy(() => cb(Effect.void)))
       })
     ),
