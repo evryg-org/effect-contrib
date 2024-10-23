@@ -47,40 +47,43 @@ function sha1HashFile(filePath: string): Promise<string> {
 /**
  * @internal
  */
-export const _getConnection = (client: IntegreSqlClient) =>
-<R>(config: {
-  hash: DatabaseTemplateId
-  initializeTemplate: (
-    connection: DatabaseConfiguration
-  ) => Effect.Effect<void, never, R>
-}): Effect.Effect<DatabaseConfiguration, never, R> =>
-  pipe(
-    client.createTemplate(config.hash),
-    Effect.flatMap(
-      Option.match({
-        onSome: (a) =>
-          pipe(
-            config.initializeTemplate(a),
-            Effect.zipRight(client.finalizeTemplate(config.hash)),
-            Effect.zipRight(client.getNewTestDatabase(config.hash)),
-            Effect.flatten,
-            Effect.catchTag(
-              "NoSuchElementException",
-              () => Effect.die(new Error("[@evryg/integresql]: Unexpected error")) // @todo: Can we help the user solve this issue?
+export const _getConnection =
+  (client: IntegreSqlClient) =>
+  <R>(config: {
+    hash: DatabaseTemplateId
+    initializeTemplate: (
+      connection: DatabaseConfiguration
+    ) => Effect.Effect<void, never, R>
+  }): Effect.Effect<DatabaseConfiguration, never, R> =>
+    pipe(
+      client.createTemplate(config.hash),
+      Effect.flatMap(
+        Option.match({
+          onSome: (a) =>
+            pipe(
+              config.initializeTemplate(a),
+              Effect.zipRight(client.finalizeTemplate(config.hash)),
+              Effect.zipRight(client.getNewTestDatabase(config.hash)),
+              Effect.flatten,
+              Effect.catchTag(
+                "NoSuchElementException",
+                () =>
+                  Effect.die(new Error("[@evryg/integresql]: Unexpected error")) // @todo: Can we help the user solve this issue?
+              )
+            ),
+          onNone: () =>
+            pipe(
+              client.getNewTestDatabase(config.hash),
+              Effect.flatten,
+              Effect.catchTag(
+                "NoSuchElementException",
+                () =>
+                  Effect.die(new Error("[@evryg/integresql]: Unexpected error")) // @todo: Can we help the user solve this issue?
+              )
             )
-          ),
-        onNone: () =>
-          pipe(
-            client.getNewTestDatabase(config.hash),
-            Effect.flatten,
-            Effect.catchTag(
-              "NoSuchElementException",
-              () => Effect.die(new Error("[@evryg/integresql]: Unexpected error")) // @todo: Can we help the user solve this issue?
-            )
-          )
-      })
+        })
+      )
     )
-  )
 
 /**
  * @since 0.0.1
@@ -89,8 +92,6 @@ export interface InitializeTemplate<R> {
   (connection: DatabaseConfiguration): Effect.Effect<void, never, R>
 }
 
-// @todo: Stress test
-// @todo: Configurable api url
 // @todo: hash breaks for monorepo (user CWD)
 // @todo: fail if no files on hash generation
 /**
@@ -99,12 +100,19 @@ export interface InitializeTemplate<R> {
 export const getConnection = <R>(config: {
   databaseFiles: Array<string>
   initializeTemplate: InitializeTemplate<R>
+  integreSql?: {
+    port: number
+    host: string
+  }
 }): Effect.Effect<DatabaseConfiguration, never, R> =>
   pipe(
     createHash(config.databaseFiles),
     Effect.flatMap((hash) =>
       _getConnection(
-        new IntegreSqlApiClient({ integrePort: 5000, integreHost: "localhost" })
+        new IntegreSqlApiClient({
+          integrePort: config.integreSql?.port ?? 5000,
+          integreHost: config.integreSql?.host ?? "localhost"
+        })
       )({ ...config, hash })
     )
   )
