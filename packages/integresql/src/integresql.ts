@@ -126,19 +126,17 @@ export interface InitializeTemplate<R> {
 export const getConnection = <R>(config: {
   databaseFiles: [string, ...Array<string>]
   initializeTemplate: InitializeTemplate<R>
-  integreSql?: {
-    port: number
-    host: string
-  }
+  client?: IntegreSqlClient
 }): Effect.Effect<DatabaseConfiguration, never, R> =>
   pipe(
     createHash(config.databaseFiles),
     Effect.flatMap((hash) =>
       _getConnection(
-        new IntegreSqlApiClient({
-          integrePort: config.integreSql?.port ?? 5000,
-          integreHost: config.integreSql?.host ?? "localhost"
-        })
+        config.client ??
+          new IntegreSqlApiClient({
+            integrePort: 5000,
+            integreHost: "localhost"
+          })
       )({ ...config, hash })
     ),
     Effect.orDie

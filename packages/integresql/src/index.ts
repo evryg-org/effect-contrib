@@ -21,5 +21,13 @@ export type {
   /**
    * @since 0.0.1
    */
-  DatabaseTemplateId
+  DatabaseTemplateId,
+  /**
+   * @since 0.0.1
+   */
+  IntegreSqlApiClient,
+  /**
+   * @since 0.0.1
+   */
+  IntegreSqlClient
 } from "./IntegreSqlClient.js"

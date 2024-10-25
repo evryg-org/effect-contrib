@@ -22,15 +22,15 @@ export class DatabaseConfiguration extends Data.Class<{
 }> {}
 
 /**
- * @internal
+ * @since 0.0.1
  */
 export interface IntegreSqlClient {
   createTemplate(
     hash: string
   ): Effect.Effect<Option.Option<DatabaseConfiguration>>
-
+  
   finalizeTemplate(hash: string): Effect.Effect<void>
-
+  
   getNewTestDatabase(
     hash: string
   ): Effect.Effect<Option.Option<DatabaseConfiguration>>
@@ -50,7 +50,7 @@ const DatabaseConnectionSchema = Schema.Struct({
 })
 
 /**
- * @internal
+ * @since 0.0.1
  */
 export class IntegreSqlApiClient implements IntegreSqlClient {
   private readonly baseUrl: string
@@ -58,7 +58,9 @@ export class IntegreSqlApiClient implements IntegreSqlClient {
   constructor(config: { integrePort: number; integreHost: string }) {
     this.baseUrl = `http://${config.integreHost}:${config.integrePort}`
   }
-
+  /**
+   * @since 0.0.1
+   */
   createTemplate(
     templateId: DatabaseTemplateId
   ): Effect.Effect<Option.Option<DatabaseConfiguration>> {
@@ -98,7 +100,9 @@ export class IntegreSqlApiClient implements IntegreSqlClient {
       Effect.orDie
     )
   }
-
+  /**
+   * @since 0.0.1
+   */
   finalizeTemplate(templateId: DatabaseTemplateId): Effect.Effect<void> {
     return pipe(
       Effect.promise(() =>
@@ -117,7 +121,9 @@ export class IntegreSqlApiClient implements IntegreSqlClient {
       Effect.orDie
     )
   }
-
+  /**
+   * @since 0.0.1
+   */
   getNewTestDatabase(
     templateId: DatabaseTemplateId
   ): Effect.Effect<Option.Option<DatabaseConfiguration>> {
