@@ -53,119 +53,87 @@ npm i -D @evryg/integresql
 
 ## Usage
 
-### Step-by-step guide
-1. **Initialize your api client layer**
-```ts
-// DatabaseClient.ts
-import { Effect, Context } from "effect"
-import type { Knex } from "knex"
-
-class DatabaseClient extends Context.Tag("DatabaseClient")<
-  DatabaseClient,
-  // While the example uses Knex, any database client accepting a postgres connection will work
-  { readonly client: Knex }
->() {}
-```
-
 ```ts
 // test-utils.ts
-import { getConnection } from "@evryg/integresql"
-import { DatabaseClient } from "./DatabaseClient"
+import { getConnection } from "@everyg/integresql"
 
-const LiveProductsTestDatabaseClient = Layer.unwrapEffect(
-  pipe(
-    getConnection({
-      databaseFiles: ["migrations/**/¨.ts"],
-      initializeTemplate: (connection) => Effect.promise(async () => {
-        const connection = knex({
-          connection: {
-            host: connection,
-            port: connection.port, // You might need to override this depending on your docker-compose setup 
-            user: connection.username,
-            password: connection.password,
-            database: connection.database
-          },
-          migrations: {
-            directory: "test/knex/migrations"
-          }
-        })
+//           [1]
+//           This is the effect you will use across your tests
+//           to get a new database to connect-to on each test
+//           V
+export const getTestDatabaseConnection = getConnection({
+  //              [2]
+  //              Basically, The files integreSQL should watch for changes
+  //              V
+  databaseFiles: ["migrations/**/¨.ts"],
+  //                   [3]
+  //                   Connect once to the database and apply the changes (migrations/fixtures/...)
+  //                   that will define your postgres template
+  //                   V
+  initializeTemplate: (connection) =>
+    Effect.promise(() =>
+      // We are using knex but you can obviously connect to whatever DB client
+      // V
+      knex({
+        connection: {
+          host: connection.host, // You might need to override this depending on your docker-compose setup
+          port: connection.port, // You might need to override this depending on your docker-compose setup
+          user: connection.username,
+          password: connection.password,
+          database: connection.database
+        }
       })
-    }),
-    Effect.map((connection) => makeLiveDatabaseClient(connection))
-  )
-)
-
-// options.url: The URL of the IntegreSQL instance
-```
-
-2. **(Once per test runner process) Get a hash of the migrations & fixtures**
-
-```ts
-// The hash can be generated in any way that fits your business logic, the included
-// helper creates a SHA1 hash of the file content of all files matching the glob patterns.
-const hash = await integreSQL.hashFiles([
-  "./migrations/**/*",
-  "./fixtures/**/*"
-])
-```
-
-3. **(Once per test runner process) Initialize the template database**
-
-```ts
-await integreSQL.initializeTemplate(hash, async (databaseConfig) => {
-  await migrateTemplateDatabase(databaseConfig)
-  await seedTemplateDatabase(databaseConfig)
-  await disconnectFromDatabase(databaseConfig)
+        // [4]
+        // Run the migrations/fixtures, ... Whatever every new generated test database should have
+        // V
+        .migrate.up({ directory: "folder/folder/migrations" })
+    )
 })
+
+// ThingRepository.spec.ts
+import { getTestDatabaseConnection } from "../test-utils.ts"
+
+test("My test", () =>
+  pipe(
+    Effect.gen(function* () {
+      const result = yield* pipe(
+        // [5]
+        // Run an effect that needs the database
+        // V
+        createThingInDatabase,
+        Effect.provide(
+          Layer.unwrapEffect(
+            pipe(
+              // [6]
+              // Get a connection to a new test database
+              // V
+              getTestDatabaseConnection,
+              Effect.map((connection) =>
+                // [7]
+                // Pass it to your DB client/Repository/whatever needs it
+                // V
+                makeLiveDatabaseThingRepository(
+                  knex({
+                    connection: {
+                      host: connection.host, // You might need to override this depending on your docker-compose setup
+                      port: connection.port, // You might need to override this depending on your docker-compose setup
+                      user: connection.username,
+                      password: connection.password,
+                      database: connection.database
+                    }
+                  })
+                )
+              )
+            )
+          )
+        )
+      )
+
+      expect(result).toStrictEqual(whatever)
+    }),
+    Effect.runPromise
+  ))
 ```
-
-4. **(Before each test) Get a isolated test database**
-
-```ts
-const databaseConfig = await integreSQL.getTestDatabase(hash)
-```
-
-### Helpers
-
-- `integreSQL.databaseConfigToConnectionUrl(databaseConfig)`
-  - Converts the database configuration object into a
-    [connection URL](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING)
-
-### API requests
-
-You can directly send requests to the IntegreSQL instance via the included API client, or optionally
-instantiate a new [`IntegreSQLApiClient`](./src/apiClient.ts) yourself.
-
-```ts
-await integreSQL.api.reuseTestDatabase(hash, id)
-
-const api = new IntegreSQLApiClient({ url: "http://localhost:5000" })
-await api.reuseTestDatabase(hash, id)
-```
-
-@todo: running on custom ports
-@todo: using the client by itself
-
-## Contributors
-
-Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
-
-<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- prettier-ignore-start -->
-<!-- markdownlint-disable -->
-<table>
-  <tr>
-    <td align="center"><a href="https://www.david-reess.de"><img src="https://avatars3.githubusercontent.com/u/4615516?v=4" width="75px;" alt=""/><br /><sub><b>David Reeß</b></sub></a><br /><a href="https://github.com/devoxa/integresql-client/commits?author=queicherius" title="Code">💻</a> <a href="https://github.com/devoxa/integresql-client/commits?author=queicherius" title="Documentation">📖</a> <a href="https://github.com/devoxa/integresql-client/commits?author=queicherius" title="Tests">⚠️</a></td>
-  </tr>
-</table>
-
-<!-- markdownlint-enable -->
-<!-- prettier-ignore-end -->
-
-<!-- ALL-CONTRIBUTORS-LIST:END -->
-
-This project follows the [all-contributors](https://github.com/all-contributors/all-contributors)
-specification. Contributions of any kind welcome!
 
 ## License
 
