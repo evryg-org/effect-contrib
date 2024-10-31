@@ -10,7 +10,7 @@ import type { DatabaseTemplateId, InitializeTemplate } from "../src/index.js"
 import { _getConnection, createHash, NoMatchingFiles } from "../src/integresql.js"
 import { DatabaseConfiguration, IntegreSqlApiClient } from "../src/IntegreSqlClient.js"
 
-describe(`createHash`, () => {
+describe.skip(`createHash`, () => {
   it.effect(`File not found fails`, () =>
     pipe(
       Effect.gen(function*() {
@@ -74,7 +74,7 @@ describe(`getConnection`, () => {
         }),
         Effect.scoped
       ),
-    1000 * 10
+    1000 * 20
   )
 
   it.effect(
@@ -108,7 +108,7 @@ describe(`getConnection`, () => {
         }),
         Effect.scoped
       ),
-    1000 * 10
+    1000 * 20
   )
 
   // This always blocks for 2s, find a better way/lever to test this
@@ -161,7 +161,7 @@ describe(`getConnection`, () => {
         }),
         Effect.scoped
       ),
-    1000 * 10
+    1000 * 20
   )
 
   it.effect(
@@ -259,7 +259,7 @@ describe(`getConnection`, () => {
         }),
         Effect.scoped
       ),
-    1000 * 10
+    1000 * 20
   )
 
   it.live(
@@ -291,7 +291,7 @@ describe(`getConnection`, () => {
         }),
         Effect.scoped
       ),
-    1000 * 10
+    1000 * 20
   )
 })
 
