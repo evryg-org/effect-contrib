@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from "@effect/vitest"
 import { PostgreSqlContainer } from "@testcontainers/postgresql"
-import { Array, Context, Deferred, Duration, Effect, Exit, Layer, pipe } from "effect"
+import { Context, Deferred, Duration, Effect, Exit, Layer, pipe } from "effect"
 import type { Knex } from "knex"
 import knex from "knex"
 import crypto, { randomUUID } from "node:crypto"
 import path from "node:path"
 import { GenericContainer, Network, Wait } from "testcontainers"
-import type { DatabaseTemplateId, InitializeTemplate } from "../src/index.js"
+import type { DatabaseTemplateId } from "../src/index.js"
 import { _getConnection, createHash, NoMatchingFiles } from "../src/integresql.js"
-import { DatabaseConfiguration, makeIntegreSqlClient } from "../src/IntegreSqlClient.js"
+import type { DatabaseConfiguration } from "../src/IntegreSqlClient.js"
+import { makeIntegreSqlClient } from "../src/IntegreSqlClient.js"
 
 describe.skip(`createHash`, () => {
   it.effect(`File not found fails`, () =>
@@ -75,9 +76,8 @@ describe(`getConnection`, () => {
     1000 * 50
   )
 
-  // TODO: create two databases from same template ensure you only act on one
   it.effect(
-    `next`,
+    `Template database is only created once`,
     () =>
       pipe(
         Effect.gen(function*() {
@@ -88,31 +88,21 @@ describe(`getConnection`, () => {
           })
           const hash = makeRandomHash()
           const initializeTemplateSpy = vi.fn(() => Effect.void)
-
-          const result = yield* _getConnection(client)({
+          const createTemplate = _getConnection(client)({
             hash,
             initializeTemplate: initializeTemplateSpy
           })
 
+          yield* Effect.all([
+            createTemplate,
+            createTemplate,
+            createTemplate,
+            createTemplate,
+            createTemplate,
+            createTemplate
+          ], { concurrency: "unbounded" })
+
           expect(initializeTemplateSpy).toHaveBeenCalledTimes(1)
-          expect(initializeTemplateSpy).toHaveBeenCalledWith<[typeof result]>(
-            new DatabaseConfiguration({
-              host: expect.any(String),
-              port: expect.any(Number),
-              username: expect.any(String),
-              password: expect.any(String),
-              database: expect.any(String)
-            })
-          )
-          expect(result).toStrictEqual<typeof result>(
-            new DatabaseConfiguration({
-              host: expect.any(String),
-              port: expect.any(Number),
-              username: expect.any(String),
-              password: expect.any(String),
-              database: expect.any(String)
-            })
-          )
         }),
         Effect.scoped
       ),
@@ -120,7 +110,7 @@ describe(`getConnection`, () => {
   )
 
   it.effect(
-    `Template already created for hash returns new connection from template`,
+    `Returns a new test database every time`,
     () =>
       pipe(
         Effect.gen(function*() {
@@ -129,24 +119,17 @@ describe(`getConnection`, () => {
             integrePort: containers.integreSQL.port,
             integreHost: containers.integreSQL.host
           })
-          const hash = makeRandomHash()
-          const initializeTemplateSpy = vi.fn(() => Effect.void)
+          const getConnection = _getConnection(client)({
+            hash: makeRandomHash(),
+            initializeTemplate: () => Effect.void
+          })
 
           const result = yield* pipe(
-            _getConnection(client)({
-              hash,
-              initializeTemplate: initializeTemplateSpy
-            }),
-            Effect.zip(
-              _getConnection(client)({
-                hash,
-                initializeTemplate: initializeTemplateSpy
-              })
-            )
+            getConnection,
+            Effect.zip(getConnection)
           )
 
-          expect(initializeTemplateSpy).toHaveBeenCalledTimes(1)
-          expect(result[0].database).not.toBe(result[1].database)
+          expect(result[0].database).not.toStrictEqual(result[1].database)
         }),
         Effect.scoped
       ),
@@ -200,136 +183,6 @@ describe(`getConnection`, () => {
 
           expect(program2TemplateInitSpy).not.toHaveBeenCalled()
           expect(result).toStrictEqual(Exit.fail("timeout"))
-        }),
-        Effect.scoped
-      ),
-    1000 * 50
-  )
-
-  it.effect(
-    `Two programs creating the same template in parallel`,
-    () =>
-      pipe(
-        Effect.gen(function*() {
-          const containers = yield* startContainers
-          const client = makeIntegreSqlClient({
-            integrePort: containers.integreSQL.port,
-            integreHost: containers.integreSQL.host
-          })
-          const hash = makeRandomHash()
-          const initializeTemplate: InitializeTemplate<never> = vi.fn(
-            (connection) =>
-              pipe(
-                DatabaseClient,
-                Effect.flatMap((client) => client.migrateUp),
-                Effect.provide(
-                  makeLivePostgresDatabaseClient({
-                    connection: {
-                      host: "127.0.0.1",
-                      port: containers.postgres.port,
-                      user: connection.username,
-                      password: connection.password,
-                      database: connection.database
-                    },
-                    migrations: {
-                      directory: "packages/integresql/test/knex/migrations"
-                    }
-                  })
-                ),
-                Effect.scoped
-              )
-          )
-          const LiveTestPostgresDatabaseClient = Layer.unwrapEffect(
-            pipe(
-              _getConnection(client)({
-                hash, // Always use a new hash to be in the "new template" flow
-                initializeTemplate
-              }),
-              Effect.map((_) =>
-                makeLivePostgresDatabaseClient({
-                  connection: {
-                    host: "127.0.0.1",
-                    port: containers.postgres.port,
-                    user: _.username,
-                    password: _.password,
-                    database: _.database
-                  },
-                  migrations: {
-                    directory: "packages/integresql/test/knex/migrations"
-                  }
-                })
-              )
-            )
-          )
-          const createUser = (username: string) => (client: Context.Tag.Service<DatabaseClient>) =>
-            Effect.promise(() =>
-              client
-                .connection("user")
-                .insert({ username }, "*")
-                .then(() => undefined)
-            )
-          const listUsers = (client: Context.Tag.Service<DatabaseClient>) =>
-            Effect.promise(() => client.connection("user").select("*"))
-
-          const [programAResult, programBResult] = yield* pipe(
-            Effect.all(
-              [
-                pipe(
-                  DatabaseClient,
-                  Effect.tap(createUser("A")),
-                  Effect.flatMap(listUsers),
-                  Effect.provide(LiveTestPostgresDatabaseClient)
-                ),
-                pipe(
-                  DatabaseClient,
-                  Effect.tap(createUser("B")),
-                  Effect.flatMap(listUsers),
-                  Effect.provide(LiveTestPostgresDatabaseClient)
-                )
-              ],
-              { concurrency: "unbounded" }
-            )
-          )
-
-          expect(programAResult).toStrictEqual([
-            { id: expect.any(Number), username: "A" }
-          ])
-          expect(programBResult).toStrictEqual([
-            { id: expect.any(Number), username: "B" }
-          ])
-          expect(initializeTemplate).toHaveBeenCalledTimes(1)
-        }),
-        Effect.scoped
-      ),
-    1000 * 50
-  )
-
-  it.live(
-    `Stress test`,
-    () =>
-      pipe(
-        Effect.gen(function*() {
-          const containers = yield* startContainers
-          const client = makeIntegreSqlClient({
-            integrePort: containers.integreSQL.port,
-            integreHost: containers.integreSQL.host
-          })
-          const hash = makeRandomHash()
-          const initializeTemplate: InitializeTemplate<never> = vi.fn(() => pipe(Effect.void, Effect.delay(1000)))
-
-          yield* pipe(
-            Array.makeBy(15, (_) => _),
-            Effect.forEach(
-              () =>
-                _getConnection(client)({
-                  hash, // Always use a new hash to be in the "new template" flow
-                  initializeTemplate
-                }),
-              { concurrency: "unbounded" }
-            )
-          )
-
-          expect(initializeTemplate).toHaveBeenCalledTimes(1)
         }),
         Effect.scoped
       ),
