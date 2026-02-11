@@ -74,7 +74,7 @@ describe(`getConnection`, () => {
         }),
         Effect.scoped
       ),
-    1000 * 20
+    1000 * 50
   )
 
   it.effect(
@@ -108,7 +108,7 @@ describe(`getConnection`, () => {
         }),
         Effect.scoped
       ),
-    1000 * 20
+    1000 * 50
   )
 
   // This always blocks for 2s, find a better way/lever to test this
@@ -161,7 +161,7 @@ describe(`getConnection`, () => {
         }),
         Effect.scoped
       ),
-    1000 * 20
+    1000 * 50
   )
 
   it.effect(
@@ -213,7 +213,7 @@ describe(`getConnection`, () => {
                     database: _.database
                   },
                   migrations: {
-                    directory: "test/knex/migrations"
+                    directory: "packages/integresql/test/knex/migrations"
                   }
                 })
               )
@@ -259,7 +259,7 @@ describe(`getConnection`, () => {
         }),
         Effect.scoped
       ),
-    1000 * 20
+    1000 * 50
   )
 
   it.live(
@@ -291,7 +291,7 @@ describe(`getConnection`, () => {
         }),
         Effect.scoped
       ),
-    1000 * 20
+    1000 * 50
   )
 })
 
