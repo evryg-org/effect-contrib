@@ -45,6 +45,48 @@ describe(`getConnection`, () => {
             integreHost: containers.integreSQL.host
           })
           const hash = makeRandomHash()
+
+          yield* pipe(
+            _getConnection(client)({
+              hash,
+              initializeTemplate: (databaseConfiguration) =>
+                Effect.promise(async () => {
+                  const connection = makeKNEX(containers.postgres.port, databaseConfiguration)
+                  await connection.schema.createTable("test_table", (table) => {
+                    table.increments("id")
+                    table.string("name").notNullable()
+                  })
+                  await connection.destroy()
+                })
+            }),
+            Effect.flatMap((databaseConfiguration) =>
+              Effect.promise(async () => {
+                const connection = makeKNEX(containers.postgres.port, databaseConfiguration)
+                await connection("test_table").insert({ name: "test_item" })
+                const rows = await connection("test_table").select("*")
+                expect(rows).toStrictEqual([{ id: expect.any(Number), name: "test_item" }])
+                await connection.destroy()
+              })
+            )
+          )
+        }),
+        Effect.scoped
+      ),
+    1000 * 50
+  )
+
+  // TODO: create two databases from same template ensure you only act on one
+  it.effect(
+    `next`,
+    () =>
+      pipe(
+        Effect.gen(function*() {
+          const containers = yield* startContainers
+          const client = makeIntegreSqlClient({
+            integrePort: containers.integreSQL.port,
+            integreHost: containers.integreSQL.host
+          })
+          const hash = makeRandomHash()
           const initializeTemplateSpy = vi.fn(() => Effect.void)
 
           const result = yield* _getConnection(client)({
@@ -399,3 +441,15 @@ const makeLivePostgresDatabaseClient = (config: {
     Effect.acquireRelease((client) => client.close),
     Layer.effect(DatabaseClient)
   )
+
+const makeKNEX = (postgresPort: number, databaseConfiguration: DatabaseConfiguration) =>
+  knex({
+    client: "pg",
+    connection: {
+      host: "127.0.0.1",
+      port: postgresPort,
+      user: databaseConfiguration.username,
+      password: databaseConfiguration.password,
+      database: databaseConfiguration.database
+    }
+  })
