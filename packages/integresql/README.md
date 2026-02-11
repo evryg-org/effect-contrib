@@ -55,7 +55,11 @@ npm i -D @evryg/integresql
 
 ```ts
 // test-utils.ts
-import { getConnection } from "@everyg/integresql"
+import { getConnection } from "@evryg/integresql"
+import { PgClient, PgMigrator } from "@effect/sql-pg"
+import { NodeContext } from "@effect/platform-node"
+import { Effect, Redacted } from "effect"
+import path from "node:path"
 
 //           [1]
 //           This is the effect you will use across your tests
@@ -63,30 +67,32 @@ import { getConnection } from "@everyg/integresql"
 //           V
 export const getTestDatabaseConnection = getConnection({
   //              [2]
-  //              Basically, The files integreSQL should watch for changes
+  //              The files integreSQL should watch for changes
   //              V
-  databaseFiles: ["migrations/**/¨.ts"],
+  databaseFiles: ["migrations/**/*.ts"],
   //                   [3]
   //                   Connect once to the database and apply the changes (migrations/fixtures/...)
   //                   that will define your postgres template
   //                   V
   initializeTemplate: (connection) =>
-    Effect.promise(() =>
-      // We are using knex but you can obviously connect to whatever DB client
-      // V
-      knex({
-        connection: {
-          host: connection.host, // You might need to override this depending on your docker-compose setup
-          port: connection.port, // You might need to override this depending on your docker-compose setup
-          user: connection.username,
-          password: connection.password,
-          database: connection.database
-        }
+    Effect.gen(function*() {
+      yield* PgMigrator.run({
+        loader: PgMigrator.fromFileSystem(path.join(__dirname, "migrations")),
+        schemaDirectory: "migrations"
       })
-        // [4]
-        // Run the migrations/fixtures, ... Whatever every new generated test database should have
-        // V
-        .migrate.up({ directory: "folder/folder/migrations" })
+    }).pipe(
+      // [4]
+      // Run the migrations/fixtures, ... Whatever every new generated test database should have
+      // V
+      Effect.provide(PgClient.layer({
+        host: connection.host,
+        port: connection.port,
+        username: connection.username,
+        password: Redacted.make(connection.password),
+        database: connection.database
+      })),
+      Effect.provide(NodeContext.layer),
+      Effect.orDie
     )
 })
 
@@ -95,41 +101,27 @@ import { getTestDatabaseConnection } from "../test-utils.ts"
 
 test("My test", () =>
   pipe(
-    Effect.gen(function* () {
-      const result = yield* pipe(
-        // [5]
-        // Run an effect that needs the database
-        // V
-        createThingInDatabase,
-        Effect.provide(
-          Layer.unwrapEffect(
-            pipe(
-              // [6]
-              // Get a connection to a new test database
-              // V
-              getTestDatabaseConnection,
-              Effect.map((connection) =>
-                // [7]
-                // Pass it to your DB client/Repository/whatever needs it
-                // V
-                makeLiveDatabaseThingRepository(
-                  knex({
-                    connection: {
-                      host: connection.host, // You might need to override this depending on your docker-compose setup
-                      port: connection.port, // You might need to override this depending on your docker-compose setup
-                      user: connection.username,
-                      password: connection.password,
-                      database: connection.database
-                    }
-                  })
-                )
-              )
-            )
-          )
-        )
-      )
+    Effect.gen(function*() {
+      // [5]
+      // Get a connection to a new test database
+      // V
+      const connection = yield* getTestDatabaseConnection
 
-      expect(result).toStrictEqual(whatever)
+      // [6]
+      // Run an effect that needs the database, providing PgClient.layer
+      // V
+      yield* Effect.gen(function*() {
+        const result = yield* createThingInDatabase
+        expect(result).toStrictEqual(whatever)
+      }).pipe(
+        Effect.provide(PgClient.layer({
+          host: connection.host,
+          port: connection.port,
+          username: connection.username,
+          password: Redacted.make(connection.password),
+          database: connection.database
+        }))
+      )
     }),
     Effect.runPromise
   ))
@@ -137,7 +129,7 @@ test("My test", () =>
 
 ## TODO
 
-todo: fix todos 
+todo: fix todos
 read docs to see what edge cases are not handled (ask claude)
 make docs
 - Audit peer dependencies: `vitest` and `@effect/platform-node` are not used in source code and may not need to be peer deps.

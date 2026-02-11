@@ -1,7 +1,7 @@
+import { PgClient } from "@effect/sql-pg"
 import { describe, expect, it, vi } from "@effect/vitest"
 import { PostgreSqlContainer } from "@testcontainers/postgresql"
-import { Effect, Exit, pipe } from "effect"
-import knex from "knex"
+import { Effect, Exit, pipe, Redacted } from "effect"
 import crypto, { randomUUID } from "node:crypto"
 import path from "node:path"
 import { GenericContainer, Network, Wait } from "testcontainers"
@@ -50,23 +50,24 @@ describe(`getConnection`, () => {
             _getConnection(client)({
               hash,
               initializeTemplate: (databaseConfiguration) =>
-                Effect.promise(async () => {
-                  const connection = makeKNEX(containers.postgres.port, databaseConfiguration)
-                  await connection.schema.createTable("test_table", (table) => {
-                    table.increments("id")
-                    table.string("name").notNullable()
-                  })
-                  await connection.destroy()
-                })
+                Effect.gen(function*() {
+                  const sql = yield* PgClient.PgClient
+                  yield* sql`CREATE TABLE test_table (id SERIAL PRIMARY KEY, name TEXT NOT NULL)`
+                }).pipe(
+                  Effect.provide(makePgLayer(containers.postgres.port, databaseConfiguration)),
+                  Effect.orDie
+                )
             }),
             Effect.flatMap((databaseConfiguration) =>
-              Effect.promise(async () => {
-                const connection = makeKNEX(containers.postgres.port, databaseConfiguration)
-                await connection("test_table").insert({ name: "test_item" })
-                const rows = await connection("test_table").select("*")
+              Effect.gen(function*() {
+                const sql = yield* PgClient.PgClient
+                yield* sql`INSERT INTO test_table ${sql.insert({ name: "test_item" })}`
+                const rows = yield* sql`SELECT * FROM test_table`
                 expect(rows).toStrictEqual([{ id: expect.any(Number), name: "test_item" }])
-                await connection.destroy()
-              })
+              }).pipe(
+                Effect.provide(makePgLayer(containers.postgres.port, databaseConfiguration)),
+                Effect.orDie
+              )
             )
           )
         }),
@@ -217,14 +218,11 @@ const startContainers = pipe(
   Effect.map(({ close: _, ...a }) => a)
 )
 
-const makeKNEX = (postgresPort: number, databaseConfiguration: DatabaseConfiguration) =>
-  knex({
-    client: "pg",
-    connection: {
-      host: "127.0.0.1",
-      port: postgresPort,
-      user: databaseConfiguration.username,
-      password: databaseConfiguration.password,
-      database: databaseConfiguration.database
-    }
+const makePgLayer = (postgresPort: number, databaseConfiguration: DatabaseConfiguration) =>
+  PgClient.layer({
+    host: "127.0.0.1",
+    port: postgresPort,
+    username: databaseConfiguration.username,
+    password: Redacted.make(databaseConfiguration.password),
+    database: databaseConfiguration.database
   })
