@@ -8,7 +8,7 @@ import path from "node:path"
 import { GenericContainer, Network, Wait } from "testcontainers"
 import type { DatabaseTemplateId, InitializeTemplate } from "../src/index.js"
 import { _getConnection, createHash, NoMatchingFiles } from "../src/integresql.js"
-import { DatabaseConfiguration, IntegreSqlApiClient } from "../src/IntegreSqlClient.js"
+import { DatabaseConfiguration, makeIntegreSqlClient } from "../src/IntegreSqlClient.js"
 
 describe.skip(`createHash`, () => {
   it.effect(`File not found fails`, () =>
@@ -40,7 +40,7 @@ describe(`getConnection`, () => {
       pipe(
         Effect.gen(function*() {
           const containers = yield* startContainers
-          const client = new IntegreSqlApiClient({
+          const client = makeIntegreSqlClient({
             integrePort: containers.integreSQL.port,
             integreHost: containers.integreSQL.host
           })
@@ -83,7 +83,7 @@ describe(`getConnection`, () => {
       pipe(
         Effect.gen(function*() {
           const containers = yield* startContainers
-          const client = new IntegreSqlApiClient({
+          const client = makeIntegreSqlClient({
             integrePort: containers.integreSQL.port,
             integreHost: containers.integreSQL.host
           })
@@ -118,7 +118,7 @@ describe(`getConnection`, () => {
       pipe(
         Effect.gen(function*() {
           const containers = yield* startContainers
-          const client = new IntegreSqlApiClient({
+          const client = makeIntegreSqlClient({
             integrePort: containers.integreSQL.port,
             integreHost: containers.integreSQL.host
           })
@@ -170,7 +170,7 @@ describe(`getConnection`, () => {
       pipe(
         Effect.gen(function*() {
           const containers = yield* startContainers
-          const client = new IntegreSqlApiClient({
+          const client = makeIntegreSqlClient({
             integrePort: containers.integreSQL.port,
             integreHost: containers.integreSQL.host
           })
@@ -268,7 +268,7 @@ describe(`getConnection`, () => {
       pipe(
         Effect.gen(function*() {
           const containers = yield* startContainers
-          const client = new IntegreSqlApiClient({
+          const client = makeIntegreSqlClient({
             integrePort: containers.integreSQL.port,
             integreHost: containers.integreSQL.host
           })

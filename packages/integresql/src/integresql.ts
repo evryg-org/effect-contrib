@@ -7,7 +7,7 @@ import crypto from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
 import type { DatabaseConfiguration, DatabaseTemplateId, IntegreSqlClient } from "./IntegreSqlClient.js"
-import { IntegreSqlApiClient } from "./IntegreSqlClient.js"
+import { makeIntegreSqlClient } from "./IntegreSqlClient.js"
 
 /**
  * @since 0.0.1
@@ -67,7 +67,8 @@ function sha1HashFile(filePath: string): Promise<string> {
 
     readStream.on("error", (err) => reject(err))
 
-    readStream.on("data", (chunk) => hash.update(chunk))
+    // TODO: fix casting
+    readStream.on("data", (chunk) => hash.update(chunk as string))
     readStream.on("end", () => resolve(hash.digest("hex")))
   })
 }
@@ -126,17 +127,15 @@ export interface InitializeTemplate<R> {
 export const getConnection = <R>(config: {
   databaseFiles: [string, ...Array<string>]
   initializeTemplate: InitializeTemplate<R>
-  client?: IntegreSqlClient
 }): Effect.Effect<DatabaseConfiguration, never, R> =>
   pipe(
     createHash(config.databaseFiles),
     Effect.flatMap((hash) =>
       _getConnection(
-        config.client ??
-          new IntegreSqlApiClient({
-            integrePort: 5000,
-            integreHost: "localhost"
-          })
+        makeIntegreSqlClient({
+          integrePort: 5000,
+          integreHost: "localhost"
+        })
       )({ ...config, hash })
     ),
     Effect.orDie
