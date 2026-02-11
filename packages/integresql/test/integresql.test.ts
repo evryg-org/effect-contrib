@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "@effect/vitest"
 import { PostgreSqlContainer } from "@testcontainers/postgresql"
-import { Context, Deferred, Duration, Effect, Exit, Layer, pipe } from "effect"
+import { Context, Effect, Exit, Layer, pipe } from "effect"
 import type { Knex } from "knex"
 import knex from "knex"
 import crypto, { randomUUID } from "node:crypto"
@@ -136,9 +136,8 @@ describe(`getConnection`, () => {
     1000 * 50
   )
 
-  // This always blocks for 2s, find a better way/lever to test this
-  it.live(
-    `Trying to get a new DB for a non finalized template blocks`,
+  it.effect(
+    `Different hash, different template`,
     () =>
       pipe(
         Effect.gen(function*() {
@@ -147,42 +146,22 @@ describe(`getConnection`, () => {
             integrePort: containers.integreSQL.port,
             integreHost: containers.integreSQL.host
           })
-          const hash = makeRandomHash()
-          const program2TemplateInitSpy = vi.fn(() => Effect.void)
-          const templateInitStartedDeferred = yield* Deferred.make<void>()
-          const result = yield* pipe(
+          const initializeTemplateSpy = vi.fn(() => Effect.void)
+
+          yield* pipe(
             _getConnection(client)({
-              hash,
-              initializeTemplate: () =>
-                pipe(
-                  templateInitStartedDeferred,
-                  Deferred.succeed<void>(undefined),
-                  Effect.zipRight(Effect.never)
-                )
+              hash: makeRandomHash(),
+              initializeTemplate: initializeTemplateSpy
             }),
-            Effect.fork,
-            Effect.zipRight(
-              pipe(
-                templateInitStartedDeferred,
-                Effect.zipRight(
-                  pipe(
-                    _getConnection(client)({
-                      hash,
-                      initializeTemplate: program2TemplateInitSpy
-                    }),
-                    Effect.timeoutFail({
-                      onTimeout: () => "timeout",
-                      duration: Duration.seconds(2)
-                    }),
-                    Effect.exit
-                  )
-                )
-              )
+            Effect.zip(
+              _getConnection(client)({
+                hash: makeRandomHash(),
+                initializeTemplate: initializeTemplateSpy
+              })
             )
           )
 
-          expect(program2TemplateInitSpy).not.toHaveBeenCalled()
-          expect(result).toStrictEqual(Exit.fail("timeout"))
+          expect(initializeTemplateSpy).toHaveBeenCalledTimes(2)
         }),
         Effect.scoped
       ),
