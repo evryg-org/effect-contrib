@@ -35,7 +35,7 @@ describe.skip(`createHash`, () => {
 
 describe(`getConnection`, () => {
   it.effect(
-    `No template created for hash initializes template and returns new connection`,
+    `Creates a usable template database`,
     () =>
       pipe(
         Effect.gen(function*() {

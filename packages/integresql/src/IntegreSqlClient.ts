@@ -135,7 +135,7 @@ export const makeIntegreSqlClient = (config: { integrePort: number; integreHost:
             headers: { "Content-Type": "application/json" }
           }).then((res) =>
             res
-              .json() 
+              .json()
               .then((data) => ({ status: res.status, data }))
           )
         ),
