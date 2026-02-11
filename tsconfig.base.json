@@ -37,7 +37,8 @@
     "removeComments": false,
     "plugins": [{ "name": "@effect/language-service" }],
     "paths": {
-      "@evryg/integresql": ["./packages/integresql/src/index.js"]
+      "@evryg/effect-integresql": ["./packages/integresql/src/index.js"],
+      "@evryg/demo": ["./packages/demo/src/index.js"]
     }
   }
 }
