@@ -135,6 +135,10 @@ test("My test", () =>
   ))
 ```
 
+## TODO
+
+- Audit peer dependencies: `vitest` and `@effect/platform-node` are not used in source code and may not need to be peer deps.
+
 ## License
 
 MIT

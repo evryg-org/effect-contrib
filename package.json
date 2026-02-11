@@ -49,7 +49,7 @@
     "@effect/dtslint": "^0.1.1",
     "@effect/eslint-plugin": "^0.2.0",
     "@effect/language-service": "^0.1.0",
-    "@effect/vitest": "^0.12.1",
+    "@effect/vitest": "^0.27.0",
     "@eslint/compat": "1.1.1",
     "@eslint/eslintrc": "3.1.0",
     "@eslint/js": "9.9.1",
@@ -57,10 +57,10 @@
     "@types/node": "^22.5.4",
     "@typescript-eslint/eslint-plugin": "^7.16.0",
     "@typescript-eslint/parser": "^7.16.0",
-    "@vitest/browser": "^2.0.5",
-    "@vitest/coverage-v8": "^2.0.5",
-    "@vitest/expect": "^2.0.5",
-    "@vitest/web-worker": "^2.0.5",
+    "@vitest/browser": "^3.2.4",
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/expect": "^3.2.4",
+    "@vitest/web-worker": "^3.2.4",
     "ast-types": "^0.14.2",
     "babel-plugin-annotate-pure-calls": "^0.4.0",
     "eslint": "^9.9.1",
@@ -80,11 +80,11 @@
     "tsx": "^4.17.0",
     "typescript": "^5.6.2",
     "vite": "^5.4.0",
-    "vitest": "^2.0.5"
+    "vitest": "^3.2.4"
   },
   "pnpm": {
     "overrides": {
-      "vitest": "^2.0.5"
+      "vitest": "^3.2.4"
     },
     "patchedDependencies": {
       "@changesets/get-github-info@0.6.0": "patches/@changesets__get-github-info@0.6.0.patch",
