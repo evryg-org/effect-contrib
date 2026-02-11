@@ -137,6 +137,9 @@ test("My test", () =>
 
 ## TODO
 
+todo: fix todos 
+read docs to see what edge cases are not handled (ask claude)
+make docs
 - Audit peer dependencies: `vitest` and `@effect/platform-node` are not used in source code and may not need to be peer deps.
 
 ## License
