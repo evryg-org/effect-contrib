@@ -1,0 +1,11 @@
+{
+  "mode": "pre",
+  "tag": "alpha",
+  "initialVersions": {
+    "@evryg/demo": "0.0.1",
+    "@evryg/effect-integresql": "0.0.1"
+  },
+  "changesets": [
+    "funny-tomatoes-wash"
+  ]
+}
