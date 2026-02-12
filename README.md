@@ -1,40 +1,13 @@
-# Effect
+# effect-contrib
 
-Welcome to Effect, a powerful TypeScript framework that provides a fully-fledged functional effect system with a rich standard library.
+Welcome to the Evryg effect-contrib repository! We develop a set of libraries that complement Effect's official packages for your daily needs.
 
+[Evryg](https://www.evryg.com/en/offers/effect) is a consulting company based in Paris, France with expertise in Effect and the TypeScript ecosystem.
 
-# Requirements
+# Community
 
-- TypeScript 5.4 or newer
-- The `strict` flag enabled in your `tsconfig.json` file
-
-```jsonc
-{
-  // ...
-  "compilerOptions": {
-    // ...
-    "strict": true,
-  },
-}
-```
-
-# Documentation
-
-For detailed information and usage examples, please visit the [Effect website](https://www.effect.website/).
-
-# Introduction to Effect
-
-To get started with Effect, watch our introductory video on YouTube. This video provides an overview of Effect and its key features, making it a great starting point for newcomers:
-
-[![Introduction to Effect](https://img.youtube.com/vi/ViSiXfBKElQ/maxresdefault.jpg)](https://youtu.be/ViSiXfBKElQ)
-
-# Connect with Our Community
-
-Join our vibrant community on Discord to interact with fellow developers, ask questions, and share your experiences. Here's the invite link to our Discord server: [Join Effect's Discord Community](https://discord.gg/hdt7t7jpvn).
-
-# API Reference
-
-For detailed information on the Effect API, please refer to our [API Reference](https://effect-ts.github.io/effect/).
+- [Join Evryg's Discord server](https://discord.gg/7WMGrFwajU)
+- [Effect Paris meetup](https://www.meetup.com/fr-FR/effect-paris/) — founded, co-organized, and co-hosted by Evryg
 
 # Contributing via Pull Requests
 

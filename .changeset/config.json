@@ -8,10 +8,10 @@
   ],
   "commit": false,
   "linked": [],
-  "access": "restricted",
+  "access": "public",
+  "ignore": ["@evryg/effect-integresql"],
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": [],
   "snapshot": {
     "useCalculatedVersion": false,
     "prereleaseTemplate": "{tag}-{commit}"

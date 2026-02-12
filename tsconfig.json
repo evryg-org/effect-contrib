@@ -3,6 +3,7 @@
   "include": [],
   "references": [
     //
-    { "path": "packages/integresql"}
+    { "path": "packages/integresql" },
+    { "path": "packages/demo" }
   ]
 }
