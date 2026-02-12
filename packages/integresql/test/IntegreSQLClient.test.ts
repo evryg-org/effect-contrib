@@ -1,98 +1,198 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Exit, pipe } from "effect"
-import crypto, { randomUUID } from "node:crypto"
-import type { DatabaseTemplateId } from "../src/index.js"
-import { makeIntegreSqlClient, NoSuchTemplate } from "../src/IntegreSqlClient.js"
-import { startContainers } from "./startContainers.js"
+import { Effect, Exit, Option, pipe } from "effect"
+import { randomUUID } from "node:crypto"
+import { inject } from "vitest"
+import {
+  DatabaseConfiguration,
+  IntegrSqlFailedToCreateTemplate,
+  makeIntegreSqlClient,
+  NoSuchTemplate,
+  unsafeMakeDatabaseTemplateId
+} from "../src/IntegreSqlClient.js"
 
 describe(`IntegreSqlClient`, () => {
+  describe("createTemplate", () => {
+    it.effect(
+      `Creating a template returns the template database connection settings`,
+      () =>
+        Effect.gen(function*() {
+          const containers = inject("containers")
+          const client = makeIntegreSqlClient({
+            integrePort: containers.integreSQL.port,
+            integreHost: containers.integreSQL.host
+          })
+          const hash = makeRandomHash()
+
+          const result = yield* client.createTemplate(hash)
+
+          expect(result).toStrictEqual<typeof result>(
+            Option.some(expect.any(DatabaseConfiguration))
+          )
+        })
+    )
+
+    it.effect(
+      `Creating an already existing template does nothing`,
+      () =>
+        Effect.gen(function*() {
+          const containers = inject("containers")
+          const client = makeIntegreSqlClient({
+            integrePort: containers.integreSQL.port,
+            integreHost: containers.integreSQL.host
+          })
+          const hash = makeRandomHash()
+          yield* client.createTemplate(hash)
+
+          const result = yield* client.createTemplate(hash)
+
+          expect(result).toStrictEqual<typeof result>(Option.none())
+        })
+    )
+
+    it.effect(
+      `IntegreSQL not running dies`,
+      () =>
+        Effect.gen(function*() {
+          const client = makeIntegreSqlClient({
+            integrePort: 1,
+            integreHost: "127.0.0.1"
+          })
+          const hash = makeRandomHash()
+
+          const result = yield* pipe(
+            client.createTemplate(hash),
+            Effect.exit
+          )
+
+          expect(result).toStrictEqual<typeof result>(
+            Exit.die(expect.any(IntegrSqlFailedToCreateTemplate))
+          )
+        })
+    )
+  })
+
   describe("finalizeTemplate", () => {
     it.effect(
       `Non-existing template fails with NoSuchTemplate`,
       () =>
-        pipe(
-          Effect.gen(function*() {
-            const containers = yield* startContainers
-            const client = makeIntegreSqlClient({
-              integrePort: containers.integreSQL.port,
-              integreHost: containers.integreSQL.host
-            })
-            const existingHash = makeRandomHash()
-            const nonExistingHash = makeRandomHash()
-            yield* client.createTemplate(existingHash)
+        Effect.gen(function*() {
+          const containers = inject("containers")
+          const client = makeIntegreSqlClient({
+            integrePort: containers.integreSQL.port,
+            integreHost: containers.integreSQL.host
+          })
+          const existingHash = makeRandomHash()
+          const nonExistingHash = makeRandomHash()
+          yield* client.createTemplate(existingHash)
 
-            const result = yield* pipe(
-              client.finalizeTemplate(nonExistingHash),
-              Effect.exit
-            )
+          const result = yield* pipe(
+            client.finalizeTemplate(nonExistingHash),
+            Effect.exit
+          )
 
-            expect(result).toStrictEqual<typeof result>(
-              Exit.fail(new NoSuchTemplate({ id: nonExistingHash }))
-            )
-          }),
-          Effect.scoped
-        ),
-      1000 * 50
+          expect(result).toStrictEqual<typeof result>(
+            Exit.fail(new NoSuchTemplate({ id: nonExistingHash }))
+          )
+        })
     )
 
     it.effect(
       `Non finalized template succeeeds`,
       () =>
-        pipe(
-          Effect.gen(function*() {
-            const containers = yield* startContainers
-            const client = makeIntegreSqlClient({
-              integrePort: containers.integreSQL.port,
-              integreHost: containers.integreSQL.host
-            })
-            const existingHash = makeRandomHash()
-            yield* client.createTemplate(existingHash)
+        Effect.gen(function*() {
+          const containers = inject("containers")
+          const client = makeIntegreSqlClient({
+            integrePort: containers.integreSQL.port,
+            integreHost: containers.integreSQL.host
+          })
+          const existingHash = makeRandomHash()
+          yield* client.createTemplate(existingHash)
 
-            const result = yield* pipe(
-              client.finalizeTemplate(existingHash),
-              Effect.exit
-            )
+          const result = yield* pipe(
+            client.finalizeTemplate(existingHash),
+            Effect.exit
+          )
 
-            expect(result).toStrictEqual<typeof result>(
-              Exit.void
-            )
-          }),
-          Effect.scoped
-        ),
-      1000 * 50
+          expect(result).toStrictEqual<typeof result>(
+            Exit.void
+          )
+        })
     )
 
     it.effect(
       `Template already finalized`,
       () =>
-        pipe(
-          Effect.gen(function*() {
-            const containers = yield* startContainers
-            const client = makeIntegreSqlClient({
-              integrePort: containers.integreSQL.port,
-              integreHost: containers.integreSQL.host
-            })
-            const existingHash = makeRandomHash()
-            yield* client.createTemplate(existingHash)
+        Effect.gen(function*() {
+          const containers = inject("containers")
+          const client = makeIntegreSqlClient({
+            integrePort: containers.integreSQL.port,
+            integreHost: containers.integreSQL.host
+          })
+          const existingHash = makeRandomHash()
+          yield* client.createTemplate(existingHash)
 
-            const result = yield* pipe(
-              client.finalizeTemplate(existingHash),
-              Effect.exit
-            )
+          const result = yield* pipe(
+            client.finalizeTemplate(existingHash),
+            Effect.exit
+          )
 
-            expect(result).toStrictEqual<typeof result>(
-              Exit.void
+          expect(result).toStrictEqual<typeof result>(
+            Exit.void
+          )
+        })
+    )
+  })
+
+  describe("getNewTestDatabase", () => {
+    it.effect(
+      `No matching template returns nothing`,
+      () =>
+        Effect.gen(function*() {
+          const containers = inject("containers")
+          const client = makeIntegreSqlClient({
+            integrePort: containers.integreSQL.port,
+            integreHost: containers.integreSQL.host
+          })
+          const existingHash = makeRandomHash()
+          const nonExistingHash = makeRandomHash()
+          yield* client.createTemplate(existingHash)
+          yield* client.finalizeTemplate(existingHash)
+
+          const result = yield* client.getNewTestDatabase(nonExistingHash)
+
+          expect(result).toStrictEqual<typeof result>(Option.none())
+        })
+    )
+
+    it.effect(
+      `Returns test database connection settings`,
+      () =>
+        Effect.gen(function*() {
+          const containers = inject("containers")
+          const client = makeIntegreSqlClient({
+            integrePort: containers.integreSQL.port,
+            integreHost: containers.integreSQL.host
+          })
+          const hash = makeRandomHash()
+          yield* client.createTemplate(hash)
+          yield* client.finalizeTemplate(hash)
+
+          const result = yield* client.getNewTestDatabase(hash)
+
+          expect(result).toStrictEqual<typeof result>(
+            Option.some(
+              new DatabaseConfiguration({
+                host: expect.any(String),
+                port: expect.any(Number),
+                username: expect.any(String),
+                password: expect.any(String),
+                database: expect.any(String)
+              })
             )
-          }),
-          Effect.scoped
-        ),
-      1000 * 50
+          )
+        })
     )
   })
 })
 
-const makeRandomHash = () =>
-  crypto
-    .createHash("sha1")
-    .update(randomUUID())
-    .digest("hex") as DatabaseTemplateId
+const makeRandomHash = () => unsafeMakeDatabaseTemplateId(randomUUID())

@@ -108,7 +108,11 @@ export const _getConnection = (client: IntegreSqlClient) =>
             Effect.catchTag(
               "NoSuchElementException",
               () =>
-                Effect.die(new Error("[@evryg/integresql]: Unexpected error: Could not get a new test database from an existing template"))
+                Effect.die(
+                  new Error(
+                    "[@evryg/integresql]: Unexpected error: Could not get a new test database from an existing template"
+                  )
+                )
             )
           )
       })
@@ -116,27 +120,15 @@ export const _getConnection = (client: IntegreSqlClient) =>
   )
 
 // TODO:
-// Failure modes while getting a new test database
-// Some typical status codes you might encounter while getting a new test database.
-//
-// failure during initTemplate
-// must return 200 after each call or crash with original error
-// StatusNotFound 404
-// Well, seems like someone forgot to call InitializeTemplate or it errored out.
-//
-// StatusGone 410
-// There was an error during test setup with our fixtures, someone called DiscardTemplate, thus this template cannot be used.
-//
-// StatusServiceUnavailable 503
-// Well, typically a PostgreSQL connectivity problem
-
-// do we need to tear down the db????
-// are we using scopes/up to date patterns
-// fix todos
+// TODO: Hash method & tests
+// Add mising api methods on the client and expose the client
 // read docs to see what edge cases are not handled (ask claude)
 // make docs for per test setup/for suite setup
 // Audit peer dependencies: `vitest` and `@effect/platform-node` are not used in source code and may not need to be peer deps.
 // add example using test containers
+// @todo: hash breaks for monorepo (user CWD)
+// @todo: fail if no files on hash generation
+// "packages/integresql/src/**/*.ts"
 
 /**
  * @since 0.0.1
@@ -145,9 +137,6 @@ export interface InitializeTemplate<E, R> {
   (connection: DatabaseConfiguration): Effect.Effect<void, E, R>
 }
 
-// @todo: hash breaks for monorepo (user CWD)
-// @todo: fail if no files on hash generation
-// "packages/integresql/src/**/*.ts"
 /**
  * @since 0.0.1
  */

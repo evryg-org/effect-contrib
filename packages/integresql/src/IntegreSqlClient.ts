@@ -1,13 +1,18 @@
 /**
  * @since 0.0.1
  */
-import { Data, Effect, Either, flow, Option, pipe, Schema } from "effect"
+import { Brand, Data, Effect, Either, flow, Option, pipe, Schema } from "effect"
 import type { Branded } from "effect/Brand"
 
 /**
  * @since 0.0.1
  */
 export type DatabaseTemplateId = Branded<string, "DATABASE_TEMPLATE_ID">
+
+/**
+ * @since 0.0.1
+ */
+export const unsafeMakeDatabaseTemplateId = Brand.nominal<DatabaseTemplateId>()
 
 /**
  * @since 0.0.1
@@ -38,6 +43,7 @@ export interface IntegreSqlClient {
   finalizeTemplate(hash: DatabaseTemplateId): Effect.Effect<void, NoSuchTemplate>
 
   // Get a new isolated test database from the pool for the template hash
+  // Trying to get a new test database for a non finalized template will wait until template is finalized
   getNewTestDatabase(
     hash: DatabaseTemplateId
   ): Effect.Effect<Option.Option<DatabaseConfiguration>>
