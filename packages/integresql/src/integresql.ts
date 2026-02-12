@@ -16,7 +16,7 @@ export class NoMatchingFiles implements Error {
   /**
    * @since 0.0.1
    */
-  public origin: string = "@everyg/integresql"
+  public origin: string = "@evryg/integresql"
   /**
    * @since 0.0.1
    */
@@ -77,12 +77,10 @@ function sha1HashFile(filePath: string): Promise<string> {
  * @internal
  */
 export const _getConnection = (client: IntegreSqlClient) =>
-<R>(config: {
+<E, R>(config: {
   hash: DatabaseTemplateId
-  initializeTemplate: (
-    connection: DatabaseConfiguration
-  ) => Effect.Effect<void, never, R>
-}): Effect.Effect<DatabaseConfiguration, never, R> =>
+  initializeTemplate: InitializeTemplate<E, R>
+}): Effect.Effect<DatabaseConfiguration, E, R> =>
   pipe(
     client.createTemplate(config.hash),
     Effect.flatMap(
@@ -90,12 +88,17 @@ export const _getConnection = (client: IntegreSqlClient) =>
         onSome: (a) =>
           pipe(
             config.initializeTemplate(a),
-            Effect.zipRight(client.finalizeTemplate(config.hash)),
+            Effect.zipRight(pipe(client.finalizeTemplate(config.hash), Effect.orDie)),
             Effect.zipRight(client.getNewTestDatabase(config.hash)),
             Effect.flatten,
             Effect.catchTag(
               "NoSuchElementException",
-              () => Effect.die(new Error("[@evryg/integresql]: Unexpected error")) // @todo: Can we help the user solve this issue?
+              () =>
+                Effect.die(
+                  new Error(
+                    "[@evryg/integresql]: Unexpected error, could not get a new template database after successfully creating the template"
+                  )
+                )
             )
           ),
         onNone: () =>
@@ -104,18 +107,42 @@ export const _getConnection = (client: IntegreSqlClient) =>
             Effect.flatten,
             Effect.catchTag(
               "NoSuchElementException",
-              () => Effect.die(new Error("[@evryg/integresql]: Unexpected error")) // @todo: Can we help the user solve this issue?
+              () =>
+                Effect.die(new Error("[@evryg/integresql]: Unexpected error: Could not get a new test database from an existing template"))
             )
           )
       })
     )
   )
 
+// TODO:
+// Failure modes while getting a new test database
+// Some typical status codes you might encounter while getting a new test database.
+//
+// failure during initTemplate
+// must return 200 after each call or crash with original error
+// StatusNotFound 404
+// Well, seems like someone forgot to call InitializeTemplate or it errored out.
+//
+// StatusGone 410
+// There was an error during test setup with our fixtures, someone called DiscardTemplate, thus this template cannot be used.
+//
+// StatusServiceUnavailable 503
+// Well, typically a PostgreSQL connectivity problem
+
+// do we need to tear down the db????
+// are we using scopes/up to date patterns
+// fix todos
+// read docs to see what edge cases are not handled (ask claude)
+// make docs for per test setup/for suite setup
+// Audit peer dependencies: `vitest` and `@effect/platform-node` are not used in source code and may not need to be peer deps.
+// add example using test containers
+
 /**
  * @since 0.0.1
  */
-export interface InitializeTemplate<R> {
-  (connection: DatabaseConfiguration): Effect.Effect<void, never, R>
+export interface InitializeTemplate<E, R> {
+  (connection: DatabaseConfiguration): Effect.Effect<void, E, R>
 }
 
 // @todo: hash breaks for monorepo (user CWD)
@@ -124,11 +151,11 @@ export interface InitializeTemplate<R> {
 /**
  * @since 0.0.1
  */
-export const getConnection = <R>(config: {
+export const getConnection = <E, R>(config: {
   databaseFiles: [string, ...Array<string>]
-  initializeTemplate: InitializeTemplate<R>
+  initializeTemplate: InitializeTemplate<E, R>
   connection?: { port: number; host: string }
-}): Effect.Effect<DatabaseConfiguration, never, R> =>
+}): Effect.Effect<DatabaseConfiguration, E, R> =>
   pipe(
     createHash(config.databaseFiles),
     Effect.flatMap((hash) =>

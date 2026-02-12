@@ -20,6 +20,11 @@ export class DatabaseConfiguration extends Data.Class<{
   database: string
 }> {}
 
+export class NoSuchTemplate extends Data.TaggedClass("NoSuchTemplate ")<{
+  id: DatabaseTemplateId
+}> {
+}
+
 /**
  * @since 0.0.1
  */
@@ -30,7 +35,7 @@ export interface IntegreSqlClient {
   ): Effect.Effect<Option.Option<DatabaseConfiguration>>
 
   // Mark the template as finalized so it can be used
-  finalizeTemplate(hash: DatabaseTemplateId): Effect.Effect<void>
+  finalizeTemplate(hash: DatabaseTemplateId): Effect.Effect<void, NoSuchTemplate>
 
   // Get a new isolated test database from the pool for the template hash
   getNewTestDatabase(
@@ -51,6 +56,11 @@ const DatabaseConnectionSchema = Schema.Struct({
   })
 })
 
+export class IntegrSqlFailedToCreateTemplate extends Data.TaggedClass("IntegrSqlFailedToCreateTemplate")<{
+  error: any
+}> {
+}
+
 /**
  * @since 0.0.1
  */
@@ -66,7 +76,7 @@ export const makeIntegreSqlClient = (config: { integrePort: number; integreHost:
       templateId
     ) =>
       pipe(
-        Effect.promise(() =>
+        Effect.tryPromise(() =>
           fetch(new URL("/api/v1/templates", baseUrl), {
             method: "POST",
             body: JSON.stringify({ hash: templateId }),
@@ -77,6 +87,7 @@ export const makeIntegreSqlClient = (config: { integrePort: number; integreHost:
               .then((data) => ({ status: res.status, data }))
           )
         ),
+        Effect.catchAll((error) => Effect.die(new IntegrSqlFailedToCreateTemplate({ error: error.cause }))),
         Effect.flatMap(
           Schema.decodeUnknown(
             Schema.EitherFromUnion({
@@ -104,22 +115,29 @@ export const makeIntegreSqlClient = (config: { integrePort: number; integreHost:
     /**
      * @since 0.0.1
      */
-    finalizeTemplate: (templateId: DatabaseTemplateId): Effect.Effect<void> =>
+    finalizeTemplate: (templateId: DatabaseTemplateId): Effect.Effect<void, NoSuchTemplate> =>
       pipe(
         Effect.promise(() =>
           fetch(new URL(`/api/v1/templates/${templateId}`, baseUrl), {
             method: "PUT",
             headers: { "Content-Type": "application/json" }
-          })
+          }).then((res) => ({ status: res.status }))
         ),
         Effect.flatMap(
           Schema.decodeUnknown(
-            Schema.Struct({
-              status: Schema.Literal(204)
+            Schema.EitherFromUnion({
+              left: Schema.Struct({ status: Schema.Literal(404) }),
+              right: Schema.Struct({ status: Schema.Literal(204) })
             }).annotations({ identifier: "finalize-template" })
           )
         ),
-        Effect.orDie
+        Effect.flatMap(
+          Either.match({
+            onLeft: () => Effect.fail(new NoSuchTemplate({ id: templateId })),
+            onRight: () => Effect.void
+          })
+        ),
+        Effect.catchTag("ParseError", (e) => Effect.die(e))
       ),
 
     /**

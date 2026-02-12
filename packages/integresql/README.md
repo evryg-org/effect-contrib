@@ -1,138 +1,237 @@
-<!-- Title -->
-<h1 align="center">
-  integresql-client
-</h1>
+# @evryg/integresql
 
-<!-- Description -->
-<h4 align="center">
-  <a href="https://github.com/allaboutapps/integresql">IntegreSQL</a> Effect-ts wrapper for managing isolated PostgreSQL databases in integration tests.
-</h4>
+Effect-ts wrapper for [IntegreSQL](https://github.com/allaboutapps/integresql) — instant isolated PostgreSQL databases for integration tests.
 
-<!-- Badges -->
-<p align="center">
-  <a href="https://www.npmjs.com/package/@devoxa/integresql-client">
-    <img
-      src="https://img.shields.io/npm/v/@devoxa/integresql-client?style=flat-square"
-      alt="Package Version"
-    />
-  </a>
+<!-- Badges will go here once the package is published -->
 
-  <a href="https://github.com/devoxa/integresql-client/actions?query=branch%3Amaster+workflow%3A%22Continuous+Integration%22">
-    <img
-      src="https://img.shields.io/github/actions/workflow/status/devoxa/integresql-client/push.yml?branch=master&style=flat-square"
-      alt="Build Status"
-    />
-  </a>
+## How it Works
 
-  <a href="https://codecov.io/github/devoxa/integresql-client">
-    <img
-      src="https://img.shields.io/codecov/c/github/devoxa/integresql-client/master?style=flat-square"
-      alt="Code Coverage"
-    />
-  </a>
-</p>
+IntegreSQL sits between your test runner and PostgreSQL. It uses a **template → clone** pattern to give every test its own database without repeating expensive setup work.
 
-<!-- Quicklinks -->
-<p align="center">
-  <a href="#installation">Installation</a> •
-  <a href="#usage">Usage</a> •
-  <a href="#contributors">Contributors</a> •
-  <a href="#license">License</a>
-</p>
+When your test suite starts, the library hashes the files you point it at (migrations, schema files, etc.). If the hash is new, IntegreSQL creates a **template database** and runs your initialization function (migrations, seed data, …) exactly once. For every test that requests a database, IntegreSQL instantly **clones** the template — no re-running migrations, no shared state, no conflicts.
 
-<br>
+```
+files → hash → template DB (run init once) → clone per test
+                                             → clone per test
+                                             → clone per test
+```
+
+Tests run in parallel, each against its own disposable database. When the files change, a new template is created automatically.
+
+## Prerequisites
+
+- **Docker** — to run PostgreSQL and the IntegreSQL server
+- **Node.js >= 18**
+- **`effect`** as a peer dependency (`>= 3.19.16`)
 
 ## Installation
 
 ```bash
-npm i -D @evryg/integresql
+# npm
+npm install @evryg/integresql
+
+# pnpm
+pnpm add @evryg/integresql
 ```
 
-**To install IntegreSQL, please follow their
-[installation instructions](https://github.com/allaboutapps/integresql#usage).**
+`effect` is a peer dependency — make sure it is already installed in your project.
 
-## Usage
+## Quick Start
+
+### Step 1 — Start the infrastructure
+
+Create a `docker-compose.yml` at the root of your project:
+
+```yaml
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  integresql:
+    image: ghcr.io/allaboutapps/integresql:v1.1.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      INTEGRESQL_PGHOST: postgres
+      INTEGRESQL_PGUSER: postgres
+      INTEGRESQL_PGPASSWORD: postgres
+    ports:
+      - "5000:5000"
+```
+
+```bash
+docker compose up -d
+```
+
+### Step 2 — Create a test helper
 
 ```ts
-// test-utils.ts
-import { getConnection } from "@evryg/integresql"
-import { PgClient, PgMigrator } from "@effect/sql-pg"
-import { NodeContext } from "@effect/platform-node"
+// test/get-test-db.ts
+import { getConnection, type DatabaseConfiguration } from "@evryg/integresql"
+import { PgClient } from "@effect/sql-pg"
 import { Effect, Redacted } from "effect"
-import path from "node:path"
 
-//           [1]
-//           This is the effect you will use across your tests
-//           to get a new database to connect-to on each test
-//           V
-export const getTestDatabaseConnection = getConnection({
-  //              [2]
-  //              The files integreSQL should watch for changes
-  //              V
-  databaseFiles: ["migrations/**/*.ts"],
-  //                   [3]
-  //                   Connect once to the database and apply the changes (migrations/fixtures/...)
-  //                   that will define your postgres template
-  //                   V
+// Returns an Effect that yields a fresh DatabaseConfiguration per call
+export const getTestDatabase = getConnection({
+  // Glob patterns for the files that define your DB schema.
+  // When these files change, a new template is created.
+  databaseFiles: ["src/migrations/**/*.sql"],
+
+  // Called once per unique hash to initialize the template database.
   initializeTemplate: (connection) =>
-    Effect.gen(function*() {
-      yield* PgMigrator.run({
-        loader: PgMigrator.fromFileSystem(path.join(__dirname, "migrations")),
-        schemaDirectory: "migrations"
-      })
+    Effect.gen(function* () {
+      const sql = yield* PgClient.PgClient
+      yield* sql`CREATE TABLE users (
+        id   SERIAL PRIMARY KEY,
+        name TEXT NOT NULL
+      )`
     }).pipe(
-      // [4]
-      // Run the migrations/fixtures, ... Whatever every new generated test database should have
-      // V
-      Effect.provide(PgClient.layer({
-        host: connection.host,
-        port: connection.port,
-        username: connection.username,
-        password: Redacted.make(connection.password),
-        database: connection.database
-      })),
-      Effect.provide(NodeContext.layer),
+      Effect.provide(pgClientLayer(connection)),
       Effect.orDie
-    )
+    ),
 })
 
-// ThingRepository.spec.ts
-import { getTestDatabaseConnection } from "../test-utils.ts"
+// Helper to build a PgClient layer from a DatabaseConfiguration
+export const pgClientLayer = (connection: DatabaseConfiguration) =>
+  PgClient.layer({
+    host: connection.host,
+    port: connection.port,
+    username: connection.username,
+    password: Redacted.make(connection.password),
+    database: connection.database,
+  })
+```
 
-test("My test", () =>
-  pipe(
-    Effect.gen(function*() {
-      // [5]
-      // Get a connection to a new test database
-      // V
-      const connection = yield* getTestDatabaseConnection
+### Step 3 — Use in tests
 
-      // [6]
-      // Run an effect that needs the database, providing PgClient.layer
-      // V
-      yield* Effect.gen(function*() {
-        const result = yield* createThingInDatabase
-        expect(result).toStrictEqual(whatever)
-      }).pipe(
-        Effect.provide(PgClient.layer({
-          host: connection.host,
-          port: connection.port,
-          username: connection.username,
-          password: Redacted.make(connection.password),
-          database: connection.database
-        }))
-      )
-    }),
-    Effect.runPromise
+```ts
+// test/users.test.ts
+import { PgClient } from "@effect/sql-pg"
+import { Effect } from "effect"
+import { getTestDatabase, pgClientLayer } from "./get-test-db.js"
+import { expect, test } from "vitest"
+
+// Small helper: grab a fresh DB, build a PgClient layer, run the effect
+const runWithDb = <A>(effect: Effect.Effect<A, never, PgClient.PgClient>) =>
+  Effect.gen(function* () {
+    const connection = yield* getTestDatabase
+    return yield* Effect.provide(effect, pgClientLayer(connection))
+  }).pipe(Effect.runPromise)
+
+test("can insert and query", () =>
+  runWithDb(
+    Effect.gen(function* () {
+      const sql = yield* PgClient.PgClient
+      yield* sql`INSERT INTO users (name) VALUES ('Alice')`
+      const rows = yield* sql`SELECT name FROM users`
+      expect(rows).toHaveLength(1)
+      expect(rows[0].name).toBe("Alice")
+    })
+  ))
+
+test("each test gets an empty database", () =>
+  runWithDb(
+    Effect.gen(function* () {
+      const sql = yield* PgClient.PgClient
+      const rows = yield* sql`SELECT * FROM users`
+      expect(rows).toHaveLength(0) // no data from the other test
+    })
   ))
 ```
 
-## TODO
+## Examples
 
-todo: fix todos
-read docs to see what edge cases are not handled (ask claude)
-make docs
-- Audit peer dependencies: `vitest` and `@effect/platform-node` are not used in source code and may not need to be peer deps.
+### Seed data in the template
+
+If every test needs reference data, insert it in `initializeTemplate`. Every cloned database will start with those rows:
+
+```ts
+export const getTestDatabase = getConnection({
+  databaseFiles: ["src/migrations/**/*.sql"],
+  initializeTemplate: (connection) =>
+    Effect.gen(function* () {
+      const sql = yield* PgClient.PgClient
+      yield* sql`CREATE TABLE roles (id SERIAL PRIMARY KEY, name TEXT NOT NULL)`
+      yield* sql`INSERT INTO roles (name) VALUES ('admin'), ('member')`
+    }).pipe(
+      Effect.provide(pgClientLayer(connection)),
+      Effect.orDie
+    ),
+})
+```
+
+### Sharing a template across test files
+
+The template is identified by the hash of `databaseFiles`. If two test files use the same `databaseFiles` patterns, they share the same template — initialization runs only once. Export a single helper and import it everywhere:
+
+```ts
+// test/get-test-db.ts  — shared across all test files
+export const getTestDatabase = getConnection({ /* ... */ })
+
+// test/users.test.ts
+import { getTestDatabase } from "./get-test-db.js"
+
+// test/orders.test.ts
+import { getTestDatabase } from "./get-test-db.js"
+```
+
+### Custom IntegreSQL connection
+
+By default the library connects to IntegreSQL at `localhost:5000`. Override with the `connection` option:
+
+```ts
+export const getTestDatabase = getConnection({
+  databaseFiles: ["src/migrations/**/*.sql"],
+  initializeTemplate: (connection) => /* ... */,
+  connection: { host: "integresql.local", port: 8080 },
+})
+```
+
+## API
+
+### `getConnection(config)`
+
+```ts
+getConnection<R>(config: {
+  databaseFiles: [string, ...Array<string>]
+  initializeTemplate: (connection: DatabaseConfiguration) => Effect.Effect<void, never, R>
+  connection?: { host: string; port: number }
+}): Effect.Effect<DatabaseConfiguration, never, R>
+```
+
+Returns an `Effect` that, when run, yields a `DatabaseConfiguration` pointing to a fresh isolated database.
+
+| Parameter              | Description                                                                                          |
+| ---------------------- | ---------------------------------------------------------------------------------------------------- |
+| `databaseFiles`        | One or more glob patterns. File contents are hashed to identify the template.                        |
+| `initializeTemplate`   | Runs once per unique hash. Use it to apply migrations, create tables, or insert seed data.           |
+| `connection`           | Optional. IntegreSQL server address. Defaults to `{ host: "localhost", port: 5000 }`.                |
+
+### `DatabaseConfiguration`
+
+Returned by `getConnection`. Contains everything you need to connect to the test database:
+
+```ts
+class DatabaseConfiguration {
+  host: string
+  port: number
+  username: string
+  password: string
+  database: string
+}
+```
 
 ## License
 

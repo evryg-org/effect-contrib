@@ -1,14 +1,13 @@
 import { PgClient } from "@effect/sql-pg"
 import { describe, expect, it, vi } from "@effect/vitest"
-import { PostgreSqlContainer } from "@testcontainers/postgresql"
 import { Effect, Exit, pipe, Redacted } from "effect"
 import crypto, { randomUUID } from "node:crypto"
 import path from "node:path"
-import { GenericContainer, Network, Wait } from "testcontainers"
 import type { DatabaseTemplateId } from "../src/index.js"
 import { _getConnection, createHash, NoMatchingFiles } from "../src/integresql.js"
 import type { DatabaseConfiguration } from "../src/IntegreSqlClient.js"
-import { makeIntegreSqlClient } from "../src/IntegreSqlClient.js"
+import { IntegrSqlFailedToCreateTemplate, makeIntegreSqlClient } from "../src/IntegreSqlClient.js"
+import { startContainers } from "./startContainers.js"
 
 describe.skip(`createHash`, () => {
   it.effect(`File not found fails`, () =>
@@ -34,6 +33,60 @@ describe.skip(`createHash`, () => {
 })
 
 describe(`getConnection`, () => {
+  it.effect(
+    `No database to connect to dies`,
+    () =>
+      pipe(
+        Effect.gen(function*() {
+          const containers = yield* startContainers
+          const client = makeIntegreSqlClient({
+            integrePort: 1234,
+            integreHost: containers.integreSQL.host
+          })
+          const hash = makeRandomHash()
+
+          const result = yield* pipe(
+            _getConnection(client)({
+              hash,
+              initializeTemplate: () => Effect.void
+            }),
+            Effect.exit
+          )
+
+          expect(result).toStrictEqual<typeof result>(Exit.die(expect.any(IntegrSqlFailedToCreateTemplate)))
+        }),
+        Effect.scoped
+      ),
+    1000 * 50
+  )
+
+  it.effect(
+    `Failure during initialize tempate passes on failure`,
+    () =>
+      pipe(
+        Effect.gen(function*() {
+          const containers = yield* startContainers
+          const client = makeIntegreSqlClient({
+            integrePort: containers.integreSQL.port,
+            integreHost: containers.integreSQL.host
+          })
+          const hash = makeRandomHash()
+
+          const result = yield* pipe(
+            _getConnection(client)({
+              hash,
+              initializeTemplate: () => Effect.fail("initialize_template_failure")
+            }),
+            Effect.exit
+          )
+
+          expect(result).toStrictEqual<typeof result>(Exit.fail("initialize_template_failure"))
+        }),
+        Effect.scoped
+      ),
+    1000 * 50
+  )
+
   it.effect(
     `Creates a usable template database`,
     () =>
@@ -174,49 +227,6 @@ const makeRandomHash = () =>
     .createHash("sha1")
     .update(randomUUID())
     .digest("hex") as DatabaseTemplateId
-
-const startContainers = pipe(
-  Effect.promise(async () => {
-    const network = await new Network().start()
-    const postgres = await new PostgreSqlContainer("postgres:12.2-alpine")
-      .withNetwork(network)
-      .start()
-    const integreSQL = await new GenericContainer(
-      "ghcr.io/allaboutapps/integresql:v1.1.0"
-    )
-      .withExposedPorts(5000)
-      .withNetwork(network)
-      .withEnvironment({
-        PGDATABASE: postgres.getDatabase(),
-        PGUSER: postgres.getUsername(),
-        PGPASSWORD: postgres.getPassword(),
-        PGHOST: postgres.getIpAddress(network.getName()),
-        PGPORT: "5432", // Use the container port, we are reaching through container network
-        PGSSLMODE: "disable"
-      })
-      .withNetwork(network)
-      .withWaitStrategy(Wait.forLogMessage("server started on"))
-      .start()
-
-    return {
-      integreSQL: {
-        port: integreSQL.getFirstMappedPort(),
-        host: integreSQL.getHost()
-      },
-      postgres: {
-        port: postgres.getFirstMappedPort(),
-        host: postgres.getHost()
-      },
-      close: Effect.promise(async () => {
-        await integreSQL.stop()
-        await postgres.stop()
-        await network.stop()
-      })
-    }
-  }),
-  Effect.acquireRelease((a) => a.close),
-  Effect.map(({ close: _, ...a }) => a)
-)
 
 const makePgLayer = (postgresPort: number, databaseConfiguration: DatabaseConfiguration) =>
   PgClient.layer({
