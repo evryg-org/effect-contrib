@@ -57,9 +57,6 @@ export const makeGetConnection = (client: IntegreSqlClient) =>
 // make docs for per test setup/for suite setup
 // Audit peer dependencies: `vitest` and `@effect/platform-node` are not used in source code and may not need to be peer deps.
 // add example using test containers
-// @todo: hash breaks for monorepo (user CWD)
-// @todo: fail if no files on hash generation
-// "packages/integresql/src/**/*.ts"
 
 /**
  * @since 0.0.1
