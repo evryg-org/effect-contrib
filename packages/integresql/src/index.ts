@@ -11,7 +11,7 @@ export {
    * @since 0.0.1
    */
   type InitializeTemplate
-} from "./integresql.js"
+} from "./getConnection.js"
 
 export type {
   /**
@@ -27,6 +27,3 @@ export type {
    */
   IntegreSqlClient
 } from "./IntegreSqlClient.js"
-
-
-

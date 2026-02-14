@@ -47,6 +47,6 @@ describe(`examples`, () => {
             database: databaseConfiguration.database
           }))
         )
-      }),
+      })
   )
 })

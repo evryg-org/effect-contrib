@@ -4,7 +4,7 @@ import { Effect, Exit, pipe, Redacted } from "effect"
 import { randomUUID } from "node:crypto"
 import path from "node:path"
 import { inject } from "vitest"
-import { _getConnection, createHash, NoMatchingFiles } from "../src/integresql.js"
+import { makeGetConnection, createHash, NoMatchingFiles } from "../src/getConnection.js"
 import type { DatabaseConfiguration } from "../src/IntegreSqlClient.js"
 import { makeIntegreSqlClient, unsafeMakeDatabaseTemplateId } from "../src/IntegreSqlClient.js"
 
@@ -44,7 +44,7 @@ describe(`getConnection`, () => {
         const hash = makeRandomHash()
 
         const result = yield* pipe(
-          _getConnection(client)({
+          makeGetConnection(client)({
             hash,
             initializeTemplate: () => Effect.fail("initialize_template_failure")
           }),
@@ -67,7 +67,7 @@ describe(`getConnection`, () => {
         const hash = makeRandomHash()
 
         yield* pipe(
-          _getConnection(client)({
+          makeGetConnection(client)({
             hash,
             initializeTemplate: (databaseConfiguration) =>
               Effect.gen(function*() {
@@ -104,7 +104,7 @@ describe(`getConnection`, () => {
         })
         const hash = makeRandomHash()
         const initializeTemplateSpy = vi.fn(() => Effect.void)
-        const createTemplate = _getConnection(client)({
+        const createTemplate = makeGetConnection(client)({
           hash,
           initializeTemplate: initializeTemplateSpy
         })
@@ -131,7 +131,7 @@ describe(`getConnection`, () => {
           integrePort: containers.integreSQL.port,
           integreHost: containers.integreSQL.host
         })
-        const getConnection = _getConnection(client)({
+        const getConnection = makeGetConnection(client)({
           hash: makeRandomHash(),
           initializeTemplate: () => Effect.void
         })
@@ -157,12 +157,12 @@ describe(`getConnection`, () => {
         const initializeTemplateSpy = vi.fn(() => Effect.void)
 
         yield* pipe(
-          _getConnection(client)({
+          makeGetConnection(client)({
             hash: makeRandomHash(),
             initializeTemplate: initializeTemplateSpy
           }),
           Effect.zip(
-            _getConnection(client)({
+            makeGetConnection(client)({
               hash: makeRandomHash(),
               initializeTemplate: initializeTemplateSpy
             })

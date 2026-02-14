@@ -76,7 +76,7 @@ function sha1HashFile(filePath: string): Promise<string> {
 /**
  * @internal
  */
-export const _getConnection = (client: IntegreSqlClient) =>
+export const makeGetConnection = (client: IntegreSqlClient) =>
 <E, R>(config: {
   hash: DatabaseTemplateId
   initializeTemplate: InitializeTemplate<E, R>
@@ -119,7 +119,8 @@ export const _getConnection = (client: IntegreSqlClient) =>
     )
   )
 
-// TODO:
+// TODO: have get connection get a templateId
+// TODO: export various way to get a templateId
 // TODO: Hash method & tests
 // Add mising api methods on the client and expose the client
 // read docs to see what edge cases are not handled (ask claude)
@@ -148,7 +149,7 @@ export const getConnection = <E, R>(config: {
   pipe(
     createHash(config.databaseFiles),
     Effect.flatMap((hash) =>
-      _getConnection(
+      makeGetConnection(
         makeIntegreSqlClient({
           integrePort: config.connection?.port || 5000,
           integreHost: config.connection?.host || "localhost"
