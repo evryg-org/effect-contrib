@@ -5,9 +5,11 @@ import { randomUUID } from "crypto"
 import type { Scope } from "effect"
 import { Effect, Exit, Layer, pipe } from "effect"
 import path from "path"
-import { NoMatchingFiles, templateIdFromFiles } from "../src/createHash.js"
+import { NoMatchingFiles, templateIdFromFiles } from "../src/templateIdFromFilesHash.js"
 
-describe(`createHash`, () => {
+const fixturesDirectory = path.join(process.cwd(), "__fixtures__")
+
+describe(`templateIdFromFilesHash`, () => {
   const dependencies = pipe(
     makeLiveFixturesService(fixturesDirectory),
     Layer.provideMerge(
@@ -35,6 +37,24 @@ describe(`createHash`, () => {
             ])
           )
         )
+      }),
+      Effect.provide(dependencies)
+    ))
+
+  it.scoped(`Different file, different id`, () =>
+    pipe(
+      Effect.gen(function*() {
+        yield* FixturesService.createRandomFile(".A")
+        yield* FixturesService.createRandomFile(".B")
+
+        const [idA, idB] = yield* pipe(
+          templateIdFromFiles(["**/*.A"]),
+          Effect.zip(
+            templateIdFromFiles(["**/*.B"])
+          )
+        )
+
+        expect(idA).not.toStrictEqual(idB)
       }),
       Effect.provide(dependencies)
     ))
@@ -69,11 +89,7 @@ describe(`createHash`, () => {
       }),
       Effect.provide(dependencies)
     ))
-
-  // Any file different, different id
 })
-
-const fixturesDirectory = path.join(process.cwd(), ".fixtures")
 
 class FixturesService extends Effect.Tag("FixturesService")<FixturesService, {
   createRandomFile(extension: string): Effect.Effect<string, never, Scope.Scope>
