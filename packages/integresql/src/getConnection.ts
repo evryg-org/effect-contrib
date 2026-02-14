@@ -3,7 +3,7 @@
  */
 import { Effect, Option, pipe } from "effect"
 import type { DatabaseConfiguration, DatabaseTemplateId, IntegreSqlClient } from "./IntegreSqlClient.js"
-import { makeIntegreSqlClient } from "./IntegreSqlClient.js"
+import { makeIntegreSqlClient, unsafeMakeDatabaseTemplateId } from "./IntegreSqlClient.js"
 
 /**
  * @internal
@@ -71,20 +71,20 @@ export interface InitializeTemplate<E, R> {
 /**
  * @since 0.0.1
  */
-export const getConnection = <E, R>(config: {
-  databaseFiles: [string, ...Array<string>]
-  initializeTemplate: InitializeTemplate<E, R>
+export const getConnection = <E1, E2, R1, R2>(config: {
+  templateId: Effect.Effect<string, E1, R1>
+  initializeTemplate: InitializeTemplate<E2, R2>
   connection?: { port: number; host: string }
-}): Effect.Effect<DatabaseConfiguration, E, R> =>
+}): Effect.Effect<DatabaseConfiguration, E1 | E2, R1 | R2> =>
   pipe(
-    createHash(config.databaseFiles),
-    Effect.flatMap((hash) =>
+    config.templateId,
+    Effect.flatMap((templateId) =>
       makeGetConnection(
         makeIntegreSqlClient({
           integrePort: config.connection?.port || 5000,
           integreHost: config.connection?.host || "localhost"
         })
-      )({ ...config, hash })
+      )({ ...config, hash: unsafeMakeDatabaseTemplateId(templateId) })
     ),
     Effect.orDie
   )

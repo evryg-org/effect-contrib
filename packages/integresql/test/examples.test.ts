@@ -3,6 +3,7 @@ import { describe, expect, it } from "@effect/vitest"
 import { Effect, Redacted } from "effect"
 import { inject } from "vitest"
 import { getConnection } from "../src/index.js"
+import { templateIdFromFiles as templateIdFromFilesHash } from "../src/templateIdFromFilesHash.js"
 
 describe(`examples`, () => {
   it.effect(
@@ -12,7 +13,9 @@ describe(`examples`, () => {
         const containers = inject("containers")
 
         const databaseConfiguration = yield* getConnection({
-          databaseFiles: ["packages/integresql/src/**/*.ts"],
+          templateId: templateIdFromFilesHash(
+            ["packages/integresql/src/**/*.ts"]
+          ),
           initializeTemplate: (connection) =>
             Effect.gen(function*() {
               const sql = yield* PgClient.PgClient
