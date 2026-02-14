@@ -7,6 +7,22 @@ import type { Branded } from "effect/Brand"
 /**
  * @since 0.0.1
  */
+export class NoSuchTemplate extends Data.TaggedClass("NoSuchTemplate")<{
+  id: DatabaseTemplateId
+}> {
+}
+
+/**
+ * @since 0.0.1
+ */
+export class IntegreSqlFailedToCreateTemplate extends Data.TaggedClass("IntegrSqlFailedToCreateTemplate")<{
+  error: unknown
+}> {
+}
+
+/**
+ * @since 0.0.1
+ */
 export type DatabaseTemplateId = Branded<string, "DATABASE_TEMPLATE_ID">
 
 /**
@@ -24,11 +40,6 @@ export class DatabaseConfiguration extends Data.Class<{
   password: string
   database: string
 }> {}
-
-export class NoSuchTemplate extends Data.TaggedClass("NoSuchTemplate ")<{
-  id: DatabaseTemplateId
-}> {
-}
 
 /**
  * @since 0.0.1
@@ -62,15 +73,9 @@ const DatabaseConnectionSchema = Schema.Struct({
   })
 })
 
-export class IntegrSqlFailedToCreateTemplate extends Data.TaggedClass("IntegrSqlFailedToCreateTemplate")<{
-  error: any
-}> {
-}
-
 /**
  * @since 0.0.1
  */
-
 export const makeIntegreSqlClient = (config: { integrePort: number; integreHost: string }): IntegreSqlClient => {
   const baseUrl = `http://${config.integreHost}:${config.integrePort}`
 
@@ -93,7 +98,7 @@ export const makeIntegreSqlClient = (config: { integrePort: number; integreHost:
               .then((data) => ({ status: res.status, data }))
           )
         ),
-        Effect.catchAll((error) => Effect.die(new IntegrSqlFailedToCreateTemplate({ error: error.cause }))),
+        Effect.catchAll((error) => Effect.die(new IntegreSqlFailedToCreateTemplate({ error: error.cause }))),
         Effect.flatMap(
           Schema.decodeUnknown(
             Schema.EitherFromUnion({

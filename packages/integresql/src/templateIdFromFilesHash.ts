@@ -3,12 +3,12 @@ import glob from "fast-glob"
 import crypto from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
-import type { DatabaseTemplateId } from "./IntegreSqlClient.js"
+import { type DatabaseTemplateId, unsafeMakeDatabaseTemplateId } from "./IntegreSqlClient.js"
 
 /**
  * @since 0.0.1
  */
-export class NoMatchingFiles implements Error {
+export class NoMatchingFiles extends Error {
   /**
    * @since 0.0.1
    */
@@ -17,11 +17,10 @@ export class NoMatchingFiles implements Error {
    * @since 0.0.1
    */
   public name: string = "No matching files"
-  /**
-   * @since 0.0.1
-   */
-  public message: string = "No files matching the provided glob pattern"
-  constructor(public computedPaths: Array<string>) {}
+
+  constructor(public computedPaths: Array<string>) {
+    super("No files matching the provided glob pattern")
+  }
 }
 
 /**
@@ -43,7 +42,7 @@ export const templateIdFromFiles = (
       Effect.promise(async () => {
         const filePaths = files.map((file) => path.join(process.cwd(), file))
         const fileHashes = await Promise.all(filePaths.map(sha1HashFile))
-        return sha1HashString(fileHashes.join("")) as DatabaseTemplateId
+        return unsafeMakeDatabaseTemplateId(sha1HashString(fileHashes.join("")))
       })
     )
   )

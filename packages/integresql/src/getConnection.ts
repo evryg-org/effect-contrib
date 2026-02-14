@@ -81,10 +81,9 @@ export const getConnection = <E1, E2, R1, R2>(config: {
     Effect.flatMap((templateId) =>
       makeGetConnection(
         makeIntegreSqlClient({
-          integrePort: config.connection?.port || 5000,
-          integreHost: config.connection?.host || "localhost"
+          integrePort: config.connection?.port ?? 5000,
+          integreHost: config.connection?.host ?? "localhost"
         })
       )({ ...config, hash: unsafeMakeDatabaseTemplateId(templateId) })
-    ),
-    Effect.orDie
+    )
   )

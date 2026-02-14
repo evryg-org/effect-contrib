@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto"
 import { inject } from "vitest"
 import {
   DatabaseConfiguration,
-  IntegrSqlFailedToCreateTemplate,
+  IntegreSqlFailedToCreateTemplate,
   makeIntegreSqlClient,
   NoSuchTemplate,
   unsafeMakeDatabaseTemplateId
@@ -65,7 +65,7 @@ describe(`IntegreSqlClient`, () => {
           )
 
           expect(result).toStrictEqual<typeof result>(
-            Exit.die(expect.any(IntegrSqlFailedToCreateTemplate))
+            Exit.die(expect.any(IntegreSqlFailedToCreateTemplate))
           )
         })
     )
@@ -97,7 +97,7 @@ describe(`IntegreSqlClient`, () => {
     )
 
     it.effect(
-      `Non finalized template succeeeds`,
+      `Non finalized template succeeds`,
       () =>
         Effect.gen(function*() {
           const containers = inject("containers")
@@ -130,6 +130,7 @@ describe(`IntegreSqlClient`, () => {
           })
           const existingHash = makeRandomHash()
           yield* client.createTemplate(existingHash)
+          yield* client.finalizeTemplate(existingHash)
 
           const result = yield* pipe(
             client.finalizeTemplate(existingHash),
