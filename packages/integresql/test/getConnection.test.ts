@@ -2,34 +2,10 @@ import { PgClient } from "@effect/sql-pg"
 import { describe, expect, it, vi } from "@effect/vitest"
 import { Effect, Exit, pipe, Redacted } from "effect"
 import { randomUUID } from "node:crypto"
-import path from "node:path"
 import { inject } from "vitest"
-import { makeGetConnection, createHash, NoMatchingFiles } from "../src/getConnection.js"
+import { makeGetConnection } from "../src/getConnection.js"
 import type { DatabaseConfiguration } from "../src/IntegreSqlClient.js"
 import { makeIntegreSqlClient, unsafeMakeDatabaseTemplateId } from "../src/IntegreSqlClient.js"
-
-describe.skip(`createHash`, () => {
-  it.effect(`File not found fails`, () =>
-    pipe(
-      Effect.gen(function*() {
-        const result = yield* pipe(
-          createHash(["packages/integresql/non_existing_folder/**/*.ts"]),
-          Effect.exit
-        )
-
-        expect(result).toStrictEqual<typeof result>(
-          Exit.fail(
-            new NoMatchingFiles([
-              path.join(
-                process.cwd(),
-                "packages/integresql/non_existing_folder/**/*.ts"
-              )
-            ])
-          )
-        )
-      })
-    ))
-})
 
 describe(`getConnection`, () => {
   it.effect(
