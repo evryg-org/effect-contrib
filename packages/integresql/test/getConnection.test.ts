@@ -9,7 +9,7 @@ import { makeIntegreSqlClient, unsafeMakeDatabaseTemplateId } from "../src/Integ
 
 describe(`getConnection`, () => {
   it.effect(
-    `Failure during initialize tempate passes on failure`,
+    `Failure during initialize template passes on failure`,
     () =>
       Effect.gen(function*() {
         const containers = inject("containers")

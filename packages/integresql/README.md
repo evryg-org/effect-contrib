@@ -79,15 +79,15 @@ docker compose up -d
 
 ```ts
 // test/get-test-db.ts
-import { getConnection, type DatabaseConfiguration } from "@evryg/integresql"
+import { getConnection, templateIdFromFiles, type DatabaseConfiguration } from "@evryg/integresql"
 import { PgClient } from "@effect/sql-pg"
 import { Effect, Redacted } from "effect"
 
 // Returns an Effect that yields a fresh DatabaseConfiguration per call
 export const getTestDatabase = getConnection({
-  // Glob patterns for the files that define your DB schema.
-  // When these files change, a new template is created.
-  databaseFiles: ["src/migrations/**/*.sql"],
+  // An Effect that resolves to a template ID string.
+  // templateIdFromFiles hashes the matched files — when they change, a new template is created.
+  templateId: templateIdFromFiles(["src/migrations/**/*.sql"]),
 
   // Called once per unique hash to initialize the template database.
   initializeTemplate: (connection) =>
@@ -159,7 +159,7 @@ If every test needs reference data, insert it in `initializeTemplate`. Every clo
 
 ```ts
 export const getTestDatabase = getConnection({
-  databaseFiles: ["src/migrations/**/*.sql"],
+  templateId: templateIdFromFiles(["src/migrations/**/*.sql"]),
   initializeTemplate: (connection) =>
     Effect.gen(function* () {
       const sql = yield* PgClient.PgClient
@@ -174,7 +174,7 @@ export const getTestDatabase = getConnection({
 
 ### Sharing a template across test files
 
-The template is identified by the hash of `databaseFiles`. If two test files use the same `databaseFiles` patterns, they share the same template — initialization runs only once. Export a single helper and import it everywhere:
+The template is identified by the `templateId`. If two test files use the same `templateId`, they share the same template — initialization runs only once. Export a single helper and import it everywhere:
 
 ```ts
 // test/get-test-db.ts  — shared across all test files
@@ -193,7 +193,7 @@ By default the library connects to IntegreSQL at `localhost:5000`. Override with
 
 ```ts
 export const getTestDatabase = getConnection({
-  databaseFiles: ["src/migrations/**/*.sql"],
+  templateId: templateIdFromFiles(["src/migrations/**/*.sql"]),
   initializeTemplate: (connection) => /* ... */,
   connection: { host: "integresql.local", port: 8080 },
 })
@@ -204,20 +204,34 @@ export const getTestDatabase = getConnection({
 ### `getConnection(config)`
 
 ```ts
-getConnection<R>(config: {
-  databaseFiles: [string, ...Array<string>]
-  initializeTemplate: (connection: DatabaseConfiguration) => Effect.Effect<void, never, R>
+getConnection<E1, E2, R1, R2>(config: {
+  templateId: Effect.Effect<string, E1, R1>
+  initializeTemplate: (connection: DatabaseConfiguration) => Effect.Effect<void, E2, R2>
   connection?: { host: string; port: number }
-}): Effect.Effect<DatabaseConfiguration, never, R>
+}): Effect.Effect<DatabaseConfiguration, E1 | E2, R1 | R2>
 ```
 
 Returns an `Effect` that, when run, yields a `DatabaseConfiguration` pointing to a fresh isolated database.
 
 | Parameter              | Description                                                                                          |
 | ---------------------- | ---------------------------------------------------------------------------------------------------- |
-| `databaseFiles`        | One or more glob patterns. File contents are hashed to identify the template.                        |
-| `initializeTemplate`   | Runs once per unique hash. Use it to apply migrations, create tables, or insert seed data.           |
+| `templateId`           | An `Effect` that resolves to a template ID string. Use `templateIdFromFiles` to compute one from file hashes. |
+| `initializeTemplate`   | Runs once per unique template ID. Use it to apply migrations, create tables, or insert seed data.    |
 | `connection`           | Optional. IntegreSQL server address. Defaults to `{ host: "localhost", port: 5000 }`.                |
+
+### `templateIdFromFiles(patterns)`
+
+```ts
+templateIdFromFiles(
+  patterns: [string, ...Array<string>]
+): Effect.Effect<string, NoMatchingFiles>
+```
+
+Hashes the contents of files matching the given glob patterns to produce a stable template ID. When file contents change, a new template ID is generated, causing `getConnection` to create a new template.
+
+| Parameter   | Description                                                                 |
+| ----------- | --------------------------------------------------------------------------- |
+| `patterns`  | One or more glob patterns. File contents are hashed to identify the template. |
 
 ### `DatabaseConfiguration`
 

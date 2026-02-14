@@ -15,7 +15,7 @@ export class NoSuchTemplate extends Data.TaggedClass("NoSuchTemplate")<{
 /**
  * @since 0.0.1
  */
-export class IntegreSqlFailedToCreateTemplate extends Data.TaggedClass("IntegrSqlFailedToCreateTemplate")<{
+export class IntegreSqlFailedToCreateTemplate extends Data.TaggedClass("IntegreSqlFailedToCreateTemplate")<{
   error: unknown
 }> {
 }
@@ -45,7 +45,7 @@ export class DatabaseConfiguration extends Data.Class<{
  * @since 0.0.1
  */
 export interface IntegreSqlClient {
-  // Create a new PostgesSQL template database identified as <hash>
+  // Create a new PostgreSQL template database identified as <hash>
   createTemplate(
     hash: DatabaseTemplateId
   ): Effect.Effect<Option.Option<DatabaseConfiguration>>
@@ -80,9 +80,6 @@ export const makeIntegreSqlClient = (config: { integrePort: number; integreHost:
   const baseUrl = `http://${config.integreHost}:${config.integrePort}`
 
   return {
-    /**
-     * @since 0.0.1
-     */
     createTemplate: (
       templateId
     ) =>
@@ -123,9 +120,6 @@ export const makeIntegreSqlClient = (config: { integrePort: number; integreHost:
         Effect.orDie
       ),
 
-    /**
-     * @since 0.0.1
-     */
     finalizeTemplate: (templateId: DatabaseTemplateId): Effect.Effect<void, NoSuchTemplate> =>
       pipe(
         Effect.promise(() =>
@@ -151,9 +145,6 @@ export const makeIntegreSqlClient = (config: { integrePort: number; integreHost:
         Effect.catchTag("ParseError", (e) => Effect.die(e))
       ),
 
-    /**
-     * @since 0.0.1
-     */
     getNewTestDatabase: (
       templateId: DatabaseTemplateId
     ): Effect.Effect<Option.Option<DatabaseConfiguration>> =>

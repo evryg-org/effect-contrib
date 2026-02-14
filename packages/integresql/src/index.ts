@@ -27,3 +27,14 @@ export type {
    */
   IntegreSqlClient
 } from "./IntegreSqlClient.js"
+
+export {
+  /**
+   * @since 0.0.1
+   */
+  NoMatchingFiles,
+  /**
+   * @since 0.0.1
+   */
+  templateIdFromFiles
+} from "./templateIdFromFilesHash.js"
