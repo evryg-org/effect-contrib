@@ -28,7 +28,7 @@ export const makeGetConnection = (client: IntegreSqlClient) =>
               () =>
                 Effect.die(
                   new Error(
-                    "[@evryg/integresql]: Unexpected error, could not get a new template database after successfully creating the template"
+                    "[@evryg/integresql]: Unexpected error, could not get a new test database after successfully creating the template"
                   )
                 )
             )
@@ -52,7 +52,7 @@ export const makeGetConnection = (client: IntegreSqlClient) =>
   )
 
 // TODO: Hash method & tests
-// Add mising api methods on the client and expose the client
+// Add missing api methods on the client and expose the client
 // read docs to see what edge cases are not handled (ask claude)
 // make docs for per test setup/for suite setup
 // Audit peer dependencies: `vitest` and `@effect/platform-node` are not used in source code and may not need to be peer deps.

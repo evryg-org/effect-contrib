@@ -224,8 +224,10 @@ Returns an `Effect` that, when run, yields a `DatabaseConfiguration` pointing to
 ```ts
 templateIdFromFiles(
   patterns: [string, ...Array<string>]
-): Effect.Effect<string, NoMatchingFiles>
+): Effect.Effect<DatabaseTemplateId, NoMatchingFiles>
 ```
+
+> `DatabaseTemplateId` is a branded `string` — it is accepted directly by `getConnection` via the `templateId` parameter.
 
 Hashes the contents of files matching the given glob patterns to produce a stable template ID. When file contents change, a new template ID is generated, causing `getConnection` to create a new template.
 

@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "type": "module",
   "license": "MIT",
-  "description": "An effect-ts based client of the integresql tool used for creating isolated potgresql databases used in integration tests",
+  "description": "An effect-ts based client of the integresql tool used for creating isolated postgresql databases used in integration tests",
   "homepage": "https://www.evryg.com",
   "repository": {
     "type": "git",
