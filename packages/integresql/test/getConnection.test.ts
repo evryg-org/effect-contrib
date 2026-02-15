@@ -3,9 +3,8 @@ import { describe, expect, it, vi } from "@effect/vitest"
 import { Effect, Exit, pipe, Redacted } from "effect"
 import { randomUUID } from "node:crypto"
 import { inject } from "vitest"
-import { makeGetConnection } from "../src/getConnection.js"
+import { getConnection } from "../src/getConnection.js"
 import type { DatabaseConfiguration } from "../src/IntegreSqlClient.js"
-import { makeIntegreSqlClient, unsafeMakeDatabaseTemplateId } from "../src/IntegreSqlClient.js"
 
 describe(`getConnection`, () => {
   it.effect(
@@ -13,16 +12,12 @@ describe(`getConnection`, () => {
     () =>
       Effect.gen(function*() {
         const containers = inject("containers")
-        const client = makeIntegreSqlClient({
-          integrePort: containers.integreSQL.port,
-          integreHost: containers.integreSQL.host
-        })
-        const hash = makeRandomHash()
 
         const result = yield* pipe(
-          makeGetConnection(client)({
-            hash,
-            initializeTemplate: () => Effect.fail("initialize_template_failure")
+          getConnection({
+            templateId: randomTemplateId,
+            initializeTemplate: () => Effect.fail("initialize_template_failure"),
+            connection: { port: containers.integreSQL.port, host: containers.integreSQL.host }
           }),
           Effect.exit
         )
@@ -36,36 +31,30 @@ describe(`getConnection`, () => {
     () =>
       Effect.gen(function*() {
         const containers = inject("containers")
-        const client = makeIntegreSqlClient({
-          integrePort: containers.integreSQL.port,
-          integreHost: containers.integreSQL.host
-        })
-        const hash = makeRandomHash()
-
-        yield* pipe(
-          makeGetConnection(client)({
-            hash,
-            initializeTemplate: (databaseConfiguration) =>
-              Effect.gen(function*() {
-                const sql = yield* PgClient.PgClient
-                yield* sql`CREATE TABLE test_table (id SERIAL PRIMARY KEY, name TEXT NOT NULL)`
-              }).pipe(
-                Effect.provide(makePgLayer(containers.postgres.port, databaseConfiguration)),
-                Effect.orDie
-              )
-          }),
-          Effect.flatMap((databaseConfiguration) =>
+        const connection = yield* getConnection({
+          templateId: randomTemplateId,
+          initializeTemplate: (databaseConfiguration) =>
             Effect.gen(function*() {
               const sql = yield* PgClient.PgClient
-              yield* sql`INSERT INTO test_table ${sql.insert({ name: "test_item" })}`
-              const rows = yield* sql`SELECT * FROM test_table`
-              expect(rows).toStrictEqual([{ id: expect.any(Number), name: "test_item" }])
+              yield* sql`CREATE TABLE test_table (id SERIAL PRIMARY KEY, name TEXT NOT NULL)`
             }).pipe(
               Effect.provide(makePgLayer(containers.postgres.port, databaseConfiguration)),
               Effect.orDie
-            )
-          )
+            ),
+          connection: { port: containers.integreSQL.port, host: containers.integreSQL.host }
+        })
+
+        const result = yield* pipe(
+          Effect.gen(function*() {
+            const sql = yield* PgClient.PgClient
+            yield* sql`INSERT INTO test_table ${sql.insert({ name: "test_item" })}`
+            return yield* sql`SELECT * FROM test_table`
+          }),
+          Effect.provide(makePgLayer(containers.postgres.port, connection)),
+          Effect.orDie
         )
+
+        expect(result).toStrictEqual([{ id: expect.any(Number), name: "test_item" }])
       })
   )
 
@@ -74,15 +63,12 @@ describe(`getConnection`, () => {
     () =>
       Effect.gen(function*() {
         const containers = inject("containers")
-        const client = makeIntegreSqlClient({
-          integrePort: containers.integreSQL.port,
-          integreHost: containers.integreSQL.host
-        })
-        const hash = makeRandomHash()
         const initializeTemplateSpy = vi.fn(() => Effect.void)
-        const createTemplate = makeGetConnection(client)({
-          hash,
-          initializeTemplate: initializeTemplateSpy
+        const templateId = Effect.succeed(randomUUID())
+        const createTemplate = getConnection({
+          templateId,
+          initializeTemplate: initializeTemplateSpy,
+          connection: { port: containers.integreSQL.port, host: containers.integreSQL.host }
         })
 
         yield* Effect.all([
@@ -103,18 +89,16 @@ describe(`getConnection`, () => {
     () =>
       Effect.gen(function*() {
         const containers = inject("containers")
-        const client = makeIntegreSqlClient({
-          integrePort: containers.integreSQL.port,
-          integreHost: containers.integreSQL.host
-        })
-        const getConnection = makeGetConnection(client)({
-          hash: makeRandomHash(),
-          initializeTemplate: () => Effect.void
+        const templateId = Effect.succeed(randomUUID())
+        const connection = getConnection({
+          templateId,
+          initializeTemplate: () => Effect.void,
+          connection: { port: containers.integreSQL.port, host: containers.integreSQL.host }
         })
 
         const result = yield* pipe(
-          getConnection,
-          Effect.zip(getConnection)
+          connection,
+          Effect.zip(connection)
         )
 
         expect(result[0].database).not.toStrictEqual(result[1].database)
@@ -122,27 +106,21 @@ describe(`getConnection`, () => {
   )
 
   it.effect(
-    `Different hash, different template`,
+    `Different template id, different template`,
     () =>
       Effect.gen(function*() {
         const containers = inject("containers")
-        const client = makeIntegreSqlClient({
-          integrePort: containers.integreSQL.port,
-          integreHost: containers.integreSQL.host
-        })
         const initializeTemplateSpy = vi.fn(() => Effect.void)
+        const makeGetConnection = (templateId: Effect.Effect<string>) =>
+          getConnection({
+            templateId,
+            initializeTemplate: initializeTemplateSpy,
+            connection: { port: containers.integreSQL.port, host: containers.integreSQL.host }
+          })
 
         yield* pipe(
-          makeGetConnection(client)({
-            hash: makeRandomHash(),
-            initializeTemplate: initializeTemplateSpy
-          }),
-          Effect.zip(
-            makeGetConnection(client)({
-              hash: makeRandomHash(),
-              initializeTemplate: initializeTemplateSpy
-            })
-          )
+          makeGetConnection(randomTemplateId),
+          Effect.zip(makeGetConnection(randomTemplateId))
         )
 
         expect(initializeTemplateSpy).toHaveBeenCalledTimes(2)
@@ -150,7 +128,7 @@ describe(`getConnection`, () => {
   )
 })
 
-const makeRandomHash = () => unsafeMakeDatabaseTemplateId(randomUUID())
+const randomTemplateId = Effect.sync(() => randomUUID())
 
 const makePgLayer = (postgresPort: number, databaseConfiguration: DatabaseConfiguration) =>
   PgClient.layer({

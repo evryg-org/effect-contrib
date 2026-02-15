@@ -2,62 +2,14 @@
  * @since 0.0.1
  */
 import { Effect, Option, pipe } from "effect"
-import type { DatabaseConfiguration, DatabaseTemplateId, IntegreSqlClient } from "./IntegreSqlClient.js"
+import type { DatabaseConfiguration } from "./IntegreSqlClient.js"
 import { makeIntegreSqlClient, unsafeMakeDatabaseTemplateId } from "./IntegreSqlClient.js"
 
-/**
- * @internal
- */
-export const makeGetConnection = (client: IntegreSqlClient) =>
-<E, R>(config: {
-  hash: DatabaseTemplateId
-  initializeTemplate: InitializeTemplate<E, R>
-}): Effect.Effect<DatabaseConfiguration, E, R> =>
-  pipe(
-    client.createTemplate(config.hash),
-    Effect.flatMap(
-      Option.match({
-        onSome: (a) =>
-          pipe(
-            config.initializeTemplate(a),
-            Effect.zipRight(pipe(client.finalizeTemplate(config.hash), Effect.orDie)),
-            Effect.zipRight(client.getNewTestDatabase(config.hash)),
-            Effect.flatten,
-            Effect.catchTag(
-              "NoSuchElementException",
-              () =>
-                Effect.die(
-                  new Error(
-                    "[@evryg/integresql]: Unexpected error, could not get a new test database after successfully creating the template"
-                  )
-                )
-            )
-          ),
-        onNone: () =>
-          pipe(
-            client.getNewTestDatabase(config.hash),
-            Effect.flatten,
-            Effect.catchTag(
-              "NoSuchElementException",
-              () =>
-                Effect.die(
-                  new Error(
-                    "[@evryg/integresql]: Unexpected error: Could not get a new test database from an existing template"
-                  )
-                )
-            )
-          )
-      })
-    )
-  )
-
-  // shi readme 
-  // fix ci 
-  // check todos 
-  // fuck it 
-  // (coderabbit?) 
-
-// TODO: Hash method & tests
+// shi readme
+// fix ci
+// check todos
+// fuck it
+// (coderabbit?)
 // Add missing api methods on the client and expose the client
 // read docs to see what edge cases are not handled (ask claude)
 // make docs for per test setup/for suite setup
@@ -81,12 +33,49 @@ export const getConnection = <E1, E2, R1, R2>(config: {
 }): Effect.Effect<DatabaseConfiguration, E1 | E2, R1 | R2> =>
   pipe(
     config.templateId,
-    Effect.flatMap((templateId) =>
-      makeGetConnection(
-        makeIntegreSqlClient({
-          integrePort: config.connection?.port ?? 5000,
-          integreHost: config.connection?.host ?? "localhost"
-        })
-      )({ ...config, hash: unsafeMakeDatabaseTemplateId(templateId) })
-    )
+    Effect.map(unsafeMakeDatabaseTemplateId),
+    Effect.flatMap((templateId) => {
+      const client = makeIntegreSqlClient({
+        integrePort: config.connection?.port ?? 5000,
+        integreHost: config.connection?.host ?? "localhost"
+      })
+
+      return pipe(
+        client.createTemplate(templateId),
+        Effect.flatMap(
+          Option.match({
+            onSome: (a) =>
+              pipe(
+                config.initializeTemplate(a),
+                Effect.zipRight(pipe(client.finalizeTemplate(templateId), Effect.orDie)),
+                Effect.zipRight(client.getNewTestDatabase(templateId)),
+                Effect.flatten,
+                Effect.catchTag(
+                  "NoSuchElementException",
+                  () =>
+                    Effect.die(
+                      new Error(
+                        "[@evryg/integresql]: Unexpected error, could not get a new test database after successfully creating the template"
+                      )
+                    )
+                )
+              ),
+            onNone: () =>
+              pipe(
+                client.getNewTestDatabase(templateId),
+                Effect.flatten,
+                Effect.catchTag(
+                  "NoSuchElementException",
+                  () =>
+                    Effect.die(
+                      new Error(
+                        "[@evryg/integresql]: Unexpected error: Could not get a new test database from an existing template"
+                      )
+                    )
+                )
+              )
+          })
+        )
+      )
+    })
   )
