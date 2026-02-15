@@ -18,6 +18,16 @@ TODO: Setup using test containers (ours)
 TODO: Setup using docker (link to integresql docs https://github.com/allaboutapps/integresql)
 TODO: Usage example for each
 
+## TODOS
+[] - Update readme
+[] - Fix ci 
+[] - Add coderabbit/auto review ? 
+
+
+## Improvements/next steps
+[] - Expose all integresql api endpoints via the client
+
+## Old readme ------------------------------
 (old examples, to update or discard)
 ### Step 1 — Start the infrastructure
 

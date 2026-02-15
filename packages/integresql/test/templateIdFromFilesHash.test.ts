@@ -101,29 +101,29 @@ const makeLiveFixturesService = (fixturesDirectory: string) =>
     FixturesService,
     pipe(
       FileSystem.FileSystem,
-      Effect.flatMap((fs) =>
+      Effect.tap((fs) =>
         pipe(
           fs.exists(fixturesDirectory),
           Effect.if({
             onTrue: () => Effect.void,
             onFalse: () => fs.makeDirectory(fixturesDirectory)
-          }),
-          Effect.map(() => {
-            return FixturesService.of({
-              createRandomFile: (extension) =>
-                pipe(
-                  fs.makeTempFileScoped({ directory: fixturesDirectory, suffix: extension }),
-                  Effect.tap((filePath) => fs.writeFileString(filePath, randomUUID())),
-                  Effect.orDie
-                ),
-              writeFile: (path, content) =>
-                pipe(
-                  fs.writeFileString(path, content),
-                  Effect.orDie
-                )
-            })
           })
         )
+      ),
+      Effect.map((fs) =>
+        FixturesService.of({
+          createRandomFile: (extension) =>
+            pipe(
+              fs.makeTempFileScoped({ directory: fixturesDirectory, suffix: extension }),
+              Effect.tap((filePath) => fs.writeFileString(filePath, randomUUID())),
+              Effect.orDie
+            ),
+          writeFile: (path, content) =>
+            pipe(
+              fs.writeFileString(path, content),
+              Effect.orDie
+            )
+        })
       )
     )
   )

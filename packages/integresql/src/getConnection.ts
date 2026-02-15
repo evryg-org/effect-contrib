@@ -5,17 +5,6 @@ import { Effect, Option, pipe } from "effect"
 import type { DatabaseConfiguration } from "./IntegreSqlClient.js"
 import { makeIntegreSqlClient, unsafeMakeDatabaseTemplateId } from "./IntegreSqlClient.js"
 
-// shi readme
-// fix ci
-// check todos
-// fuck it
-// (coderabbit?)
-// Add missing api methods on the client and expose the client
-// read docs to see what edge cases are not handled (ask claude)
-// make docs for per test setup/for suite setup
-// Audit peer dependencies: `vitest` and `@effect/platform-node` are not used in source code and may not need to be peer deps.
-// add example using test containers
-
 /**
  * @since 0.0.1
  */
