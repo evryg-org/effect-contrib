@@ -1,5 +1,5 @@
 import { PostgreSqlContainer } from "@testcontainers/postgresql"
-import { GenericContainer, Network, Wait } from "testcontainers"
+import { GenericContainer, TestContainers, Wait } from "testcontainers"
 
 export async function startContainers(): Promise<{
   config: {
@@ -8,11 +8,14 @@ export async function startContainers(): Promise<{
   }
   teardown: () => Promise<void>
 }> {
-  const network = await new Network().start()
   // The postgres container for our integration tests
   const postgres = await new PostgreSqlContainer("postgres:12.2-alpine")
-    .withNetwork(network)
+    .withExposedPorts(5432)
     .start()
+
+  // Expose the postgres host-mapped port so containers can reach it
+  // via the special hostname "host.testcontainers.internal"
+  await TestContainers.exposeHostPorts(postgres.getFirstMappedPort())
 
   // The integreSQL REST API container
   // Configured to work with our postgres container
@@ -20,16 +23,14 @@ export async function startContainers(): Promise<{
     "ghcr.io/allaboutapps/integresql:v1.1.0"
   )
     .withExposedPorts(5000)
-    .withNetwork(network)
     .withEnvironment({
       PGDATABASE: postgres.getDatabase(),
       PGUSER: postgres.getUsername(),
       PGPASSWORD: postgres.getPassword(),
-      PGHOST: postgres.getIpAddress(network.getName()),
-      PGPORT: "5432", // Use the container port, we are reaching through container network
+      PGHOST: "host.testcontainers.internal",
+      PGPORT: postgres.getFirstMappedPort().toString(),
       PGSSLMODE: "disable"
     })
-    .withNetwork(network)
     .withWaitStrategy(Wait.forLogMessage("server started on"))
     .start()
 
@@ -46,7 +47,6 @@ export async function startContainers(): Promise<{
     teardown: async () => {
       await integreSQL.stop()
       await postgres.stop()
-      await network.stop()
     }
   }
 }
