@@ -13,19 +13,19 @@ export {
   type InitializeTemplate
 } from "./getConnection.js"
 
-export type {
+export {
   /**
    * @since 0.0.1
    */
-  DatabaseConfiguration,
+  type DatabaseConfiguration,
   /**
    * @since 0.0.1
    */
-  DatabaseTemplateId,
+  type DatabaseTemplateId,
   /**
    * @since 0.0.1
    */
-  IntegreSqlClient
+  type IntegreSqlClient
 } from "./IntegreSqlClient.js"
 
 export {
