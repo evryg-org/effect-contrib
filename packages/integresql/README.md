@@ -13,9 +13,12 @@ Effect-ts wrapper around [IntegreSQL](https://github.com/allaboutapps/integresql
 npm install --dev @evryg/integresql
 ```
 
-
 ## Usage
+TODO: Setup using test containers (ours)
+TODO: Setup using docker (link to integresql docs https://github.com/allaboutapps/integresql)
+TODO: Usage example for each
 
+(old examples, to update or discard)
 ### Step 1 — Start the infrastructure
 
 Create a `docker-compose.yml` at the root of your project:

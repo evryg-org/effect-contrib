@@ -4,13 +4,27 @@ import { GenericContainer, TestContainers, Wait } from "testcontainers"
 export async function startContainers(): Promise<{
   config: {
     integreAPIUrl: string
-    postgres: { port: number; host: string }
   }
   teardown: () => Promise<void>
 }> {
   // The postgres container for our integration tests
   const postgres = await new PostgreSqlContainer("postgres:12.2-alpine")
     .withExposedPorts(5432)
+    .withCommand([
+      "postgres",
+      "-c",
+      "shared_buffers=128MB",
+      "-c",
+      "fsync=off",
+      "-c",
+      "synchronous_commit=off",
+      "-c",
+      "full_page_writes=off",
+      "-c",
+      "max_connections=100",
+      "-c",
+      "client_min_messages=warning"
+    ])
     .start()
 
   // Expose the postgres host-mapped port so containers can reach it
@@ -38,11 +52,7 @@ export async function startContainers(): Promise<{
 
   return {
     config: {
-      integreAPIUrl,
-      postgres: {
-        port: postgres.getFirstMappedPort(),
-        host: postgres.getHost()
-      }
+      integreAPIUrl
     },
     teardown: async () => {
       await integreSQL.stop()

@@ -21,7 +21,6 @@ declare module "vitest" {
   export interface ProvidedContext {
     containers: {
       integreAPIUrl: string
-      postgres: { port: number; host: string }
     }
   }
 }

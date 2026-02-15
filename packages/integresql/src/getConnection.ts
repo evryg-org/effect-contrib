@@ -29,13 +29,13 @@ export interface InitializeTemplate<E, R> {
 export const getConnection = <E1, E2, R1, R2>(config: {
   templateId: Effect.Effect<string, E1, R1>
   initializeTemplate: InitializeTemplate<E2, R2>
-  connection?: { integreSQLAPIUrl: string }
+  integreSQLAPIUrl: string
 }): Effect.Effect<DatabaseConfiguration, E1 | E2, R1 | R2> =>
   pipe(
     config.templateId,
     Effect.map(unsafeMakeDatabaseTemplateId),
     Effect.flatMap((templateId) => {
-      const client = makeIntegreSqlClient({ url: config.connection?.integreSQLAPIUrl ?? "http://localhost:5000" })
+      const client = makeIntegreSqlClient({ url: config.integreSQLAPIUrl })
 
       return pipe(
         client.createTemplate(templateId),

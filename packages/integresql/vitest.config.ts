@@ -3,7 +3,8 @@ import shared from "../../vitest.shared.js"
 
 const config: UserConfigExport = {
   test: {
-    globalSetup: ["./test/globalSetup.ts"]
+    globalSetup: ["./test/globalSetup.ts"],
+    watch: false
   }
 }
 

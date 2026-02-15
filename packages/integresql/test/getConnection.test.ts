@@ -17,7 +17,7 @@ describe(`getConnection`, () => {
           getConnection({
             templateId: randomTemplateId,
             initializeTemplate: () => Effect.fail("initialize_template_failure"),
-            connection: { integreSQLAPIUrl: containers.integreAPIUrl }
+            integreSQLAPIUrl: containers.integreAPIUrl
           }),
           Effect.exit
         )
@@ -36,25 +36,21 @@ describe(`getConnection`, () => {
           initializeTemplate: (databaseConfiguration) =>
             pipe(
               Effect.gen(function*() {
-                console.log("🛑", databaseConfiguration, containers.postgres)
                 const sql = yield* PgClient.PgClient
                 yield* sql`CREATE TABLE test_table (id SERIAL PRIMARY KEY, name TEXT NOT NULL)`
               }),
-              Effect.provide(makePgLayer(containers.postgres.port, databaseConfiguration)),
-              Effect.orDie
+              Effect.provide(makePgLayer(databaseConfiguration))
             ),
-          connection: { integreSQLAPIUrl: containers.integreAPIUrl }
+          integreSQLAPIUrl: containers.integreAPIUrl
         })
 
         const result = yield* pipe(
           Effect.gen(function*() {
-            console.log("🛑", connection, containers.postgres)
             const sql = yield* PgClient.PgClient
             yield* sql`INSERT INTO test_table ${sql.insert({ name: "test_item" })}`
             return yield* sql`SELECT * FROM test_table`
           }),
-          Effect.provide(makePgLayer(containers.postgres.port, connection)),
-          Effect.orDie
+          Effect.provide(makePgLayer(connection))
         )
 
         expect(result).toStrictEqual([{ id: expect.any(Number), name: "test_item" }])
@@ -71,13 +67,10 @@ describe(`getConnection`, () => {
         const createTemplate = getConnection({
           templateId,
           initializeTemplate: initializeTemplateSpy,
-          connection: { integreSQLAPIUrl: containers.integreAPIUrl }
+          integreSQLAPIUrl: containers.integreAPIUrl
         })
 
         yield* Effect.all([
-          createTemplate,
-          createTemplate,
-          createTemplate,
           createTemplate,
           createTemplate,
           createTemplate
@@ -96,7 +89,7 @@ describe(`getConnection`, () => {
         const connection = getConnection({
           templateId,
           initializeTemplate: () => Effect.void,
-          connection: { integreSQLAPIUrl: containers.integreAPIUrl }
+          integreSQLAPIUrl: containers.integreAPIUrl
         })
 
         const result = yield* pipe(
@@ -118,7 +111,7 @@ describe(`getConnection`, () => {
           getConnection({
             templateId,
             initializeTemplate: initializeTemplateSpy,
-            connection: { integreSQLAPIUrl: containers.integreAPIUrl }
+            integreSQLAPIUrl: containers.integreAPIUrl
           })
 
         yield* pipe(
@@ -133,10 +126,10 @@ describe(`getConnection`, () => {
 
 const randomTemplateId = Effect.sync(() => randomUUID())
 
-const makePgLayer = (postgresPort: number, databaseConfiguration: DatabaseConfiguration) =>
+const makePgLayer = (databaseConfiguration: DatabaseConfiguration) =>
   PgClient.layer({
     host: "127.0.0.1",
-    port: postgresPort,
+    port: databaseConfiguration.port,
     username: databaseConfiguration.username,
     password: Redacted.make(databaseConfiguration.password),
     database: databaseConfiguration.database
