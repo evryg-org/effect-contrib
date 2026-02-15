@@ -51,6 +51,12 @@ export const makeGetConnection = (client: IntegreSqlClient) =>
     )
   )
 
+  // shi readme 
+  // fix ci 
+  // check todos 
+  // fuck it 
+  // (coderabbit?) 
+
 // TODO: Hash method & tests
 // Add missing api methods on the client and expose the client
 // read docs to see what edge cases are not handled (ask claude)
