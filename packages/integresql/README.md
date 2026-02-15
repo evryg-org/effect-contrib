@@ -17,6 +17,7 @@ npm install --dev @evryg/integresql
 TODO: Setup using test containers (ours)
 TODO: Setup using docker (link to integresql docs https://github.com/allaboutapps/integresql)
 TODO: Usage example for each
+TODO: Create an examples folder with each setup working and just show getConnection in the readme (even better than readme stuff)
 
 ## TODOS
 [] - Update readme
