@@ -1,42 +1,20 @@
 # @evryg/integresql
 
-Effect-ts wrapper for [IntegreSQL](https://github.com/allaboutapps/integresql) — instant isolated PostgreSQL databases for integration tests.
+[![npm version](https://img.shields.io/npm/v/%40evryg/integresql)](https://www.npmjs.com/package/@evryg/integresql)
+[![license](https://img.shields.io/npm/l/%40evryg/integresql)](https://github.com/evryg-org/effect-contrib/blob/main/LICENSE)
+[![CI](https://github.com/evryg-org/effect-contrib/actions/workflows/check.yml/badge.svg)](https://github.com/evryg-org/effect-contrib/actions/workflows/check.yml)
 
-<!-- Badges will go here once the package is published -->
 
-## How it Works
-
-IntegreSQL sits between your test runner and PostgreSQL. It uses a **template → clone** pattern to give every test its own database without repeating expensive setup work.
-
-When your test suite starts, the library hashes the files you point it at (migrations, schema files, etc.). If the hash is new, IntegreSQL creates a **template database** and runs your initialization function (migrations, seed data, …) exactly once. For every test that requests a database, IntegreSQL instantly **clones** the template — no re-running migrations, no shared state, no conflicts.
-
-```
-files → hash → template DB (run init once) → clone per test
-                                             → clone per test
-                                             → clone per test
-```
-
-Tests run in parallel, each against its own disposable database. When the files change, a new template is created automatically.
-
-## Prerequisites
-
-- **Docker** — to run PostgreSQL and the IntegreSQL server
-- **Node.js >= 18**
-- **`effect`** as a peer dependency (`>= 3.19.16`)
+Effect-ts wrapper around [IntegreSQL](https://github.com/allaboutapps/integresql) — instant isolated PostgreSQL databases for integration tests.
 
 ## Installation
 
 ```bash
-# npm
-npm install @evryg/integresql
-
-# pnpm
-pnpm add @evryg/integresql
+npm install --dev @evryg/integresql
 ```
 
-`effect` is a peer dependency — make sure it is already installed in your project.
 
-## Quick Start
+## Usage
 
 ### Step 1 — Start the infrastructure
 
