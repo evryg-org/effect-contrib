@@ -3,15 +3,19 @@ import { GenericContainer, Network, Wait } from "testcontainers"
 
 export async function startContainers(): Promise<{
   config: {
-    integreSQL: { port: number; host: string }
+    integreAPIUrl: string
     postgres: { port: number; host: string }
   }
   teardown: () => Promise<void>
 }> {
   const network = await new Network().start()
+  // The postgres container for our integration tests
   const postgres = await new PostgreSqlContainer("postgres:12.2-alpine")
     .withNetwork(network)
     .start()
+
+  // The integreSQL REST API container
+  // Configured to work with our postgres container
   const integreSQL = await new GenericContainer(
     "ghcr.io/allaboutapps/integresql:v1.1.0"
   )
@@ -29,12 +33,11 @@ export async function startContainers(): Promise<{
     .withWaitStrategy(Wait.forLogMessage("server started on"))
     .start()
 
+  const integreAPIUrl = `http://${integreSQL.getHost()}:${integreSQL.getFirstMappedPort()}`
+
   return {
     config: {
-      integreSQL: {
-        port: integreSQL.getFirstMappedPort(),
-        host: integreSQL.getHost()
-      },
+      integreAPIUrl,
       postgres: {
         port: postgres.getFirstMappedPort(),
         host: postgres.getHost()

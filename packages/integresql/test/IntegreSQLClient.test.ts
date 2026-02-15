@@ -17,10 +17,7 @@ describe(`IntegreSqlClient`, () => {
       () =>
         Effect.gen(function*() {
           const containers = inject("containers")
-          const client = makeIntegreSqlClient({
-            integrePort: containers.integreSQL.port,
-            integreHost: containers.integreSQL.host
-          })
+          const client = makeIntegreSqlClient({ url: containers.integreAPIUrl })
           const hash = makeRandomHash()
 
           const result = yield* client.createTemplate(hash)
@@ -36,10 +33,7 @@ describe(`IntegreSqlClient`, () => {
       () =>
         Effect.gen(function*() {
           const containers = inject("containers")
-          const client = makeIntegreSqlClient({
-            integrePort: containers.integreSQL.port,
-            integreHost: containers.integreSQL.host
-          })
+          const client = makeIntegreSqlClient({ url: containers.integreAPIUrl })
           const hash = makeRandomHash()
           yield* client.createTemplate(hash)
 
@@ -53,10 +47,7 @@ describe(`IntegreSqlClient`, () => {
       `IntegreSQL not running dies`,
       () =>
         Effect.gen(function*() {
-          const client = makeIntegreSqlClient({
-            integrePort: 1,
-            integreHost: "127.0.0.1"
-          })
+          const client = makeIntegreSqlClient({ url: "http://localhost:1111" })
           const hash = makeRandomHash()
 
           const result = yield* pipe(
@@ -77,10 +68,7 @@ describe(`IntegreSqlClient`, () => {
       () =>
         Effect.gen(function*() {
           const containers = inject("containers")
-          const client = makeIntegreSqlClient({
-            integrePort: containers.integreSQL.port,
-            integreHost: containers.integreSQL.host
-          })
+          const client = makeIntegreSqlClient({ url: containers.integreAPIUrl })
           const existingHash = makeRandomHash()
           const nonExistingHash = makeRandomHash()
           yield* client.createTemplate(existingHash)
@@ -101,10 +89,7 @@ describe(`IntegreSqlClient`, () => {
       () =>
         Effect.gen(function*() {
           const containers = inject("containers")
-          const client = makeIntegreSqlClient({
-            integrePort: containers.integreSQL.port,
-            integreHost: containers.integreSQL.host
-          })
+          const client = makeIntegreSqlClient({ url: containers.integreAPIUrl })
           const existingHash = makeRandomHash()
           yield* client.createTemplate(existingHash)
 
@@ -124,10 +109,7 @@ describe(`IntegreSqlClient`, () => {
       () =>
         Effect.gen(function*() {
           const containers = inject("containers")
-          const client = makeIntegreSqlClient({
-            integrePort: containers.integreSQL.port,
-            integreHost: containers.integreSQL.host
-          })
+          const client = makeIntegreSqlClient({ url: containers.integreAPIUrl })
           const existingHash = makeRandomHash()
           yield* client.createTemplate(existingHash)
           yield* client.finalizeTemplate(existingHash)
@@ -150,10 +132,7 @@ describe(`IntegreSqlClient`, () => {
       () =>
         Effect.gen(function*() {
           const containers = inject("containers")
-          const client = makeIntegreSqlClient({
-            integrePort: containers.integreSQL.port,
-            integreHost: containers.integreSQL.host
-          })
+          const client = makeIntegreSqlClient({ url: containers.integreAPIUrl })
           const existingHash = makeRandomHash()
           const nonExistingHash = makeRandomHash()
           yield* client.createTemplate(existingHash)
@@ -170,10 +149,7 @@ describe(`IntegreSqlClient`, () => {
       () =>
         Effect.gen(function*() {
           const containers = inject("containers")
-          const client = makeIntegreSqlClient({
-            integrePort: containers.integreSQL.port,
-            integreHost: containers.integreSQL.host
-          })
+          const client = makeIntegreSqlClient({ url: containers.integreAPIUrl })
           const hash = makeRandomHash()
           yield* client.createTemplate(hash)
           yield* client.finalizeTemplate(hash)

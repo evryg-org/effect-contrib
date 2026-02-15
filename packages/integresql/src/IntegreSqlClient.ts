@@ -76,8 +76,8 @@ const DatabaseConnectionSchema = Schema.Struct({
 /**
  * @since 0.0.1
  */
-export const makeIntegreSqlClient = (config: { integrePort: number; integreHost: string }): IntegreSqlClient => {
-  const baseUrl = `http://${config.integreHost}:${config.integrePort}`
+export const makeIntegreSqlClient = (config: { url: string }): IntegreSqlClient => {
+  const baseUrl = config.url
 
   return {
     createTemplate: (

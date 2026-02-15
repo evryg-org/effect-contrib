@@ -20,7 +20,7 @@ export default async function setup(project: TestProject) {
 declare module "vitest" {
   export interface ProvidedContext {
     containers: {
-      integreSQL: { port: number; host: string }
+      integreAPIUrl: string
       postgres: { port: number; host: string }
     }
   }

@@ -17,7 +17,7 @@ describe(`getConnection`, () => {
           getConnection({
             templateId: randomTemplateId,
             initializeTemplate: () => Effect.fail("initialize_template_failure"),
-            connection: { port: containers.integreSQL.port, host: containers.integreSQL.host }
+            connection: { integreSQLAPIUrl: containers.integreAPIUrl }
           }),
           Effect.exit
         )
@@ -34,18 +34,21 @@ describe(`getConnection`, () => {
         const connection = yield* getConnection({
           templateId: randomTemplateId,
           initializeTemplate: (databaseConfiguration) =>
-            Effect.gen(function*() {
-              const sql = yield* PgClient.PgClient
-              yield* sql`CREATE TABLE test_table (id SERIAL PRIMARY KEY, name TEXT NOT NULL)`
-            }).pipe(
+            pipe(
+              Effect.gen(function*() {
+                console.log("🛑", databaseConfiguration, containers.postgres)
+                const sql = yield* PgClient.PgClient
+                yield* sql`CREATE TABLE test_table (id SERIAL PRIMARY KEY, name TEXT NOT NULL)`
+              }),
               Effect.provide(makePgLayer(containers.postgres.port, databaseConfiguration)),
               Effect.orDie
             ),
-          connection: { port: containers.integreSQL.port, host: containers.integreSQL.host }
+          connection: { integreSQLAPIUrl: containers.integreAPIUrl }
         })
 
         const result = yield* pipe(
           Effect.gen(function*() {
+            console.log("🛑", connection, containers.postgres)
             const sql = yield* PgClient.PgClient
             yield* sql`INSERT INTO test_table ${sql.insert({ name: "test_item" })}`
             return yield* sql`SELECT * FROM test_table`
@@ -68,7 +71,7 @@ describe(`getConnection`, () => {
         const createTemplate = getConnection({
           templateId,
           initializeTemplate: initializeTemplateSpy,
-          connection: { port: containers.integreSQL.port, host: containers.integreSQL.host }
+          connection: { integreSQLAPIUrl: containers.integreAPIUrl }
         })
 
         yield* Effect.all([
@@ -93,7 +96,7 @@ describe(`getConnection`, () => {
         const connection = getConnection({
           templateId,
           initializeTemplate: () => Effect.void,
-          connection: { port: containers.integreSQL.port, host: containers.integreSQL.host }
+          connection: { integreSQLAPIUrl: containers.integreAPIUrl }
         })
 
         const result = yield* pipe(
@@ -115,7 +118,7 @@ describe(`getConnection`, () => {
           getConnection({
             templateId,
             initializeTemplate: initializeTemplateSpy,
-            connection: { port: containers.integreSQL.port, host: containers.integreSQL.host }
+            connection: { integreSQLAPIUrl: containers.integreAPIUrl }
           })
 
         yield* pipe(

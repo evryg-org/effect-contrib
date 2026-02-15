@@ -30,10 +30,7 @@ describe(`examples`, () => {
               })),
               Effect.orDie
             ),
-          connection: {
-            port: containers.integreSQL.port,
-            host: containers.integreSQL.host
-          }
+          connection: { integreSQLAPIUrl: containers.integreAPIUrl }
         })
 
         yield* Effect.gen(function*() {
