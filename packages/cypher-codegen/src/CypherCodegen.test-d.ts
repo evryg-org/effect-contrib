@@ -1,5 +1,5 @@
 import { describe, expectTypeOf, it } from "vitest"
-import type { extractParams, generateModule } from "./cypher-codegen"
+import type { extractParams, generateModule } from "./CypherCodegen"
 
 describe("extractParams types", () => {
   it("returns ReadonlyArray<string>, not mutable string[]", () => {

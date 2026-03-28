@@ -1,7 +1,7 @@
 import { registerHooks } from "node:module"
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
-import { generateModule } from "./cypher-codegen"
+import { generateModule } from "./CypherCodegen"
 
 registerHooks({
   resolve(specifier, context, nextResolve) {

@@ -1,2 +1,2 @@
-export { extractParams, generateModule } from "./cypher-codegen"
-export { cypherPlugin } from "./vite-plugin"
+export { extractParams, generateModule } from "./CypherCodegen"
+export { cypherPlugin } from "./VitePlugin"

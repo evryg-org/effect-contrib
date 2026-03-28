@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs"
-import { generateModule } from "./cypher-codegen"
+import { generateModule } from "./CypherCodegen"
 
 export const cypherPlugin = () => ({
   name: "vite-plugin-cypher",

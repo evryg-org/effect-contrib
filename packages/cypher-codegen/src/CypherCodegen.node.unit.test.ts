@@ -1,5 +1,5 @@
 import { describe, it, expect } from "@effect/vitest"
-import { extractParams, generateModule } from "./cypher-codegen"
+import { extractParams, generateModule } from "./CypherCodegen"
 
 describe("extractParams", () => {
   it.each([
