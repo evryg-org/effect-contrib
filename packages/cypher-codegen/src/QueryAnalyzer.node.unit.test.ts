@@ -61,14 +61,14 @@ describe("analyzeQuery — RETURN projections", () => {
       expectedColumns: [col("methodCount", "Long", false)],
     },
     {
-      label: "non-mandatory property is nullable",
+      label: "non-mandatory property from MATCH is non-nullable (app enforces writes)",
       cypher: "MATCH (c:Class) RETURN c.namespace AS namespace",
-      expectedColumns: [col("namespace", "String", true)],
+      expectedColumns: [col("namespace", "String", false)],
     },
     {
-      label: "StringArray property",
+      label: "StringArray property from MATCH is non-nullable",
       cypher: "MATCH (c:Class) RETURN c.domains AS domains",
-      expectedColumns: [col("domains", "StringArray", true)],
+      expectedColumns: [col("domains", "StringArray", false)],
     },
     {
       label: "DISTINCT does not change types",
@@ -134,6 +134,9 @@ describe("analyzeQuery — WITH rebinding", () => {
 
 // ── Real Neo4j type strings (e.g. "STRING NOT NULL", "FLOAT NOT NULL") ──
 
+// Real Neo4j Community Edition schema: no existence constraints (mandatory always false
+// except for UNIQUE key properties), but type strings contain NOT NULL.
+// The analyzer should treat "NOT NULL" in the type string as non-nullable.
 const realSchema = new GraphSchema({
   nodeProperties: [
     new NodeProperty({ labels: ["Class"], propertyName: "fqcn", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
@@ -161,9 +164,9 @@ describe("analyzeQuery — real Neo4j type strings", () => {
       expectedColumns: [col("fqcn", "String", false)],
     },
     {
-      label: "FLOAT NOT NULL normalizes to Double (nullable when not mandatory)",
+      label: "FLOAT NOT NULL normalizes to Double (non-nullable from MATCH)",
       cypher: "MATCH (c:Class) RETURN c.method_count AS cnt",
-      expectedColumns: [col("cnt", "Double", true)],
+      expectedColumns: [col("cnt", "Double", false)],
     },
     {
       label: "LIST<STRING NOT NULL> NOT NULL normalizes to StringArray",
@@ -171,9 +174,9 @@ describe("analyzeQuery — real Neo4j type strings", () => {
       expectedColumns: [col("domains", "StringArray", false)],
     },
     {
-      label: "non-mandatory property: nullable from MATCH (property may not exist on node)",
+      label: "non-mandatory property from MATCH is non-nullable (app owns write side)",
       cypher: "MATCH (c:Class) RETURN c.name AS name",
-      expectedColumns: [col("name", "String", true)],
+      expectedColumns: [col("name", "String", false)],
     },
   ])("$label", ({ cypher, expectedColumns }) => {
     const result = analyzeQuery(cypher, realSchema)

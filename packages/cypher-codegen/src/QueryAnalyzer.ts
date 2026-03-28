@@ -85,14 +85,14 @@ function lookupPropertyType(
   schema: GraphSchema,
   label: string,
   propertyName: string,
-): { type: Neo4jType; mandatory: boolean } | undefined {
+): { type: Neo4jType } | undefined {
   const prop = schema.nodeProperties.find(
     (p) => p.labels.includes(label) && p.propertyName === propertyName,
   )
   if (!prop) return undefined
   const rawType = prop.propertyTypes[0]
   if (!rawType) return undefined
-  return { type: normalizeNeo4jType(rawType), mandatory: prop.mandatory }
+  return { type: normalizeNeo4jType(rawType) }
 }
 
 // ── Known function return types ──
@@ -254,8 +254,7 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
       if (binding) {
         const lookup = lookupPropertyType(schema, binding.label, proj.property)
         if (lookup) {
-          const nullable = binding.optional || !lookup.mandatory
-          return { name: proj.alias, type: lookup.type, nullable }
+          return { name: proj.alias, type: lookup.type, nullable: binding.optional }
         }
       }
       return { name: proj.alias, type: "String" as Neo4jType, nullable: true }
