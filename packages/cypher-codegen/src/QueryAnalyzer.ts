@@ -2,7 +2,7 @@ import { CharStream, CommonTokenStream, ParseTreeWalker } from "antlr4ng"
 import { CypherLexer } from "./generated-parser/CypherLexer.js"
 import { CypherParser, type MatchStContext, type NodePatternContext, type ReturnStContext } from "./generated-parser/CypherParser.js"
 import { CypherParserListener } from "./generated-parser/CypherParserListener.js"
-import type { GraphSchema } from "./SchemaExtractor"
+import type { GraphSchema } from "./GraphSchemaModel"
 
 // ── Public types ──
 
