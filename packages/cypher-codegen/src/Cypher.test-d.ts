@@ -5,9 +5,12 @@ import type { Record as Neo4jRecord } from "neo4j-driver"
 import type { query } from "./Fixture.cypher"
 
 describe("*.cypher ambient module", () => {
-  it("query returns Effect<Neo4jRecord[], Neo4jQueryError, Neo4jClient>", () => {
-    expectTypeOf<ReturnType<typeof query>>().toEqualTypeOf<
-      Effect.Effect<Neo4jRecord[], Neo4jQueryError, Neo4jClient>
+  it("query is callable and returns an Effect", () => {
+    // Without generated cypher.d.ts, the return type falls back to the
+    // untyped module declaration. With codegen, it returns typed Row[].
+    expectTypeOf<typeof query>().toBeFunction()
+    expectTypeOf<ReturnType<typeof query>>().toMatchTypeOf<
+      Effect.Effect<unknown[], unknown, unknown>
     >()
   })
 })
