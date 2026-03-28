@@ -20,23 +20,27 @@ export const extractSchema = (): Effect.Effect<GraphSchema, Neo4jQueryError, Neo
         "CALL db.schema.relTypeProperties() YIELD relType, propertyName, propertyTypes, mandatory",
       )
 
-      const nodeProperties = nodeRecs.map((rec) =>
-        decodeNodeProperty({
-          labels: rec.get("nodeLabels"),
-          propertyName: rec.get("propertyName"),
-          propertyTypes: rec.get("propertyTypes"),
-          mandatory: rec.get("mandatory"),
-        }),
-      )
+      const nodeProperties = nodeRecs
+        .filter((rec) => rec.get("propertyName") !== null)
+        .map((rec) =>
+          decodeNodeProperty({
+            labels: rec.get("nodeLabels"),
+            propertyName: rec.get("propertyName"),
+            propertyTypes: rec.get("propertyTypes"),
+            mandatory: rec.get("mandatory"),
+          }),
+        )
 
-      const relProperties = relRecs.map((rec) =>
-        decodeRelProperty({
-          relType: rec.get("relType"),
-          propertyName: rec.get("propertyName"),
-          propertyTypes: rec.get("propertyTypes"),
-          mandatory: rec.get("mandatory"),
-        }),
-      )
+      const relProperties = relRecs
+        .filter((rec) => rec.get("propertyName") !== null)
+        .map((rec) =>
+          decodeRelProperty({
+            relType: rec.get("relType"),
+            propertyName: rec.get("propertyName"),
+            propertyTypes: rec.get("propertyTypes"),
+            mandatory: rec.get("mandatory"),
+          }),
+        )
 
       return new GraphSchema({ nodeProperties, relProperties })
     }),

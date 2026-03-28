@@ -32,7 +32,36 @@ function fieldTypeFor(col: ResolvedColumn): string {
   return col.nullable ? `${base} | null` : base
 }
 
-// ── Declaration generation ──
+// ── Per-file declaration generation (.d.cypher.ts) ──
+
+export const generateDeclaration = (entry: QueryEntry): string => {
+  const lines: string[] = []
+
+  lines.push(`import type { Effect } from "effect"`)
+  lines.push(`import type { Neo4jClient, Neo4jQueryError } from "@/lib/effect-neo4j"`)
+  lines.push(``)
+
+  // Row interface
+  lines.push(`interface Row {`)
+  for (const col of entry.columns) {
+    lines.push(`  readonly ${col.name}: ${fieldTypeFor(col)}`)
+  }
+  lines.push(`}`)
+  lines.push(``)
+
+  // Query function signature
+  if (entry.params.length === 0) {
+    lines.push(`export declare const query: () => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`)
+  } else {
+    const paramFields = entry.params.map((p) => `${p.name}: ${tsTypeFor(p.type)}`).join(", ")
+    lines.push(`export declare const query: (params: { ${paramFields} }) => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`)
+  }
+  lines.push(``)
+
+  return lines.join("\n")
+}
+
+// ── Bulk generation (all entries into single file with declare module) ──
 
 export const generateDeclarations = (queries: ReadonlyArray<QueryEntry>): string => {
   const lines: string[] = []
@@ -49,7 +78,6 @@ export const generateDeclarations = (queries: ReadonlyArray<QueryEntry>): string
     }
     lines.push(`  }`)
 
-    // Build function signature
     if (entry.params.length === 0) {
       lines.push(`  export const query: () => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`)
     } else {

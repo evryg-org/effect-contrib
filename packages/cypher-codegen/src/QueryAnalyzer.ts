@@ -56,6 +56,31 @@ function parse(cypher: string) {
 
 // ── Schema lookup ──
 
+function normalizeNeo4jType(raw: string): Neo4jType {
+  const upper = raw.toUpperCase().replace(/ NOT NULL/g, "").trim()
+  switch (upper) {
+    case "STRING": return "String"
+    case "LONG": case "INTEGER": return "Long"
+    case "FLOAT": case "DOUBLE": return "Double"
+    case "BOOLEAN": return "Boolean"
+    case "DATE": return "Date"
+    case "DATETIME": case "ZONED DATETIME": return "DateTime"
+    case "LOCAL DATETIME": return "LocalDateTime"
+    case "LOCAL TIME": return "LocalTime"
+    case "TIME": case "ZONED TIME": return "Time"
+    case "DURATION": return "Duration"
+    case "POINT": return "Point"
+    case "LIST<STRING>": case "LIST<STRING NOT NULL>": return "StringArray"
+    case "LIST<LONG>": case "LIST<LONG NOT NULL>": case "LIST<INTEGER>": case "LIST<INTEGER NOT NULL>": return "LongArray"
+    case "LIST<FLOAT>": case "LIST<FLOAT NOT NULL>": case "LIST<DOUBLE>": case "LIST<DOUBLE NOT NULL>": return "DoubleArray"
+    case "LIST<BOOLEAN>": case "LIST<BOOLEAN NOT NULL>": return "BooleanArray"
+    default:
+      if (upper.startsWith("LIST<STRING")) return "StringArray"
+      if (upper.startsWith("LIST<")) return "StringArray"
+      return "String"
+  }
+}
+
 function lookupPropertyType(
   schema: GraphSchema,
   label: string,
@@ -65,9 +90,9 @@ function lookupPropertyType(
     (p) => p.labels.includes(label) && p.propertyName === propertyName,
   )
   if (!prop) return undefined
-  const neo4jType = prop.propertyTypes[0]
-  if (!neo4jType) return undefined
-  return { type: neo4jType as Neo4jType, mandatory: prop.mandatory }
+  const rawType = prop.propertyTypes[0]
+  if (!rawType) return undefined
+  return { type: normalizeNeo4jType(rawType), mandatory: prop.mandatory }
 }
 
 // ── Known function return types ──

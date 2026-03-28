@@ -7,7 +7,8 @@ import { basename, dirname } from "node:path"
 import { Neo4jClientLive, Neo4jConfig } from "@/lib/effect-neo4j"
 import { extractSchema, saveSchema, loadSchema } from "./SchemaExtractor"
 import { analyzeQuery } from "./QueryAnalyzer"
-import { generateDeclarations, type QueryEntry } from "./CypherDeclarationGen"
+import { type QueryEntry } from "./CypherDeclarationGen"
+import { generateBarrel, type BarrelEntry } from "./CypherCodegen"
 
 // ── Shared options ──
 
@@ -16,7 +17,7 @@ const neo4jUserOption = Options.withDefault(Options.text("neo4j-user"), process.
 const neo4jPasswordOption = Options.withDefault(Options.text("neo4j-password"), process.env.NEO4J_PASSWORD ?? "changeme")
 const neo4jDatabaseOption = Options.withDefault(Options.text("neo4j-database"), process.env.NEO4J_DATABASE ?? "neo4j")
 const schemaPathOption = Options.withDefault(Options.text("schema-path"), "data/graph-schema.json")
-const outputOption = Options.withDefault(Options.text("output"), "src/generated/cypher.d.ts")
+const outputOption = Options.withDefault(Options.text("output"), "src/generated/queries.ts")
 const cypherGlobOption = Options.withDefault(Options.text("cypher-glob"), "src/**/*.cypher")
 
 // ── extract-schema command ──
@@ -58,21 +59,22 @@ const generateCommand = Command.make(
         yield* Effect.fail(new Error(`Duplicate .cypher filenames: ${[...new Set(duplicates)].join(", ")}`))
       }
 
-      const entries: QueryEntry[] = files.map((file) => {
+      const entries: BarrelEntry[] = files.map((file) => {
         const cypher = readFileSync(file, "utf-8").trim()
         const analysis = analyzeQuery(cypher, schema)
         return {
           filename: basename(file),
+          cypher,
           columns: analysis.columns,
-          params: analysis.params,
+          params: [...analysis.params.map((p) => p.name)],
         }
       })
 
-      const content = generateDeclarations(entries)
+      const content = generateBarrel(entries)
       mkdirSync(dirname(output), { recursive: true })
       writeFileSync(output, content, "utf-8")
 
-      yield* Console.log(`Generated ${output} with ${entries.length} query declarations`)
+      yield* Console.log(`Generated ${output} with ${entries.length} typed queries`)
       for (const entry of entries) {
         yield* Console.log(`  ${entry.filename}: ${entry.columns.length} columns, ${entry.params.length} params`)
       }
@@ -102,17 +104,17 @@ const allCommand = Command.make(
         yield* Effect.fail(new Error(`Duplicate .cypher filenames: ${[...new Set(duplicates)].join(", ")}`))
       }
 
-      const entries: QueryEntry[] = files.map((file) => {
+      const entries: BarrelEntry[] = files.map((file) => {
         const cypher = readFileSync(file, "utf-8").trim()
         const analysis = analyzeQuery(cypher, schema)
-        return { filename: basename(file), columns: analysis.columns, params: analysis.params }
+        return { filename: basename(file), cypher, columns: analysis.columns, params: [...analysis.params.map((p) => p.name)] }
       })
 
-      const content = generateDeclarations(entries)
+      const content = generateBarrel(entries)
       mkdirSync(dirname(output), { recursive: true })
       writeFileSync(output, content, "utf-8")
 
-      yield* Console.log(`Generated ${output} with ${entries.length} query declarations`)
+      yield* Console.log(`Generated ${output} with ${entries.length} typed queries`)
     }).pipe(
       Effect.provide(
         Neo4jClientLive.pipe(
