@@ -1,3 +1,5 @@
+import type { ResolvedColumn } from "./QueryAnalyzer"
+
 const PARAM_RE = /\$([a-zA-Z_]\w*)/g
 
 export const extractParams = (cypher: string): ReadonlyArray<string> => {
@@ -8,7 +10,49 @@ export const extractParams = (cypher: string): ReadonlyArray<string> => {
   return [...params]
 }
 
-export const generateModule = (cypher: string): string => {
+// ── Neo4j type → Effect Schema mapping ──
+
+const TEMPORAL_TYPES = new Set(["Date", "DateTime", "LocalDateTime", "LocalTime", "Time", "Duration"])
+
+function schemaFieldFor(col: ResolvedColumn): string {
+  let schema: string
+  switch (col.type) {
+    case "String": schema = "Schema.String"; break
+    case "Long": schema = "Neo4jInteger"; break
+    case "Double": schema = "Schema.Number"; break
+    case "Boolean": schema = "Schema.Boolean"; break
+    case "StringArray": schema = "Schema.Array(Schema.String)"; break
+    case "LongArray": schema = "Schema.Array(Neo4jInteger)"; break
+    case "DoubleArray": schema = "Schema.Array(Schema.Number)"; break
+    case "BooleanArray": schema = "Schema.Array(Schema.Boolean)"; break
+    default:
+      if (TEMPORAL_TYPES.has(col.type)) {
+        schema = "TemporalString"
+        break
+      }
+      schema = "Schema.String"
+  }
+  return col.nullable ? `Schema.NullOr(${schema})` : schema
+}
+
+function needsNeo4jInteger(columns: ReadonlyArray<ResolvedColumn>): boolean {
+  return columns.some((c) => c.type === "Long" || c.type === "LongArray")
+}
+
+function needsTemporalString(columns: ReadonlyArray<ResolvedColumn>): boolean {
+  return columns.some((c) => TEMPORAL_TYPES.has(c.type))
+}
+
+// ── Module generation ──
+
+export function generateModule(cypher: string, columns?: ReadonlyArray<ResolvedColumn>): string {
+  if (!columns || columns.length === 0) {
+    return generateUntypedModule(cypher)
+  }
+  return generateTypedModule(cypher, columns)
+}
+
+function generateUntypedModule(cypher: string): string {
   const params = extractParams(cypher)
   const lines = [
     `import { Effect } from "effect";`,
@@ -28,4 +72,75 @@ export const generateModule = (cypher: string): string => {
   }
 
   return lines.join("\n") + "\n"
+}
+
+function generateTypedModule(cypher: string, columns: ReadonlyArray<ResolvedColumn>): string {
+  const params = extractParams(cypher)
+  const lines: string[] = []
+
+  // Imports
+  lines.push(`import { Effect, Schema } from "effect";`)
+  lines.push(`import { Neo4jClient } from "@/lib/effect-neo4j";`)
+  lines.push(``)
+
+  // Cypher constant
+  lines.push(`const cypher = ${JSON.stringify(cypher)};`)
+  lines.push(``)
+
+  // Neo4jInteger transform (only if needed)
+  if (needsNeo4jInteger(columns)) {
+    lines.push(`const Neo4jInteger = Schema.transform(`)
+    lines.push(`  Schema.Unknown, Schema.Number,`)
+    lines.push(`  { decode: (v) => typeof v === "number" ? v : (v).toNumber(), encode: (n) => n },`)
+    lines.push(`);`)
+    lines.push(``)
+  }
+
+  // Temporal string transform (only if needed)
+  if (needsTemporalString(columns)) {
+    lines.push(`const TemporalString = Schema.transform(`)
+    lines.push(`  Schema.Unknown, Schema.String,`)
+    lines.push(`  { decode: (v) => (v).toString(), encode: (s) => s },`)
+    lines.push(`);`)
+    lines.push(``)
+  }
+
+  // Row Schema.Struct
+  lines.push(`const Row = Schema.Struct({`)
+  for (const col of columns) {
+    lines.push(`  ${col.name}: ${schemaFieldFor(col)},`)
+  }
+  lines.push(`});`)
+  lines.push(``)
+
+  // Decoder
+  lines.push(`const decodeRow = Schema.decodeUnknownSync(Row);`)
+  lines.push(``)
+
+  // recordToRow
+  lines.push(`const recordToRow = (rec) => decodeRow({`)
+  for (const col of columns) {
+    lines.push(`  ${col.name}: rec.get("${col.name}"),`)
+  }
+  lines.push(`});`)
+  lines.push(``)
+
+  // Query export
+  if (params.length === 0) {
+    lines.push(`export const query = () =>`)
+  } else {
+    const destructure = `{ ${params.join(", ")} }`
+    lines.push(`export const query = (${destructure}) =>`)
+  }
+  lines.push(`  Effect.flatMap(Neo4jClient, (neo4j) =>`)
+
+  if (params.length === 0) {
+    lines.push(`    Effect.map(neo4j.query(cypher), (recs) => recs.map(recordToRow)));`)
+  } else {
+    const destructure = `{ ${params.join(", ")} }`
+    lines.push(`    Effect.map(neo4j.query(cypher, ${destructure}), (recs) => recs.map(recordToRow)));`)
+  }
+  lines.push(``)
+
+  return lines.join("\n")
 }
