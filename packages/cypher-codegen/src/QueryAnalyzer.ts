@@ -70,10 +70,10 @@ function normalizeNeo4jType(raw: string): Neo4jType {
     case "TIME": case "ZONED TIME": return "Time"
     case "DURATION": return "Duration"
     case "POINT": return "Point"
-    case "LIST<STRING>": case "LIST<STRING NOT NULL>": return "StringArray"
-    case "LIST<LONG>": case "LIST<LONG NOT NULL>": case "LIST<INTEGER>": case "LIST<INTEGER NOT NULL>": return "LongArray"
-    case "LIST<FLOAT>": case "LIST<FLOAT NOT NULL>": case "LIST<DOUBLE>": case "LIST<DOUBLE NOT NULL>": return "DoubleArray"
-    case "LIST<BOOLEAN>": case "LIST<BOOLEAN NOT NULL>": return "BooleanArray"
+    case "STRINGARRAY": case "LIST<STRING>": case "LIST<STRING NOT NULL>": return "StringArray"
+    case "LONGARRAY": case "LIST<LONG>": case "LIST<LONG NOT NULL>": case "LIST<INTEGER>": case "LIST<INTEGER NOT NULL>": return "LongArray"
+    case "DOUBLEARRAY": case "LIST<FLOAT>": case "LIST<FLOAT NOT NULL>": case "LIST<DOUBLE>": case "LIST<DOUBLE NOT NULL>": return "DoubleArray"
+    case "BOOLEANARRAY": case "LIST<BOOLEAN>": case "LIST<BOOLEAN NOT NULL>": return "BooleanArray"
     default:
       if (upper.startsWith("LIST<STRING")) return "StringArray"
       if (upper.startsWith("LIST<")) return "StringArray"
@@ -175,11 +175,25 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
       const alias = aliasCtx ? aliasCtx.getText() : ""
       const exprText = item.expression()?.getText() ?? ""
 
-      // Function invocation: count(*), collect(c.name)
+      // Function invocation: count(*), collect(c.name), coalesce(c.prop, default)
       const funcMatch = exprText.match(/^(\w+)\((.+)\)$/i)
       if (funcMatch) {
         const funcName = funcMatch[1].toLowerCase()
         const argText = funcMatch[2]
+
+        // coalesce(var.prop, default) — extract the first arg's property type
+        if (funcName === "coalesce") {
+          const args = argText.split(",")
+          const firstArg = args[0].trim()
+          const propMatch = firstArg.match(/^(\w+)\.(\w+)$/)
+          if (propMatch) {
+            projections.push({ alias, functionName: funcName, functionArg: { variable: propMatch[1], property: propMatch[2] } })
+          } else {
+            projections.push({ alias, functionName: funcName })
+          }
+          continue
+        }
+
         const propMatch = argText.match(/^(\w+)\.(\w+)$/)
         if (propMatch) {
           projections.push({ alias, functionName: funcName, functionArg: { variable: propMatch[1], property: propMatch[2] } })
@@ -205,6 +219,17 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
   // Resolve columns
   const columns: ResolvedColumn[] = projections.map((proj) => {
     if (proj.functionName) {
+      // coalesce(var.prop, default) — same type as the property, but non-nullable
+      if (proj.functionName === "coalesce" && proj.functionArg) {
+        const binding = bindings.get(proj.functionArg.variable)
+        if (binding) {
+          const lookup = lookupPropertyType(schema, binding.label, proj.functionArg.property)
+          if (lookup) return { name: proj.alias, type: lookup.type, nullable: false }
+        }
+        return { name: proj.alias, type: "String" as Neo4jType, nullable: false }
+      }
+
+      // collect(var.prop) — returns array of the property type
       if (proj.functionName === "collect" && proj.functionArg) {
         const binding = bindings.get(proj.functionArg.variable)
         if (binding) {
@@ -213,6 +238,12 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
         }
         return { name: proj.alias, type: "StringArray" as Neo4jType, nullable: false }
       }
+
+      // type(r) — returns the relationship type name as String
+      if (proj.functionName === "type") {
+        return { name: proj.alias, type: "String" as Neo4jType, nullable: false }
+      }
+
       const aggType = AGGREGATE_RETURN_TYPES[proj.functionName]
       if (aggType) return { name: proj.alias, type: aggType, nullable: false }
       return { name: proj.alias, type: "String" as Neo4jType, nullable: false }

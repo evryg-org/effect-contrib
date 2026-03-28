@@ -131,3 +131,80 @@ describe("analyzeQuery — WITH rebinding", () => {
     expect(result.columns).toEqual([col("fqcn", "String", false)])
   })
 })
+
+// ── Real Neo4j type strings (e.g. "STRING NOT NULL", "FLOAT NOT NULL") ──
+
+const realSchema = new GraphSchema({
+  nodeProperties: [
+    new NodeProperty({ labels: ["Class"], propertyName: "fqcn", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
+    new NodeProperty({ labels: ["Class"], propertyName: "name", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
+    new NodeProperty({ labels: ["Class"], propertyName: "source", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
+    new NodeProperty({ labels: ["Class"], propertyName: "namespace", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
+    new NodeProperty({ labels: ["Class"], propertyName: "file", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
+    new NodeProperty({ labels: ["Class"], propertyName: "method_count", propertyTypes: ["FLOAT NOT NULL"], mandatory: false }),
+    new NodeProperty({ labels: ["Class"], propertyName: "domains", propertyTypes: ["LIST<STRING NOT NULL> NOT NULL"], mandatory: true }),
+    new NodeProperty({ labels: ["Module"], propertyName: "name", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
+    new NodeProperty({ labels: ["Module"], propertyName: "domains", propertyTypes: ["LIST<STRING NOT NULL> NOT NULL"], mandatory: false }),
+    new NodeProperty({ labels: ["Method"], propertyName: "id", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
+    new NodeProperty({ labels: ["Method"], propertyName: "name", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
+    new NodeProperty({ labels: ["Method"], propertyName: "ccn", propertyTypes: ["FLOAT NOT NULL"], mandatory: false }),
+    new NodeProperty({ labels: ["Method"], propertyName: "file", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
+  ],
+  relProperties: [],
+})
+
+describe("analyzeQuery — real Neo4j type strings", () => {
+  it.each([
+    {
+      label: "STRING NOT NULL normalizes to String",
+      cypher: "MATCH (c:Class) RETURN c.fqcn AS fqcn",
+      expectedColumns: [col("fqcn", "String", false)],
+    },
+    {
+      label: "FLOAT NOT NULL normalizes to Double (nullable when not mandatory)",
+      cypher: "MATCH (c:Class) RETURN c.method_count AS cnt",
+      expectedColumns: [col("cnt", "Double", true)],
+    },
+    {
+      label: "LIST<STRING NOT NULL> NOT NULL normalizes to StringArray",
+      cypher: "MATCH (c:Class) RETURN c.domains AS domains",
+      expectedColumns: [col("domains", "StringArray", false)],
+    },
+    {
+      label: "non-mandatory property: nullable from MATCH (property may not exist on node)",
+      cypher: "MATCH (c:Class) RETURN c.name AS name",
+      expectedColumns: [col("name", "String", true)],
+    },
+  ])("$label", ({ cypher, expectedColumns }) => {
+    const result = analyzeQuery(cypher, realSchema)
+    expect(result.columns).toEqual(expectedColumns)
+  })
+})
+
+describe("analyzeQuery — coalesce wrapping", () => {
+  it("coalesce(var.prop, []) preserves the property type", () => {
+    const cypher = `MATCH (mod:Module)
+                    RETURN mod.name AS name, coalesce(mod.domains, []) AS domains`
+    const result = analyzeQuery(cypher, realSchema)
+    expect(result.columns).toEqual([
+      col("name", "String", false),
+      col("domains", "StringArray", false),
+    ])
+  })
+
+  it("coalesce(var.prop, defaultVal) makes result non-nullable", () => {
+    const cypher = `MATCH (c:Class)
+                    RETURN coalesce(c.namespace, 'unknown') AS namespace`
+    const result = analyzeQuery(cypher, realSchema)
+    expect(result.columns).toEqual([col("namespace", "String", false)])
+  })
+})
+
+describe("analyzeQuery — type(r) expression", () => {
+  it("type(r) infers as String", () => {
+    const cypher = `MATCH (a:Class)-[r:EXTENDS]->(b:Class)
+                    RETURN type(r) AS edgeKind`
+    const result = analyzeQuery(cypher, realSchema)
+    expect(result.columns).toEqual([col("edgeKind", "String", false)])
+  })
+})

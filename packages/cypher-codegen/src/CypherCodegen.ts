@@ -188,8 +188,14 @@ export function generateBarrel(entries: ReadonlyArray<BarrelEntry>): string {
     lines.push(``)
   }
 
-  // Each query
+  // Each query (skip entries with empty/invalid column names)
   for (const entry of entries) {
+    const validColumns = entry.columns.filter((c) => c.name.length > 0)
+    if (validColumns.length === 0 && entry.columns.length > 0) {
+      lines.push(`// ── ${entry.filename} (skipped: no aliased columns) ──`)
+      lines.push(``)
+      continue
+    }
     const name = toCamelCase(entry.filename)
     const hasColumns = entry.columns.length > 0
 
