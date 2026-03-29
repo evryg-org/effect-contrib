@@ -130,6 +130,47 @@ describe("analyzeQuery — WITH rebinding", () => {
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual([col("fqcn", "String", false)])
   })
+
+  it.each([
+    {
+      label: "sum() propagates Long through WITH",
+      cypher: `MATCH (c:Class)
+               WITH c, sum(c.method_count) AS total
+               RETURN total`,
+      expectedColumns: [col("total", "Long", false)],
+    },
+    {
+      label: "count() propagates Long through WITH",
+      cypher: `MATCH (c:Class)
+               WITH count(c) AS cnt
+               RETURN cnt`,
+      expectedColumns: [col("cnt", "Long", false)],
+    },
+    {
+      label: "collect(string prop) propagates StringArray through WITH",
+      cypher: `MATCH (c:Class)
+               WITH collect(c.fqcn) AS names
+               RETURN names`,
+      expectedColumns: [col("names", "StringArray", false)],
+    },
+    {
+      label: "collect({map}) stays Unknown through WITH",
+      cypher: `MATCH (c:Class)
+               WITH collect({name: c.fqcn, count: 1}) AS data
+               RETURN data`,
+      expectedColumns: [col("data", "Unknown", false)],
+    },
+    {
+      label: "coalesce(prop, default) propagates property type through WITH",
+      cypher: `MATCH (c:Class)
+               WITH coalesce(c.method_count, 0) AS cnt
+               RETURN cnt`,
+      expectedColumns: [col("cnt", "Long", false)],
+    },
+  ])("$label", ({ cypher, expectedColumns }) => {
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual(expectedColumns)
+  })
 })
 
 // ── Real Neo4j type strings (e.g. "STRING NOT NULL", "FLOAT NOT NULL") ──

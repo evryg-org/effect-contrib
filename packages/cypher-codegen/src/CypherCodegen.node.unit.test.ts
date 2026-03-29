@@ -96,12 +96,13 @@ describe("generateModule with columns (typed codegen)", () => {
     expect(source).toContain("recs.map(recordToRow)")
   })
 
-  it("emits Neo4jInteger transform for Long columns", () => {
+  it("imports Neo4jInt from effect-neo4j for Long columns", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.method_count AS cnt", [
       col("cnt", "Long", false),
     ])
-    expect(source).toContain("Neo4jInteger")
-    expect(source).toContain(".toNumber()")
+    expect(source).toContain('import { Neo4jInt } from "@/lib/effect-neo4j"')
+    expect(source).toContain("Neo4jInt")
+    expect(source).not.toContain("Neo4jInteger")
   })
 
   it("uses Schema.NullOr for nullable columns", () => {
@@ -141,13 +142,23 @@ describe("generateModule with columns (typed codegen)", () => {
     expect(source).toContain("recordToRow")
   })
 
-  it("emits Schema.Unknown for Unknown column type", () => {
+  it("imports Neo4jValue from effect-neo4j for Unknown column type", () => {
     const source = generateModule(
       "MATCH (m:Method) RETURN m.id AS id, collect({x: 1}) AS data",
       [col("id", "String", false), col("data", "Unknown", false)],
     )
-    expect(source).toContain("Schema.Unknown")
+    expect(source).toContain('import { Neo4jValue } from "@/lib/effect-neo4j"')
+    expect(source).toContain("Neo4jValue")
+    expect(source).not.toContain("Schema.Unknown")
     expect(source).toContain("Schema.String")
+  })
+
+  it("imports both Neo4jInt and Neo4jValue when both Long and Unknown columns", () => {
+    const source = generateModule(
+      "MATCH (c:Class) RETURN c.method_count AS cnt, collect({x: 1}) AS data",
+      [col("cnt", "Long", false), col("data", "Unknown", false)],
+    )
+    expect(source).toContain('import { Neo4jInt, Neo4jValue } from "@/lib/effect-neo4j"')
   })
 })
 
