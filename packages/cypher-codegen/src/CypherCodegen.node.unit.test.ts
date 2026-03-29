@@ -1,6 +1,7 @@
 import { describe, it, expect } from "@effect/vitest"
 import { extractParams, generateModule } from "./CypherCodegen"
 import type { ResolvedColumn } from "./QueryAnalyzer"
+import { ScalarType, ListType, MapType, UnknownType, type CypherType } from "./CypherType"
 
 describe("extractParams", () => {
   it.each([
@@ -60,15 +61,19 @@ describe("generateModule", () => {
   })
 })
 
-// ── Typed codegen (with columns) ──
+// ── Helpers ──
 
-const col = (name: string, type: string, nullable: boolean): ResolvedColumn =>
-  ({ name, type, nullable }) as ResolvedColumn
+const S = (t: "String" | "Long" | "Double" | "Boolean") => new ScalarType({ scalarType: t })
+
+const col = (name: string, type: CypherType, nullable: boolean): ResolvedColumn =>
+  ({ name, type, nullable })
+
+// ── Typed codegen (with columns) ──
 
 describe("generateModule with columns (typed codegen)", () => {
   it("generates Schema.Struct when columns are provided", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.fqcn AS fqcn", [
-      col("fqcn", "String", false),
+      col("fqcn", S("String"), false),
     ])
     expect(source).toContain("Schema.Struct")
     expect(source).toContain("Schema.String")
@@ -76,14 +81,14 @@ describe("generateModule with columns (typed codegen)", () => {
 
   it("uses Schema.decodeUnknownSync for row decoding", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.fqcn AS fqcn", [
-      col("fqcn", "String", false),
+      col("fqcn", S("String"), false),
     ])
     expect(source).toContain("Schema.decodeUnknownSync")
   })
 
   it("generates recordToRow extractor", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.fqcn AS fqcn", [
-      col("fqcn", "String", false),
+      col("fqcn", S("String"), false),
     ])
     expect(source).toContain("recordToRow")
     expect(source).toContain('rec.get("fqcn")')
@@ -91,14 +96,14 @@ describe("generateModule with columns (typed codegen)", () => {
 
   it("maps records in the query return", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.fqcn AS fqcn", [
-      col("fqcn", "String", false),
+      col("fqcn", S("String"), false),
     ])
     expect(source).toContain("recs.map(recordToRow)")
   })
 
   it("imports Neo4jInt from effect-neo4j for Long columns", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.method_count AS cnt", [
-      col("cnt", "Long", false),
+      col("cnt", S("Long"), false),
     ])
     expect(source).toContain('import { Neo4jClient, Neo4jInt } from "@/lib/effect-neo4j"')
     expect(source).toContain("Neo4jInt")
@@ -107,23 +112,16 @@ describe("generateModule with columns (typed codegen)", () => {
 
   it("uses Schema.NullOr for nullable columns", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.namespace AS ns", [
-      col("ns", "String", true),
+      col("ns", S("String"), true),
     ])
     expect(source).toContain("Schema.NullOr(Schema.String)")
   })
 
-  it("uses Schema.Array(Schema.String) for StringArray columns", () => {
+  it("uses Schema.Array(Schema.String) for List(String) columns", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.domains AS domains", [
-      col("domains", "StringArray", false),
+      col("domains", ListType(S("String")), false),
     ])
     expect(source).toContain("Schema.Array(Schema.String)")
-  })
-
-  it("converts temporal types with .toString()", () => {
-    const source = generateModule("MATCH (e:Event) RETURN e.ts AS ts", [
-      col("ts", "DateTime", false),
-    ])
-    expect(source).toContain(".toString()")
   })
 
   it("falls back to untyped codegen when no columns provided", () => {
@@ -135,7 +133,7 @@ describe("generateModule with columns (typed codegen)", () => {
 
   it("handles params AND columns together", () => {
     const source = generateModule("MATCH (c:Class {fqcn: $fqcn}) RETURN c.name AS name", [
-      col("name", "String", false),
+      col("name", S("String"), false),
     ])
     expect(source).toContain("{ fqcn }")
     expect(source).toContain("Schema.Struct")
@@ -145,20 +143,41 @@ describe("generateModule with columns (typed codegen)", () => {
   it("imports Neo4jValue from effect-neo4j for Unknown column type", () => {
     const source = generateModule(
       "MATCH (m:Method) RETURN m.id AS id, collect({x: 1}) AS data",
-      [col("id", "String", false), col("data", "Unknown", false)],
+      [col("id", S("String"), false), col("data", new UnknownType({}), false)],
     )
     expect(source).toContain('import { Neo4jClient, Neo4jValue } from "@/lib/effect-neo4j"')
     expect(source).toContain("Neo4jValue")
-    expect(source).not.toContain("Schema.Unknown")
     expect(source).toContain("Schema.String")
   })
 
   it("imports both Neo4jInt and Neo4jValue when both Long and Unknown columns", () => {
     const source = generateModule(
       "MATCH (c:Class) RETURN c.method_count AS cnt, collect({x: 1}) AS data",
-      [col("cnt", "Long", false), col("data", "Unknown", false)],
+      [col("cnt", S("Long"), false), col("data", new UnknownType({}), false)],
     )
     expect(source).toContain('import { Neo4jClient, Neo4jInt, Neo4jValue } from "@/lib/effect-neo4j"')
+  })
+
+  it("emits nested Schema.Struct for MapType columns", () => {
+    const source = generateModule(
+      "MATCH (m:Method) RETURN collect({id: m.id, vis: m.visibility}) AS profiles",
+      [col("profiles", ListType(MapType([
+        { name: "id", value: S("String") },
+        { name: "vis", value: S("String") },
+      ])), false)],
+    )
+    expect(source).toContain("Schema.Array(Schema.Struct({ id: Schema.String, vis: Schema.String }))")
+  })
+
+  it("emits Neo4jInt inside nested MapType", () => {
+    const source = generateModule(
+      "MATCH (m:Method) RETURN collect({count: m.ccn}) AS data",
+      [col("data", ListType(MapType([
+        { name: "count", value: S("Long") },
+      ])), false)],
+    )
+    expect(source).toContain("Schema.Array(Schema.Struct({ count: Neo4jInt }))")
+    expect(source).toContain('import { Neo4jClient, Neo4jInt } from "@/lib/effect-neo4j"')
   })
 })
 
@@ -175,7 +194,7 @@ describe("generateBarrel — typed params", () => {
     const entry: BarrelEntry = {
       filename: "Foo.cypher",
       cypher: "MATCH (c:Class {fqcn: $fqcn}) RETURN c.fqcn AS fqcn",
-      columns: [col("fqcn", "String", false)],
+      columns: [col("fqcn", S("String"), false)],
       params: [barrelParam("fqcn", "String")],
     }
     const source = generateBarrel([entry])
@@ -186,7 +205,7 @@ describe("generateBarrel — typed params", () => {
     const entry: BarrelEntry = {
       filename: "Bar.cypher",
       cypher: "MATCH (c:Class {method_count: $count}) RETURN c.fqcn AS fqcn",
-      columns: [col("fqcn", "String", false)],
+      columns: [col("fqcn", S("String"), false)],
       params: [barrelParam("count", "Long")],
     }
     const source = generateBarrel([entry])
@@ -197,7 +216,7 @@ describe("generateBarrel — typed params", () => {
     const entry: BarrelEntry = {
       filename: "Baz.cypher",
       cypher: "MATCH (c:Class) WHERE c.fqcn IN $ids RETURN c.fqcn AS fqcn",
-      columns: [col("fqcn", "String", false)],
+      columns: [col("fqcn", S("String"), false)],
       params: [barrelParam("ids", "StringArray")],
     }
     const source = generateBarrel([entry])
@@ -208,7 +227,7 @@ describe("generateBarrel — typed params", () => {
     const entry: BarrelEntry = {
       filename: "Qux.cypher",
       cypher: "MATCH (c:Class) WHERE c.foo = $val RETURN c.fqcn AS fqcn",
-      columns: [col("fqcn", "String", false)],
+      columns: [col("fqcn", S("String"), false)],
       params: [barrelParam("val", "Unknown")],
     }
     const source = generateBarrel([entry])

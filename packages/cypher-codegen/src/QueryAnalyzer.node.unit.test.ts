@@ -1,6 +1,7 @@
 import { describe, it, expect } from "@effect/vitest"
 import { analyzeQuery, type ResolvedColumn, type ResolvedParam } from "./QueryAnalyzer"
 import { GraphSchema, NodeProperty, RelProperty } from "./SchemaExtractor"
+import { ScalarType, ListType, MapType, UnknownType, type CypherType } from "./CypherType"
 
 // ── Schema fixture mimicking a typical analysis graph ──
 
@@ -12,9 +13,14 @@ const schema = new GraphSchema({
     new NodeProperty({ labels: ["Class"], propertyName: "file", propertyTypes: ["String"], mandatory: false }),
     new NodeProperty({ labels: ["Class"], propertyName: "source", propertyTypes: ["String"], mandatory: true }),
     new NodeProperty({ labels: ["Class"], propertyName: "method_count", propertyTypes: ["Long"], mandatory: true }),
+    new NodeProperty({ labels: ["Class"], propertyName: "kind", propertyTypes: ["String"], mandatory: true }),
     new NodeProperty({ labels: ["Class"], propertyName: "domains", propertyTypes: ["StringArray"], mandatory: false }),
+    new NodeProperty({ labels: ["Class"], propertyName: "isStatic", propertyTypes: ["Boolean"], mandatory: false }),
     new NodeProperty({ labels: ["Method"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
     new NodeProperty({ labels: ["Method"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
+    new NodeProperty({ labels: ["Method"], propertyName: "visibility", propertyTypes: ["String"], mandatory: false }),
+    new NodeProperty({ labels: ["Method"], propertyName: "params", propertyTypes: ["StringArray"], mandatory: false }),
+    new NodeProperty({ labels: ["Method"], propertyName: "returnType", propertyTypes: ["String"], mandatory: false }),
     new NodeProperty({ labels: ["Method"], propertyName: "ccn", propertyTypes: ["Long"], mandatory: false }),
     new NodeProperty({ labels: ["Method"], propertyName: "file", propertyTypes: ["String"], mandatory: false }),
     new NodeProperty({ labels: ["Module"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
@@ -33,8 +39,10 @@ const schema = new GraphSchema({
 
 // ── Helpers ──
 
-const col = (name: string, type: string, nullable: boolean): ResolvedColumn =>
-  ({ name, type, nullable }) as ResolvedColumn
+const S = (t: "String" | "Long" | "Double" | "Boolean") => new ScalarType({ scalarType: t })
+
+const col = (name: string, type: CypherType, nullable: boolean): ResolvedColumn =>
+  ({ name, type, nullable })
 
 const param = (name: string, type: string): ResolvedParam =>
   ({ name, type }) as ResolvedParam
@@ -46,39 +54,39 @@ describe("analyzeQuery — RETURN projections", () => {
     {
       label: "direct property access on mandatory field",
       cypher: "MATCH (c:Class) RETURN c.fqcn AS fqcn",
-      expectedColumns: [col("fqcn", "String", false)],
+      expectedColumns: [col("fqcn", S("String"), false)],
     },
     {
       label: "OPTIONAL MATCH makes properties nullable",
       cypher: `MATCH (c:Class)
                OPTIONAL MATCH (c)-[:BELONGS_TO]->(m:Module)
                RETURN m.name AS module`,
-      expectedColumns: [col("module", "String", true)],
+      expectedColumns: [col("module", S("String"), true)],
     },
     {
       label: "Long property infers as Long",
       cypher: "MATCH (c:Class) RETURN c.method_count AS methodCount",
-      expectedColumns: [col("methodCount", "Long", false)],
+      expectedColumns: [col("methodCount", S("Long"), false)],
     },
     {
       label: "non-mandatory property from MATCH is non-nullable (app enforces writes)",
       cypher: "MATCH (c:Class) RETURN c.namespace AS namespace",
-      expectedColumns: [col("namespace", "String", false)],
+      expectedColumns: [col("namespace", S("String"), false)],
     },
     {
       label: "StringArray property from MATCH is non-nullable",
       cypher: "MATCH (c:Class) RETURN c.domains AS domains",
-      expectedColumns: [col("domains", "StringArray", false)],
+      expectedColumns: [col("domains", ListType(S("String")), false)],
     },
     {
       label: "DISTINCT does not change types",
       cypher: "MATCH (c:Class) RETURN DISTINCT c.fqcn AS fqcn",
-      expectedColumns: [col("fqcn", "String", false)],
+      expectedColumns: [col("fqcn", S("String"), false)],
     },
     {
       label: "multiple return columns",
       cypher: "MATCH (d:Domain) RETURN d.name AS name, d.color AS color",
-      expectedColumns: [col("name", "String", false), col("color", "String", false)],
+      expectedColumns: [col("name", S("String"), false), col("color", S("String"), false)],
     },
   ])("$label", ({ cypher, expectedColumns }) => {
     const result = analyzeQuery(cypher, schema)
@@ -91,12 +99,12 @@ describe("analyzeQuery — aggregate expressions", () => {
     {
       label: "count(*) infers as Long",
       cypher: "MATCH (c:Class) RETURN count(*) AS cnt",
-      expectedColumns: [col("cnt", "Long", false)],
+      expectedColumns: [col("cnt", S("Long"), false)],
     },
     {
-      label: "collect(string) infers as StringArray",
+      label: "collect(string) infers as List(String)",
       cypher: "MATCH (c:Class) RETURN collect(c.name) AS names",
-      expectedColumns: [col("names", "StringArray", false)],
+      expectedColumns: [col("names", ListType(S("String")), false)],
     },
   ])("$label", ({ cypher, expectedColumns }) => {
     const result = analyzeQuery(cypher, schema)
@@ -128,7 +136,7 @@ describe("analyzeQuery — WITH rebinding", () => {
                     WITH c
                     RETURN c.fqcn AS fqcn`
     const result = analyzeQuery(cypher, schema)
-    expect(result.columns).toEqual([col("fqcn", "String", false)])
+    expect(result.columns).toEqual([col("fqcn", S("String"), false)])
   })
 
   it.each([
@@ -137,35 +145,38 @@ describe("analyzeQuery — WITH rebinding", () => {
       cypher: `MATCH (c:Class)
                WITH c, sum(c.method_count) AS total
                RETURN total`,
-      expectedColumns: [col("total", "Long", false)],
+      expectedColumns: [col("total", S("Long"), false)],
     },
     {
       label: "count() propagates Long through WITH",
       cypher: `MATCH (c:Class)
                WITH count(c) AS cnt
                RETURN cnt`,
-      expectedColumns: [col("cnt", "Long", false)],
+      expectedColumns: [col("cnt", S("Long"), false)],
     },
     {
-      label: "collect(string prop) propagates StringArray through WITH",
+      label: "collect(string prop) propagates List(String) through WITH",
       cypher: `MATCH (c:Class)
                WITH collect(c.fqcn) AS names
                RETURN names`,
-      expectedColumns: [col("names", "StringArray", false)],
+      expectedColumns: [col("names", ListType(S("String")), false)],
     },
     {
-      label: "collect({map}) stays Unknown through WITH",
+      label: "collect({map}) infers List(Map) through WITH",
       cypher: `MATCH (c:Class)
-               WITH collect({name: c.fqcn, count: 1}) AS data
+               WITH collect({name: c.fqcn, count: c.method_count}) AS data
                RETURN data`,
-      expectedColumns: [col("data", "Unknown", false)],
+      expectedColumns: [col("data", ListType(MapType([
+        { name: "name", value: S("String") },
+        { name: "count", value: S("Long") },
+      ])), false)],
     },
     {
       label: "coalesce(prop, default) propagates property type through WITH",
       cypher: `MATCH (c:Class)
                WITH coalesce(c.method_count, 0) AS cnt
                RETURN cnt`,
-      expectedColumns: [col("cnt", "Long", false)],
+      expectedColumns: [col("cnt", S("Long"), false)],
     },
   ])("$label", ({ cypher, expectedColumns }) => {
     const result = analyzeQuery(cypher, schema)
@@ -175,9 +186,6 @@ describe("analyzeQuery — WITH rebinding", () => {
 
 // ── Real Neo4j type strings (e.g. "STRING NOT NULL", "FLOAT NOT NULL") ──
 
-// Real Neo4j Community Edition schema: no existence constraints (mandatory always false
-// except for UNIQUE key properties), but type strings contain NOT NULL.
-// The analyzer should treat "NOT NULL" in the type string as non-nullable.
 const realSchema = new GraphSchema({
   nodeProperties: [
     new NodeProperty({ labels: ["Class"], propertyName: "fqcn", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
@@ -202,22 +210,22 @@ describe("analyzeQuery — real Neo4j type strings", () => {
     {
       label: "STRING NOT NULL normalizes to String",
       cypher: "MATCH (c:Class) RETURN c.fqcn AS fqcn",
-      expectedColumns: [col("fqcn", "String", false)],
+      expectedColumns: [col("fqcn", S("String"), false)],
     },
     {
       label: "FLOAT NOT NULL normalizes to Double (non-nullable from MATCH)",
       cypher: "MATCH (c:Class) RETURN c.method_count AS cnt",
-      expectedColumns: [col("cnt", "Double", false)],
+      expectedColumns: [col("cnt", S("Double"), false)],
     },
     {
-      label: "LIST<STRING NOT NULL> NOT NULL normalizes to StringArray",
+      label: "LIST<STRING NOT NULL> NOT NULL normalizes to List(String)",
       cypher: "MATCH (c:Class) RETURN c.domains AS domains",
-      expectedColumns: [col("domains", "StringArray", false)],
+      expectedColumns: [col("domains", ListType(S("String")), false)],
     },
     {
       label: "non-mandatory property from MATCH is non-nullable (app owns write side)",
       cypher: "MATCH (c:Class) RETURN c.name AS name",
-      expectedColumns: [col("name", "String", false)],
+      expectedColumns: [col("name", S("String"), false)],
     },
   ])("$label", ({ cypher, expectedColumns }) => {
     const result = analyzeQuery(cypher, realSchema)
@@ -231,8 +239,8 @@ describe("analyzeQuery — coalesce wrapping", () => {
                     RETURN mod.name AS name, coalesce(mod.domains, []) AS domains`
     const result = analyzeQuery(cypher, realSchema)
     expect(result.columns).toEqual([
-      col("name", "String", false),
-      col("domains", "StringArray", false),
+      col("name", S("String"), false),
+      col("domains", ListType(S("String")), false),
     ])
   })
 
@@ -240,7 +248,7 @@ describe("analyzeQuery — coalesce wrapping", () => {
     const cypher = `MATCH (c:Class)
                     RETURN coalesce(c.namespace, 'unknown') AS namespace`
     const result = analyzeQuery(cypher, realSchema)
-    expect(result.columns).toEqual([col("namespace", "String", false)])
+    expect(result.columns).toEqual([col("namespace", S("String"), false)])
   })
 })
 
@@ -249,25 +257,51 @@ describe("analyzeQuery — type(r) expression", () => {
     const cypher = `MATCH (a:Class)-[r:EXTENDS]->(b:Class)
                     RETURN type(r) AS edgeKind`
     const result = analyzeQuery(cypher, realSchema)
-    expect(result.columns).toEqual([col("edgeKind", "String", false)])
+    expect(result.columns).toEqual([col("edgeKind", S("String"), false)])
   })
 })
 
-describe("analyzeQuery — unresolvable complex expressions", () => {
-  it("collect({...}) map projection infers as Unknown", () => {
+describe("analyzeQuery — collect with map literals", () => {
+  it("collect({...}) infers as List(Map(...))", () => {
     const cypher = `MATCH (m:Method)-[:MATCHES]->(p:Pattern)
-                    RETURN m.id AS id, collect({pattern_id: p.id, ordinal: 1}) AS matches`
+                    RETURN m.id AS id, collect({pattern_id: p.id}) AS matches`
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual([
-      col("id", "String", false),
-      col("matches", "Unknown", false),
+      col("id", S("String"), false),
+      col("matches", ListType(MapType([
+        { name: "pattern_id", value: S("String") },
+      ])), false),
     ])
   })
 
-  it("collect without resolvable arg infers as Unknown, not String", () => {
+  it("collect(CASE WHEN ... THEN string END) infers as List(String)", () => {
     const cypher = `MATCH (c:Class)
                     RETURN collect(CASE WHEN c.name ENDS WITH 'Controller' THEN c.name END) AS controllers`
     const result = analyzeQuery(cypher, schema)
-    expect(result.columns).toEqual([col("controllers", "Unknown", false)])
+    expect(result.columns).toEqual([col("controllers", ListType(S("String")), false)])
+  })
+})
+
+describe("analyzeQuery — multi-WITH chain (ClassProfiles pattern)", () => {
+  it("resolves types through chained WITH...MATCH...WITH", () => {
+    const cypher = `
+      MATCH (c:Class)
+      OPTIONAL MATCH (m:Method)-[:BELONGS_TO]->(c)
+      WITH c,
+        collect({visibility: m.visibility, id: m.id}) AS methodProfiles,
+        sum(m.ccn) AS totalComplexity
+      OPTIONAL MATCH (c)-[:BELONGS_TO]->(mod:Module)
+      WITH c, methodProfiles, totalComplexity, mod.name AS moduleName
+      RETURN c.fqcn AS fqcn, methodProfiles, totalComplexity, moduleName`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([
+      col("fqcn", S("String"), false),
+      col("methodProfiles", ListType(MapType([
+        { name: "visibility", value: S("String") },
+        { name: "id", value: S("String") },
+      ])), false),
+      col("totalComplexity", S("Long"), false),
+      col("moduleName", new UnknownType({}), true),
+    ])
   })
 })
