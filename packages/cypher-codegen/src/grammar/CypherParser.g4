@@ -99,7 +99,7 @@ singlePartQ
     ;
 
 multiPartQ
-    : readingStatement* (updatingStatement* withSt)+ singlePartQ
+    : (readingStatement* updatingStatement* withSt)+ singlePartQ
     ;
 
 matchSt

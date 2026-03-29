@@ -1,10 +1,10 @@
 import { describe, expectTypeOf, it } from "vitest"
-import type { Schema } from "effect"
 import type {
   CypherType,
   ScalarType,
   ListType,
   MapType,
+  MapField,
   NodeType,
   UnknownType,
 } from "./CypherType"
@@ -32,10 +32,12 @@ describe("ListType recursion", () => {
 })
 
 describe("MapType recursion", () => {
-  it("field values are CypherType (recursive)", () => {
-    expectTypeOf<MapType["fields"]>().toEqualTypeOf<
-      ReadonlyArray<{ readonly name: string; readonly value: CypherType }>
-    >()
+  it("fields contain CypherType values (recursive)", () => {
+    expectTypeOf<MapType["fields"]>().toEqualTypeOf<ReadonlyArray<MapField>>()
+  })
+
+  it("MapField value is CypherType", () => {
+    expectTypeOf<MapField["value"]>().toEqualTypeOf<CypherType>()
   })
 })
 
