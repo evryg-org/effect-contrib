@@ -1,4 +1,5 @@
 import type { ResolvedColumn, ResolvedParam, Neo4jType } from "./QueryAnalyzer"
+import type { CypherType } from "./CypherType"
 
 export interface QueryEntry {
   readonly filename: string
@@ -6,29 +7,48 @@ export interface QueryEntry {
   readonly params: ReadonlyArray<ResolvedParam>
 }
 
-// ── Neo4j type → TypeScript type mapping ──
+// ── CypherType → TypeScript type string ──
 
-const TEMPORAL_TYPES = new Set<Neo4jType>(["Date", "DateTime", "LocalDateTime", "LocalTime", "Time", "Duration"])
+const TEMPORAL_SCALAR_TYPES = new Set(["Date", "DateTime", "LocalDateTime", "LocalTime", "Time", "Duration"])
 
-function tsTypeFor(type: Neo4jType): string {
-  switch (type) {
-    case "String": return "string"
-    case "Long": return "number"
-    case "Double": return "number"
-    case "Boolean": return "boolean"
-    case "StringArray": return "readonly string[]"
-    case "LongArray": return "readonly number[]"
-    case "DoubleArray": return "readonly number[]"
-    case "BooleanArray": return "readonly boolean[]"
-    case "Point": return "{ srid: number; x: number; y: number; z?: number }"
-    default:
-      if (TEMPORAL_TYPES.has(type)) return "string"
+function cypherTypeToTs(ct: CypherType): string {
+  switch (ct._tag) {
+    case "ScalarType":
+      switch (ct.scalarType) {
+        case "String": return "string"
+        case "Long": case "Double": return "number"
+        case "Boolean": return "boolean"
+        case "Point": return "{ srid: number; x: number; y: number; z?: number }"
+        default:
+          if (TEMPORAL_SCALAR_TYPES.has(ct.scalarType)) return "string"
+          return "unknown"
+      }
+    case "ListType":
+      return `readonly ${cypherTypeToTs(ct.element)}[]`
+    case "MapType":
+      if (ct.fields.length === 0) return "unknown"
+      const fields = ct.fields.map((f) => `readonly ${f.name}: ${cypherTypeToTs(f.value)}`).join("; ")
+      return `{ ${fields} }`
+    case "UnknownType":
+    case "NodeType":
       return "unknown"
   }
 }
 
+function tsTypeForParam(type: Neo4jType): string {
+  switch (type) {
+    case "String": return "string"
+    case "Long": case "Double": return "number"
+    case "Boolean": return "boolean"
+    case "StringArray": return "readonly string[]"
+    case "LongArray": case "DoubleArray": return "readonly number[]"
+    case "BooleanArray": return "readonly boolean[]"
+    default: return "unknown"
+  }
+}
+
 function fieldTypeFor(col: ResolvedColumn): string {
-  const base = tsTypeFor(col.type)
+  const base = cypherTypeToTs(col.type)
   return col.nullable ? `${base} | null` : base
 }
 
@@ -53,7 +73,7 @@ export const generateDeclaration = (entry: QueryEntry): string => {
   if (entry.params.length === 0) {
     lines.push(`export declare const query: () => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`)
   } else {
-    const paramFields = entry.params.map((p) => `${p.name}: ${tsTypeFor(p.type)}`).join(", ")
+    const paramFields = entry.params.map((p) => `${p.name}: ${tsTypeForParam(p.type)}`).join(", ")
     lines.push(`export declare const query: (params: { ${paramFields} }) => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`)
   }
   lines.push(``)
@@ -81,7 +101,7 @@ export const generateDeclarations = (queries: ReadonlyArray<QueryEntry>): string
     if (entry.params.length === 0) {
       lines.push(`  export const query: () => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`)
     } else {
-      const paramFields = entry.params.map((p) => `${p.name}: ${tsTypeFor(p.type)}`).join(", ")
+      const paramFields = entry.params.map((p) => `${p.name}: ${tsTypeForParam(p.type)}`).join(", ")
       lines.push(`  export const query: (params: { ${paramFields} }) => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`)
     }
 

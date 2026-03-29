@@ -1,9 +1,12 @@
 import { describe, it, expect } from "@effect/vitest"
 import { generateDeclarations, type QueryEntry } from "./CypherDeclarationGen"
 import type { ResolvedColumn, ResolvedParam } from "./QueryAnalyzer"
+import { ScalarType, ListType, type CypherType } from "./CypherType"
 
-const col = (name: string, type: string, nullable: boolean): ResolvedColumn =>
-  ({ name, type, nullable }) as ResolvedColumn
+const S = (t: "String" | "Long" | "Double" | "Boolean") => new ScalarType({ scalarType: t })
+
+const col = (name: string, type: CypherType, nullable: boolean): ResolvedColumn =>
+  ({ name, type, nullable })
 
 const param = (name: string, type: string): ResolvedParam =>
   ({ name, type }) as ResolvedParam
@@ -17,7 +20,7 @@ const entry = (
 describe("generateDeclarations", () => {
   it("generates declare module block for a single query", () => {
     const output = generateDeclarations([
-      entry("Foo.cypher", [col("id", "String", false)]),
+      entry("Foo.cypher", [col("id", S("String"), false)]),
     ])
     expect(output).toContain('declare module "*/Foo.cypher"')
     expect(output).toContain("readonly id: string")
@@ -26,8 +29,8 @@ describe("generateDeclarations", () => {
 
   it("generates multiple declare module blocks", () => {
     const output = generateDeclarations([
-      entry("Foo.cypher", [col("id", "String", false)]),
-      entry("Bar.cypher", [col("name", "String", false)]),
+      entry("Foo.cypher", [col("id", S("String"), false)]),
+      entry("Bar.cypher", [col("name", S("String"), false)]),
     ])
     expect(output).toContain('declare module "*/Foo.cypher"')
     expect(output).toContain('declare module "*/Bar.cypher"')
@@ -35,35 +38,35 @@ describe("generateDeclarations", () => {
 
   it("maps nullable column to T | null", () => {
     const output = generateDeclarations([
-      entry("Foo.cypher", [col("ns", "String", true)]),
+      entry("Foo.cypher", [col("ns", S("String"), true)]),
     ])
     expect(output).toContain("readonly ns: string | null")
   })
 
   it("maps Long to number", () => {
     const output = generateDeclarations([
-      entry("Foo.cypher", [col("cnt", "Long", false)]),
+      entry("Foo.cypher", [col("cnt", S("Long"), false)]),
     ])
     expect(output).toContain("readonly cnt: number")
   })
 
   it("maps Double to number", () => {
     const output = generateDeclarations([
-      entry("Foo.cypher", [col("score", "Double", false)]),
+      entry("Foo.cypher", [col("score", S("Double"), false)]),
     ])
     expect(output).toContain("readonly score: number")
   })
 
   it("maps StringArray to readonly string[]", () => {
     const output = generateDeclarations([
-      entry("Foo.cypher", [col("tags", "StringArray", false)]),
+      entry("Foo.cypher", [col("tags", ListType(S("String")), false)]),
     ])
     expect(output).toContain("readonly tags: readonly string[]")
   })
 
   it("maps LongArray to readonly number[]", () => {
     const output = generateDeclarations([
-      entry("Foo.cypher", [col("ids", "LongArray", false)]),
+      entry("Foo.cypher", [col("ids", ListType(S("Long")), false)]),
     ])
     expect(output).toContain("readonly ids: readonly number[]")
   })
@@ -71,12 +74,12 @@ describe("generateDeclarations", () => {
   it("maps temporal types to string", () => {
     const output = generateDeclarations([
       entry("Foo.cypher", [
-        col("d", "Date", false),
-        col("dt", "DateTime", false),
-        col("ldt", "LocalDateTime", false),
-        col("t", "Time", false),
-        col("lt", "LocalTime", false),
-        col("dur", "Duration", false),
+        col("d", new ScalarType({ scalarType: "Date" }), false),
+        col("dt", new ScalarType({ scalarType: "DateTime" }), false),
+        col("ldt", new ScalarType({ scalarType: "LocalDateTime" }), false),
+        col("t", new ScalarType({ scalarType: "Time" }), false),
+        col("lt", new ScalarType({ scalarType: "LocalTime" }), false),
+        col("dur", new ScalarType({ scalarType: "Duration" }), false),
       ]),
     ])
     expect(output).toContain("readonly d: string")
@@ -89,21 +92,21 @@ describe("generateDeclarations", () => {
 
   it("maps Boolean to boolean", () => {
     const output = generateDeclarations([
-      entry("Foo.cypher", [col("active", "Boolean", false)]),
+      entry("Foo.cypher", [col("active", S("Boolean"), false)]),
     ])
     expect(output).toContain("readonly active: boolean")
   })
 
   it("includes typed params in query function signature", () => {
     const output = generateDeclarations([
-      entry("Foo.cypher", [col("name", "String", false)], [param("fqcn", "String")]),
+      entry("Foo.cypher", [col("name", S("String"), false)], [param("fqcn", "String")]),
     ])
     expect(output).toContain("fqcn: string")
   })
 
   it("generates parameterless function when no params", () => {
     const output = generateDeclarations([
-      entry("Foo.cypher", [col("id", "String", false)]),
+      entry("Foo.cypher", [col("id", S("String"), false)]),
     ])
     expect(output).toContain("() => Effect.Effect<")
   })
@@ -116,7 +119,7 @@ describe("generateDeclarations", () => {
 
   it("includes Effect, Neo4jClient, Neo4jQueryError imports", () => {
     const output = generateDeclarations([
-      entry("Foo.cypher", [col("id", "String", false)]),
+      entry("Foo.cypher", [col("id", S("String"), false)]),
     ])
     expect(output).toContain("Effect")
     expect(output).toContain("Neo4jClient")

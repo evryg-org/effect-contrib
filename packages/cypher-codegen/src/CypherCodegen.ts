@@ -1,4 +1,5 @@
 import type { ResolvedColumn, ResolvedParam, Neo4jType } from "./QueryAnalyzer"
+import type { CypherType } from "./CypherType"
 import type { QueryEntry } from "./CypherDeclarationGen"
 
 const PARAM_RE = /\$([a-zA-Z_]\w*)/g
@@ -11,42 +12,78 @@ export const extractParams = (cypher: string): ReadonlyArray<string> => {
   return [...params]
 }
 
-// ── Neo4j type → Effect Schema mapping ──
+// ── CypherType → Effect Schema string (recursive) ──
 
-const TEMPORAL_TYPES = new Set(["Date", "DateTime", "LocalDateTime", "LocalTime", "Time", "Duration"])
+const TEMPORAL_SCALAR_TYPES = new Set(["Date", "DateTime", "LocalDateTime", "LocalTime", "Time", "Duration"])
 
-function schemaFieldFor(col: ResolvedColumn): string {
-  let schema: string
-  switch (col.type) {
-    case "String": schema = "Schema.String"; break
-    case "Long": schema = "Neo4jInt"; break
-    case "Double": schema = "Schema.Number"; break
-    case "Boolean": schema = "Schema.Boolean"; break
-    case "StringArray": schema = "Schema.Array(Schema.String)"; break
-    case "LongArray": schema = "Schema.Array(Neo4jInt)"; break
-    case "DoubleArray": schema = "Schema.Array(Schema.Number)"; break
-    case "BooleanArray": schema = "Schema.Array(Schema.Boolean)"; break
-    case "Unknown": schema = "Neo4jValue"; break
-    default:
-      if (TEMPORAL_TYPES.has(col.type)) {
-        schema = "TemporalString"
-        break
+function cypherTypeToSchema(ct: CypherType): string {
+  switch (ct._tag) {
+    case "ScalarType":
+      switch (ct.scalarType) {
+        case "Long": return "Neo4jInt"
+        case "Double": return "Schema.Number"
+        case "String": return "Schema.String"
+        case "Boolean": return "Schema.Boolean"
+        default:
+          if (TEMPORAL_SCALAR_TYPES.has(ct.scalarType)) return "TemporalString"
+          return "Neo4jValue"
       }
-      schema = "Schema.String"
+    case "ListType":
+      return `Schema.Array(${cypherTypeToSchema(ct.element)})`
+    case "MapType":
+      if (ct.fields.length === 0) return "Neo4jValue"
+      const fields = ct.fields
+        .map((f) => `${f.name}: ${cypherTypeToSchema(f.value)}`)
+        .join(", ")
+      return `Schema.Struct({ ${fields} })`
+    case "UnknownType":
+      return "Neo4jValue"
+    case "NodeType":
+      return "Neo4jValue"
   }
-  return col.nullable ? `Schema.NullOr(${schema})` : schema
 }
 
-function needsNeo4jInt(columns: ReadonlyArray<ResolvedColumn>): boolean {
-  return columns.some((c) => c.type === "Long" || c.type === "LongArray")
+function columnToSchema(col: ResolvedColumn): string {
+  const base = cypherTypeToSchema(col.type)
+  return col.nullable ? `Schema.NullOr(${base})` : base
 }
 
-function needsNeo4jValue(columns: ReadonlyArray<ResolvedColumn>): boolean {
-  return columns.some((c) => c.type === "Unknown")
+// ── Import detection (recursive walk of CypherType) ──
+
+function collectNeo4jImports(ct: CypherType, imports: Set<string>): void {
+  switch (ct._tag) {
+    case "ScalarType":
+      if (ct.scalarType === "Long") imports.add("Neo4jInt")
+      break
+    case "ListType":
+      collectNeo4jImports(ct.element, imports)
+      break
+    case "MapType":
+      for (const f of ct.fields) collectNeo4jImports(f.value, imports)
+      break
+    case "UnknownType":
+    case "NodeType":
+      imports.add("Neo4jValue")
+      break
+  }
+}
+
+function neo4jSchemaImports(columns: ReadonlyArray<ResolvedColumn>): string[] {
+  const imports = new Set<string>()
+  for (const col of columns) collectNeo4jImports(col.type, imports)
+  return [...imports].sort()
 }
 
 function needsTemporalString(columns: ReadonlyArray<ResolvedColumn>): boolean {
-  return columns.some((c) => TEMPORAL_TYPES.has(c.type))
+  function hasTemporalScalar(ct: CypherType): boolean {
+    switch (ct._tag) {
+      case "ScalarType": return TEMPORAL_SCALAR_TYPES.has(ct.scalarType)
+      case "ListType": return hasTemporalScalar(ct.element)
+      case "MapType": return ct.fields.some((f) => hasTemporalScalar(f.value))
+      default: return false
+    }
+  }
+  return columns.some((c) => hasTemporalScalar(c.type))
 }
 
 function tsTypeFor(type: Neo4jType): string {
@@ -92,13 +129,6 @@ function generateUntypedModule(cypher: string): string {
   return lines.join("\n") + "\n"
 }
 
-function neo4jSchemaImports(columns: ReadonlyArray<ResolvedColumn>): string[] {
-  const imports: string[] = []
-  if (needsNeo4jInt(columns)) imports.push("Neo4jInt")
-  if (needsNeo4jValue(columns)) imports.push("Neo4jValue")
-  return imports
-}
-
 function generateTypedModule(cypher: string, columns: ReadonlyArray<ResolvedColumn>): string {
   const params = extractParams(cypher)
   const lines: string[] = []
@@ -129,7 +159,7 @@ function generateTypedModule(cypher: string, columns: ReadonlyArray<ResolvedColu
   // Row Schema.Struct
   lines.push(`const Row = Schema.Struct({`)
   for (const col of columns) {
-    lines.push(`  ${col.name}: ${schemaFieldFor(col)},`)
+    lines.push(`  ${col.name}: ${columnToSchema(col)},`)
   }
   lines.push(`});`)
   lines.push(``)
@@ -207,7 +237,7 @@ export function generateBarrel(entries: ReadonlyArray<BarrelEntry>): string {
     lines.push(``)
   }
 
-  // Each query (skip entries with empty/invalid column names)
+  // Each query
   for (const entry of entries) {
     const validColumns = entry.columns.filter((c) => c.name.length > 0)
     if (validColumns.length === 0 && entry.columns.length > 0) {
@@ -226,7 +256,7 @@ export function generateBarrel(entries: ReadonlyArray<BarrelEntry>): string {
     if (hasColumns) {
       lines.push(`const ${name}Row = Schema.Struct({`)
       for (const col of entry.columns) {
-        lines.push(`  ${col.name}: ${schemaFieldFor(col)},`)
+        lines.push(`  ${col.name}: ${columnToSchema(col)},`)
       }
       lines.push(`})`)
       lines.push(``)

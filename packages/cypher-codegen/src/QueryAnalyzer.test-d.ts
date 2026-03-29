@@ -1,58 +1,26 @@
 import { describe, expectTypeOf, it } from "vitest"
 import type {
   Neo4jType,
-  Neo4jScalarType,
-  Neo4jListType,
   ResolvedColumn,
   ResolvedParam,
   QueryAnalysis,
   analyzeQuery,
 } from "./QueryAnalyzer"
+import type { CypherType } from "./CypherType"
 import type { GraphSchema } from "./SchemaExtractor"
-
-describe("Neo4jType", () => {
-  it("Neo4jScalarType covers all Neo4j scalar types", () => {
-    expectTypeOf<Neo4jScalarType>().toEqualTypeOf<
-      | "String"
-      | "Long"
-      | "Double"
-      | "Boolean"
-      | "Date"
-      | "DateTime"
-      | "LocalDateTime"
-      | "LocalTime"
-      | "Time"
-      | "Duration"
-      | "Point"
-    >()
-  })
-
-  it("Neo4jListType covers all Neo4j list types", () => {
-    expectTypeOf<Neo4jListType>().toEqualTypeOf<
-      | "StringArray"
-      | "LongArray"
-      | "DoubleArray"
-      | "BooleanArray"
-    >()
-  })
-
-  it("Neo4jType is the union of scalar, list, and Unknown types", () => {
-    expectTypeOf<Neo4jType>().toEqualTypeOf<Neo4jScalarType | Neo4jListType | "Unknown">()
-  })
-})
 
 describe("ResolvedColumn", () => {
   it("nullable is required boolean, not optional", () => {
     expectTypeOf<ResolvedColumn["nullable"]>().toEqualTypeOf<boolean>()
   })
 
-  it("type is Neo4jType", () => {
-    expectTypeOf<ResolvedColumn["type"]>().toEqualTypeOf<Neo4jType>()
+  it("type is CypherType (recursive ADT)", () => {
+    expectTypeOf<ResolvedColumn["type"]>().toEqualTypeOf<CypherType>()
   })
 })
 
 describe("ResolvedParam", () => {
-  it("type is Neo4jType", () => {
+  it("type is Neo4jType (flat, params stay scalar)", () => {
     expectTypeOf<ResolvedParam["type"]>().toEqualTypeOf<Neo4jType>()
   })
 })

@@ -1,5 +1,6 @@
 export { extractParams, generateModule } from "./CypherCodegen"
 export { cypherPlugin } from "./VitePlugin"
 export { extractSchema, loadSchema, saveSchema, GraphSchema, NodeProperty, RelProperty } from "./SchemaExtractor"
-export { analyzeQuery, type Neo4jType, type Neo4jScalarType, type Neo4jListType, type ResolvedColumn, type ResolvedParam, type QueryAnalysis } from "./QueryAnalyzer"
+export { analyzeQuery, type Neo4jType, type ResolvedColumn, type ResolvedParam, type QueryAnalysis } from "./QueryAnalyzer"
+export { ScalarType, ListType, MapType, NodeType, UnknownType, type CypherType } from "./CypherType"
 export { generateDeclarations, type QueryEntry } from "./CypherDeclarationGen"

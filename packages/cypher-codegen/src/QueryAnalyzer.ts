@@ -1,35 +1,28 @@
-import { CharStream, CommonTokenStream, ParseTreeWalker } from "antlr4ng"
+import { CharStream, CommonTokenStream } from "antlr4ng"
 import { CypherLexer } from "./generated-parser/CypherLexer.js"
-import { CypherParser, type MatchStContext, type NodePatternContext, type ReturnStContext, type WithStContext } from "./generated-parser/CypherParser.js"
-import { CypherParserListener } from "./generated-parser/CypherParserListener.js"
+import {
+  CypherParser,
+  MatchStContext,
+  WithStContext,
+  ReadingStatementContext,
+  type ReturnStContext,
+} from "./generated-parser/CypherParser.js"
 import type { GraphSchema } from "./GraphSchemaModel"
+import { NodeType, UnknownType, type CypherType } from "./CypherType"
+import { inferExpressionType, type TypeEnv } from "./InferType"
 
 // ── Public types ──
 
-export type Neo4jScalarType =
-  | "String"
-  | "Long"
-  | "Double"
-  | "Boolean"
-  | "Date"
-  | "DateTime"
-  | "LocalDateTime"
-  | "LocalTime"
-  | "Time"
-  | "Duration"
-  | "Point"
-
-export type Neo4jListType =
-  | "StringArray"
-  | "LongArray"
-  | "DoubleArray"
-  | "BooleanArray"
-
-export type Neo4jType = Neo4jScalarType | Neo4jListType | "Unknown"
+// Kept for backward compat with param extraction (params stay flat)
+export type Neo4jType =
+  | "String" | "Long" | "Double" | "Boolean"
+  | "Date" | "DateTime" | "LocalDateTime" | "LocalTime" | "Time" | "Duration" | "Point"
+  | "StringArray" | "LongArray" | "DoubleArray" | "BooleanArray"
+  | "Unknown"
 
 export interface ResolvedColumn {
   readonly name: string
-  readonly type: Neo4jType
+  readonly type: CypherType
   readonly nullable: boolean
 }
 
@@ -54,7 +47,7 @@ function parse(cypher: string) {
   return parser.script()
 }
 
-// ── Schema lookup ──
+// ── Schema lookup (for params — stays flat) ──
 
 function normalizeNeo4jType(raw: string): Neo4jType {
   const upper = raw.toUpperCase().replace(/ NOT NULL/g, "").trim()
@@ -81,129 +74,148 @@ function normalizeNeo4jType(raw: string): Neo4jType {
   }
 }
 
-function lookupPropertyType(
-  schema: GraphSchema,
-  label: string,
-  propertyName: string,
-): { type: Neo4jType } | undefined {
+function lookupParamType(schema: GraphSchema, label: string, propertyName: string): Neo4jType | undefined {
   const prop = schema.nodeProperties.find(
     (p) => p.labels.includes(label) && p.propertyName === propertyName,
   )
   if (!prop) return undefined
   const rawType = prop.propertyTypes[0]
   if (!rawType) return undefined
-  return { type: normalizeNeo4jType(rawType) }
+  return normalizeNeo4jType(rawType)
 }
 
-// ── Known function return types ──
+// ── TypeEnv helpers ──
 
-const AGGREGATE_RETURN_TYPES: Record<string, Neo4jType> = {
-  count: "Long",
-  sum: "Long",
-  avg: "Double",
-  min: "Long",
-  max: "Long",
-  size: "Long",
+function extendEnvFromMatch(env: TypeEnv, matchSt: MatchStContext): TypeEnv {
+  const isOptional = matchSt.OPTIONAL() !== null
+  const newEnv = new Map(env)
+
+  // Walk all node patterns in this MATCH
+  const patternWhere = matchSt.patternWhere()
+  if (!patternWhere) return newEnv
+
+  const patterns = patternWhere.pattern()?.patternPart() ?? []
+  for (const part of patterns) {
+    visitNodePatterns(part, (varName, label) => {
+      newEnv.set(varName, { type: new NodeType({ label }), nullable: isOptional })
+    })
+  }
+  return newEnv
 }
 
-function collectReturnType(innerType: Neo4jType | undefined): Neo4jType {
-  if (innerType === "String") return "StringArray"
-  if (innerType === "Long") return "LongArray"
-  if (innerType === "Double") return "DoubleArray"
-  if (innerType === "Boolean") return "BooleanArray"
-  return "StringArray"
+function visitNodePatterns(
+  node: any,
+  cb: (varName: string, label: string) => void,
+): void {
+  if (!node) return
+  // Check if this is a nodePattern
+  if (node.constructor.name === "NodePatternContext") {
+    const sym = node.symbol?.()
+    const labels = node.nodeLabels?.()
+    if (sym && labels) {
+      const varName = sym.getText()
+      const label = labels.getText().replace(/^:/, "")
+      cb(varName, label)
+    }
+  }
+  // Recurse into children
+  const count = node.getChildCount?.() ?? 0
+  for (let i = 0; i < count; i++) {
+    visitNodePatterns(node.getChild(i), cb)
+  }
 }
 
-// ── Types for intermediate state ──
+function computeEnvFromProjection(
+  projBody: ReturnType<WithStContext["projectionBody"]>,
+  env: TypeEnv,
+  schema: GraphSchema,
+): TypeEnv {
+  const newEnv: Map<string, { type: CypherType; nullable: boolean }> = new Map()
+  const items = projBody?.projectionItems()?.projectionItem() ?? []
 
-interface Binding { label: string; optional: boolean }
+  for (const item of items) {
+    const aliasCtx = item.symbol()
+    const exprCtx = item.expression()
+    if (!exprCtx) continue
+
+    const alias = aliasCtx ? aliasCtx.getText() : exprCtx.getText()
+    const type = inferExpressionType(exprCtx, env, schema)
+
+    const nullable = inferNullable(exprCtx.getText(), env)
+
+    newEnv.set(alias, { type, nullable })
+  }
+
+  return newEnv
+}
+
+/** Extract the root variable name from an expression (e.g. "c.fqcn" → "c", "count(*)" → null) */
+function extractRootVariable(exprText: string): string | undefined {
+  const match = exprText.match(/^(\w+)/)
+  return match ? match[1] : undefined
+}
+
+function inferNullable(exprText: string, env: TypeEnv): boolean {
+  const rootVar = extractRootVariable(exprText)
+  if (!rootVar) return false
+  const entry = env.get(rootVar)
+  return entry?.nullable ?? false
+}
+
+function resolveProjection(
+  items: ReadonlyArray<{ symbol(): { getText(): string } | null; expression(): { getText(): string } | null }>,
+  env: TypeEnv,
+  schema: GraphSchema,
+): ResolvedColumn[] {
+  return items.map((item) => {
+    const aliasCtx = item.symbol()
+    const exprCtx = item.expression()
+    if (!exprCtx) return { name: "", type: new UnknownType({}), nullable: true }
+
+    const alias = aliasCtx ? aliasCtx.getText() : exprCtx.getText()
+    const type = inferExpressionType(exprCtx as Parameters<typeof inferExpressionType>[0], env, schema)
+    const nullable = inferNullable(exprCtx.getText(), env)
+
+    return { name: alias, type, nullable }
+  })
+}
+
+// ── Param extraction ──
+
 interface ParamUsage { paramName: string; label?: string; property?: string }
 
-// ── Resolve expression type from a projection expression text ──
+function extractParams(tree: ReturnType<typeof parse>, schema: GraphSchema): ResolvedParam[] {
+  const paramUsages: ParamUsage[] = []
 
-function resolveExprType(
-  exprText: string,
-  schema: GraphSchema,
-  bindings: Map<string, Binding>,
-  withTypes: Map<string, { type: Neo4jType; nullable: boolean }>,
-): { type: Neo4jType; nullable: boolean } | undefined {
-  // Function invocation: count(*), collect(c.name), coalesce(c.prop, default)
-  const funcMatch = exprText.match(/^(\w+)\((.+)\)$/i)
-  if (funcMatch) {
-    const funcName = funcMatch[1].toLowerCase()
-    const argText = funcMatch[2]
-
-    // coalesce(var.prop, default) — extract the first arg's property type
-    if (funcName === "coalesce") {
-      const args = argText.split(",")
-      const firstArg = args[0].trim()
-      const propMatch = firstArg.match(/^(\w+)\.(\w+)$/)
-      if (propMatch) {
-        const binding = bindings.get(propMatch[1])
-        if (binding) {
-          const lookup = lookupPropertyType(schema, binding.label, propMatch[2])
-          if (lookup) return { type: lookup.type, nullable: false }
+  // Walk all node patterns looking for property constraints with params
+  function visit(node: any) {
+    if (!node) return
+    if (node.constructor.name === "NodePatternContext") {
+      const sym = node.symbol?.()
+      const labels = node.nodeLabels?.()
+      const props = node.properties?.()
+      if (sym && labels && props) {
+        const label = labels.getText().replace(/^:/, "")
+        const text = props.getText()
+        const paramRe = /(\w+):\$(\w+)/g
+        for (const match of text.matchAll(paramRe)) {
+          paramUsages.push({ paramName: match[2], label, property: match[1] })
         }
       }
-      return { type: "String", nullable: false }
     }
-
-    // collect(var.prop) — returns array of the property type
-    if (funcName === "collect") {
-      const propMatch = argText.match(/^(\w+)\.(\w+)$/)
-      if (propMatch) {
-        const binding = bindings.get(propMatch[1])
-        if (binding) {
-          const lookup = lookupPropertyType(schema, binding.label, propMatch[2])
-          if (lookup) return { type: collectReturnType(lookup.type), nullable: false }
-        }
-      }
-      // collect({...}) or collect(CASE WHEN ...) — unresolvable complex expression
-      return { type: "Unknown", nullable: false }
+    const count = node.getChildCount?.() ?? 0
+    for (let i = 0; i < count; i++) {
+      visit(node.getChild(i))
     }
-
-    // type(r) — returns the relationship type name as String
-    if (funcName === "type") {
-      return { type: "String", nullable: false }
-    }
-
-    const aggType = AGGREGATE_RETURN_TYPES[funcName]
-    if (aggType) return { type: aggType, nullable: false }
-    return { type: "Unknown", nullable: false }
   }
+  visit(tree)
 
-  // Property expression: var.prop
-  const propMatch = exprText.match(/^(\w+)\.(\w+)$/)
-  if (propMatch) {
-    const binding = bindings.get(propMatch[1])
-    if (binding) {
-      const lookup = lookupPropertyType(schema, binding.label, propMatch[2])
-      if (lookup) return { type: lookup.type, nullable: binding.optional }
+  return paramUsages.map((usage) => {
+    if (usage.label && usage.property) {
+      const type = lookupParamType(schema, usage.label, usage.property)
+      if (type) return { name: usage.paramName, type }
     }
-    return { type: "String", nullable: true }
-  }
-
-  // Bare variable — check WITH-computed types, then fall back to Unknown
-  const withType = withTypes.get(exprText)
-  if (withType) return withType
-
-  return undefined
-}
-
-// ── Extract projections from a projection body (shared between WITH and RETURN) ──
-
-interface ProjectionEntry {
-  alias: string
-  exprText: string
-}
-
-function extractProjectionEntries(projBody: { projectionItems(): { projectionItem(): any[] } | null } | null): ProjectionEntry[] {
-  const items = projBody?.projectionItems()?.projectionItem() ?? []
-  return items.map((item: any) => {
-    const aliasCtx = item.symbol()
-    const exprText = item.expression()?.getText() ?? ""
-    const alias = aliasCtx ? aliasCtx.getText() : exprText
-    return { alias, exprText }
+    return { name: usage.paramName, type: "String" as Neo4jType }
   })
 }
 
@@ -211,77 +223,45 @@ function extractProjectionEntries(projBody: { projectionItems(): { projectionIte
 
 export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis => {
   const tree = parse(cypher)
+  const singleQuery = tree.query()!.regularQuery()!.singleQuery()!
+  const multi = singleQuery.multiPartQ()
+  const single = multi?.singlePartQ() ?? singleQuery.singlePartQ()!
 
-  const bindings = new Map<string, Binding>()
-  const withTypes = new Map<string, { type: Neo4jType; nullable: boolean }>()
-  const returnEntries: ProjectionEntry[] = []
-  const paramUsages: ParamUsage[] = []
-  let inOptionalMatch = false
+  let env: TypeEnv = new Map()
 
-  const listener = new CypherParserListener()
-
-  listener.enterMatchSt = (ctx: MatchStContext) => {
-    inOptionalMatch = ctx.OPTIONAL() !== null
-  }
-
-  listener.exitMatchSt = () => {
-    inOptionalMatch = false
-  }
-
-  listener.enterNodePattern = (ctx: NodePatternContext) => {
-    const symbolCtx = ctx.symbol()
-    const labelsCtx = ctx.nodeLabels()
-    if (!symbolCtx || !labelsCtx) return
-
-    const varName = symbolCtx.getText()
-    const labelText = labelsCtx.getText().replace(/^:/, "")
-
-    bindings.set(varName, { label: labelText, optional: inOptionalMatch })
-
-    // Extract param usages from property constraints: (c:Class {fqcn: $fqcn})
-    const propsCtx = ctx.properties()
-    if (propsCtx) {
-      const text = propsCtx.getText()
-      const paramRe = /(\w+):\$(\w+)/g
-      for (const match of text.matchAll(paramRe)) {
-        paramUsages.push({ paramName: match[2], label: labelText, property: match[1] })
+  if (multi) {
+    // Walk children in order: MATCH extends env, WITH recomputes env
+    const children = multi.children ?? []
+    for (const child of children) {
+      if (child instanceof ReadingStatementContext) {
+        const matchSt = child.matchSt()
+        if (matchSt) env = extendEnvFromMatch(env, matchSt)
+      } else if (child instanceof MatchStContext) {
+        env = extendEnvFromMatch(env, child)
+      } else if (child instanceof WithStContext) {
+        env = computeEnvFromProjection(child.projectionBody(), env, schema)
       }
     }
   }
 
-  // Track WITH-computed variable types
-  listener.enterWithSt = (ctx: WithStContext) => {
-    const entries = extractProjectionEntries(ctx.projectionBody())
-    for (const { alias, exprText } of entries) {
-      const resolved = resolveExprType(exprText, schema, bindings, withTypes)
-      if (resolved) {
-        withTypes.set(alias, resolved)
+  // Process singlePartQ reading statements (MATCH, OPTIONAL MATCH)
+  if (single) {
+    const readings = single.readingStatement() ?? []
+    for (const reading of readings) {
+      const matchSt = reading.matchSt()
+      if (matchSt) {
+        env = extendEnvFromMatch(env, matchSt)
       }
     }
   }
 
-  listener.enterReturnSt = (ctx: ReturnStContext) => {
-    returnEntries.push(...extractProjectionEntries(ctx.projectionBody()))
-  }
+  // Resolve RETURN columns
+  const returnSt = single?.returnSt()
+  const returnItems = returnSt?.projectionBody()?.projectionItems()?.projectionItem() ?? []
+  const columns = resolveProjection(returnItems, env, schema)
 
-  ParseTreeWalker.DEFAULT.walk(listener, tree)
-
-  // Resolve columns
-  const columns: ResolvedColumn[] = returnEntries.map((entry) => {
-    const resolved = resolveExprType(entry.exprText, schema, bindings, withTypes)
-    if (resolved) return { name: entry.alias, ...resolved }
-    // Bare variable with no WITH type — unknown
-    return { name: entry.alias, type: "Unknown" as Neo4jType, nullable: true }
-  })
-
-  // Resolve params
-  const params: ResolvedParam[] = paramUsages.map((usage) => {
-    if (usage.label && usage.property) {
-      const lookup = lookupPropertyType(schema, usage.label, usage.property)
-      if (lookup) return { name: usage.paramName, type: lookup.type }
-    }
-    return { name: usage.paramName, type: "String" as Neo4jType }
-  })
+  // Extract params
+  const params = extractParams(tree, schema)
 
   return { columns, params }
 }

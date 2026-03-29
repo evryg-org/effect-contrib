@@ -301,7 +301,7 @@ describe("analyzeQuery — multi-WITH chain (ClassProfiles pattern)", () => {
         { name: "id", value: S("String") },
       ])), false),
       col("totalComplexity", S("Long"), false),
-      col("moduleName", new UnknownType({}), true),
+      col("moduleName", S("String"), true),
     ])
   })
 })
