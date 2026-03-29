@@ -131,9 +131,17 @@ function inferAtomicType(
   const strExprs = atomic.stringExpression()
   if (strExprs && strExprs.length > 0) return new ScalarType({ scalarType: "Boolean" })
 
-  // Check for IN predicate
+  // Check for list expressions (IN predicate or array indexing)
   const listExprs = atomic.listExpression()
-  if (listExprs && listExprs.length > 0) return new ScalarType({ scalarType: "Boolean" })
+  if (listExprs && listExprs.length > 0) {
+    const listExpr = listExprs[0]
+    // IN predicate → boolean
+    if (listExpr.IN()) return new ScalarType({ scalarType: "Boolean" })
+    // Array indexing [expr] → element type of the base expression
+    const baseType = inferPropertyExpressionType(propOrLabel.propertyExpression()!, env, schema)
+    if (baseType._tag === "ListType") return baseType.element
+    return new UnknownType({})
+  }
 
   // propertyOrLabelExpression: propertyExpression nodeLabels?
   const propExpr = propOrLabel.propertyExpression()!
