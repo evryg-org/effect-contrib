@@ -6,9 +6,20 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs"
 import { basename, dirname } from "node:path"
 import { Neo4jClientLive, Neo4jConfig } from "@/lib/effect-neo4j"
 import { extractSchema, saveSchema, loadSchema } from "./SchemaExtractor"
-import { analyzeQuery } from "./QueryAnalyzer"
+import { analyzeQuery, type ResolvedParam } from "./QueryAnalyzer"
 import { type QueryEntry } from "./CypherDeclarationGen"
-import { generateBarrel, type BarrelEntry } from "./CypherCodegen"
+import { generateBarrel, extractParams, type BarrelEntry } from "./CypherCodegen"
+
+/** Merge analyzer-typed params with regex-extracted params (catches WHERE-clause params the ANTLR walker misses) */
+function mergeParams(analyzerParams: ReadonlyArray<ResolvedParam>, cypher: string): ResolvedParam[] {
+  const regexNames = extractParams(cypher)
+  const byName = new Map(analyzerParams.map((p) => [p.name, p]))
+  for (const name of regexNames) {
+    if (!byName.has(name)) byName.set(name, { name, type: "String" })
+  }
+  // Preserve regex order (stable across runs)
+  return regexNames.filter((n) => byName.has(n)).map((n) => byName.get(n)!)
+}
 
 // ── Shared options ──
 
@@ -66,7 +77,7 @@ const generateCommand = Command.make(
           filename: basename(file),
           cypher,
           columns: analysis.columns,
-          params: analysis.params,
+          params: mergeParams(analysis.params, cypher),
         }
       })
 

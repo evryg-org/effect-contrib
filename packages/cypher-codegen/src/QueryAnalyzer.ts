@@ -172,8 +172,9 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
     const items = ctx.projectionBody()?.projectionItems()?.projectionItem() ?? []
     for (const item of items) {
       const aliasCtx = item.symbol()
-      const alias = aliasCtx ? aliasCtx.getText() : ""
       const exprText = item.expression()?.getText() ?? ""
+      // When no explicit AS alias, Cypher uses the expression text as implicit alias
+      const alias = aliasCtx ? aliasCtx.getText() : exprText
 
       // Function invocation: count(*), collect(c.name), coalesce(c.prop, default)
       const funcMatch = exprText.match(/^(\w+)\((.+)\)$/i)
@@ -264,7 +265,9 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
       return { name: proj.alias, type: "String" as Neo4jType, nullable: true }
     }
 
-    return { name: proj.alias, type: "String" as Neo4jType, nullable: true }
+    // Bare variable (no dot, no function) — if it's a known node binding, skip;
+    // otherwise it's a WITH-computed value whose type we can't resolve
+    return { name: proj.alias, type: "Unknown" as Neo4jType, nullable: true }
   })
 
   // Resolve params
