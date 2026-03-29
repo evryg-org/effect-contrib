@@ -1,4 +1,4 @@
-import type { ResolvedColumn } from "./QueryAnalyzer"
+import type { ResolvedColumn, ResolvedParam, Neo4jType } from "./QueryAnalyzer"
 import type { QueryEntry } from "./CypherDeclarationGen"
 
 const PARAM_RE = /\$([a-zA-Z_]\w*)/g
@@ -26,6 +26,7 @@ function schemaFieldFor(col: ResolvedColumn): string {
     case "LongArray": schema = "Schema.Array(Neo4jInteger)"; break
     case "DoubleArray": schema = "Schema.Array(Schema.Number)"; break
     case "BooleanArray": schema = "Schema.Array(Schema.Boolean)"; break
+    case "Unknown": schema = "Schema.Unknown"; break
     default:
       if (TEMPORAL_TYPES.has(col.type)) {
         schema = "TemporalString"
@@ -42,6 +43,18 @@ function needsNeo4jInteger(columns: ReadonlyArray<ResolvedColumn>): boolean {
 
 function needsTemporalString(columns: ReadonlyArray<ResolvedColumn>): boolean {
   return columns.some((c) => TEMPORAL_TYPES.has(c.type))
+}
+
+function tsTypeFor(type: Neo4jType): string {
+  switch (type) {
+    case "String": return "string"
+    case "Long": case "Double": return "number"
+    case "Boolean": return "boolean"
+    case "StringArray": return "readonly string[]"
+    case "LongArray": case "DoubleArray": return "readonly number[]"
+    case "BooleanArray": return "readonly boolean[]"
+    default: return "unknown"
+  }
 }
 
 // ── Module generation ──
@@ -157,7 +170,7 @@ export interface BarrelEntry {
   readonly filename: string
   readonly cypher: string
   readonly columns: ReadonlyArray<ResolvedColumn>
-  readonly params: ReadonlyArray<string>
+  readonly params: ReadonlyArray<ResolvedParam>
 }
 
 export function generateBarrel(entries: ReadonlyArray<BarrelEntry>): string {
@@ -223,8 +236,9 @@ export function generateBarrel(entries: ReadonlyArray<BarrelEntry>): string {
         lines.push(`  Effect.flatMap(Neo4jClient, (neo4j) =>`)
         lines.push(`    Effect.map(neo4j.query(${name}Cypher), (recs) => recs.map(${recordToRow})))`)
       } else {
-        const destructure = `{ ${entry.params.join(", ")} }`
-        lines.push(`export const ${name} = (${destructure}: { ${entry.params.map((p) => `${p}: unknown`).join("; ")} }) =>`)
+        const destructure = `{ ${entry.params.map((p) => p.name).join(", ")} }`
+        const typeAnnotation = entry.params.map((p) => `${p.name}: ${tsTypeFor(p.type)}`).join("; ")
+        lines.push(`export const ${name} = (${destructure}: { ${typeAnnotation} }) =>`)
         lines.push(`  Effect.flatMap(Neo4jClient, (neo4j) =>`)
         lines.push(`    Effect.map(neo4j.query(${name}Cypher, ${destructure}), (recs) => recs.map(${recordToRow})))`)
       }
@@ -233,8 +247,9 @@ export function generateBarrel(entries: ReadonlyArray<BarrelEntry>): string {
         lines.push(`export const ${name} = () =>`)
         lines.push(`  Effect.flatMap(Neo4jClient, (neo4j) => neo4j.query(${name}Cypher))`)
       } else {
-        const destructure = `{ ${entry.params.join(", ")} }`
-        lines.push(`export const ${name} = (${destructure}: { ${entry.params.map((p) => `${p}: unknown`).join("; ")} }) =>`)
+        const destructure = `{ ${entry.params.map((p) => p.name).join(", ")} }`
+        const typeAnnotation = entry.params.map((p) => `${p.name}: ${tsTypeFor(p.type)}`).join("; ")
+        lines.push(`export const ${name} = (${destructure}: { ${typeAnnotation} }) =>`)
         lines.push(`  Effect.flatMap(Neo4jClient, (neo4j) => neo4j.query(${name}Cypher, ${destructure}))`)
       }
     }

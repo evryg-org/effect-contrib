@@ -211,3 +211,22 @@ describe("analyzeQuery — type(r) expression", () => {
     expect(result.columns).toEqual([col("edgeKind", "String", false)])
   })
 })
+
+describe("analyzeQuery — unresolvable complex expressions", () => {
+  it("collect({...}) map projection infers as Unknown", () => {
+    const cypher = `MATCH (m:Method)-[:MATCHES]->(p:Pattern)
+                    RETURN m.id AS id, collect({pattern_id: p.id, ordinal: 1}) AS matches`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([
+      col("id", "String", false),
+      col("matches", "Unknown", false),
+    ])
+  })
+
+  it("collect without resolvable arg infers as Unknown, not String", () => {
+    const cypher = `MATCH (c:Class)
+                    RETURN collect(CASE WHEN c.name ENDS WITH 'Controller' THEN c.name END) AS controllers`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([col("controllers", "Unknown", false)])
+  })
+})

@@ -25,7 +25,7 @@ export type Neo4jListType =
   | "DoubleArray"
   | "BooleanArray"
 
-export type Neo4jType = Neo4jScalarType | Neo4jListType
+export type Neo4jType = Neo4jScalarType | Neo4jListType | "Unknown"
 
 export interface ResolvedColumn {
   readonly name: string
@@ -230,13 +230,16 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
       }
 
       // collect(var.prop) — returns array of the property type
-      if (proj.functionName === "collect" && proj.functionArg) {
-        const binding = bindings.get(proj.functionArg.variable)
-        if (binding) {
-          const lookup = lookupPropertyType(schema, binding.label, proj.functionArg.property)
-          if (lookup) return { name: proj.alias, type: collectReturnType(lookup.type), nullable: false }
+      if (proj.functionName === "collect") {
+        if (proj.functionArg) {
+          const binding = bindings.get(proj.functionArg.variable)
+          if (binding) {
+            const lookup = lookupPropertyType(schema, binding.label, proj.functionArg.property)
+            if (lookup) return { name: proj.alias, type: collectReturnType(lookup.type), nullable: false }
+          }
         }
-        return { name: proj.alias, type: "StringArray" as Neo4jType, nullable: false }
+        // collect({...}) or collect(CASE WHEN ...) — unresolvable complex expression
+        return { name: proj.alias, type: "Unknown" as Neo4jType, nullable: false }
       }
 
       // type(r) — returns the relationship type name as String
@@ -246,7 +249,8 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
 
       const aggType = AGGREGATE_RETURN_TYPES[proj.functionName]
       if (aggType) return { name: proj.alias, type: aggType, nullable: false }
-      return { name: proj.alias, type: "String" as Neo4jType, nullable: false }
+      // Unresolvable function call
+      return { name: proj.alias, type: "Unknown" as Neo4jType, nullable: false }
     }
 
     if (proj.variable && proj.property) {

@@ -36,8 +36,8 @@ describe("Neo4jType", () => {
     >()
   })
 
-  it("Neo4jType is the union of scalar and list types", () => {
-    expectTypeOf<Neo4jType>().toEqualTypeOf<Neo4jScalarType | Neo4jListType>()
+  it("Neo4jType is the union of scalar, list, and Unknown types", () => {
+    expectTypeOf<Neo4jType>().toEqualTypeOf<Neo4jScalarType | Neo4jListType | "Unknown">()
   })
 })
 

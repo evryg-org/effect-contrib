@@ -66,7 +66,7 @@ const generateCommand = Command.make(
           filename: basename(file),
           cypher,
           columns: analysis.columns,
-          params: [...analysis.params.map((p) => p.name)],
+          params: analysis.params,
         }
       })
 
@@ -107,7 +107,7 @@ const allCommand = Command.make(
       const entries: BarrelEntry[] = files.map((file) => {
         const cypher = readFileSync(file, "utf-8").trim()
         const analysis = analyzeQuery(cypher, schema)
-        return { filename: basename(file), cypher, columns: analysis.columns, params: [...analysis.params.map((p) => p.name)] }
+        return { filename: basename(file), cypher, columns: analysis.columns, params: analysis.params }
       })
 
       const content = generateBarrel(entries)

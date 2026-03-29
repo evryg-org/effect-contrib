@@ -140,4 +140,67 @@ describe("generateModule with columns (typed codegen)", () => {
     expect(source).toContain("Schema.Struct")
     expect(source).toContain("recordToRow")
   })
+
+  it("emits Schema.Unknown for Unknown column type", () => {
+    const source = generateModule(
+      "MATCH (m:Method) RETURN m.id AS id, collect({x: 1}) AS data",
+      [col("id", "String", false), col("data", "Unknown", false)],
+    )
+    expect(source).toContain("Schema.Unknown")
+    expect(source).toContain("Schema.String")
+  })
+})
+
+// ── Barrel generation (typed params) ──
+
+import { generateBarrel, type BarrelEntry } from "./CypherCodegen"
+import type { ResolvedParam } from "./QueryAnalyzer"
+
+const barrelParam = (name: string, type: string): ResolvedParam =>
+  ({ name, type }) as ResolvedParam
+
+describe("generateBarrel — typed params", () => {
+  it("emits string type for String param", () => {
+    const entry: BarrelEntry = {
+      filename: "Foo.cypher",
+      cypher: "MATCH (c:Class {fqcn: $fqcn}) RETURN c.fqcn AS fqcn",
+      columns: [col("fqcn", "String", false)],
+      params: [barrelParam("fqcn", "String")],
+    }
+    const source = generateBarrel([entry])
+    expect(source).toContain("{ fqcn }: { fqcn: string }")
+  })
+
+  it("emits number type for Long param", () => {
+    const entry: BarrelEntry = {
+      filename: "Bar.cypher",
+      cypher: "MATCH (c:Class {method_count: $count}) RETURN c.fqcn AS fqcn",
+      columns: [col("fqcn", "String", false)],
+      params: [barrelParam("count", "Long")],
+    }
+    const source = generateBarrel([entry])
+    expect(source).toContain("{ count }: { count: number }")
+  })
+
+  it("emits readonly string[] for StringArray param", () => {
+    const entry: BarrelEntry = {
+      filename: "Baz.cypher",
+      cypher: "MATCH (c:Class) WHERE c.fqcn IN $ids RETURN c.fqcn AS fqcn",
+      columns: [col("fqcn", "String", false)],
+      params: [barrelParam("ids", "StringArray")],
+    }
+    const source = generateBarrel([entry])
+    expect(source).toContain("{ ids }: { ids: readonly string[] }")
+  })
+
+  it("emits unknown for Unknown param type", () => {
+    const entry: BarrelEntry = {
+      filename: "Qux.cypher",
+      cypher: "MATCH (c:Class) WHERE c.foo = $val RETURN c.fqcn AS fqcn",
+      columns: [col("fqcn", "String", false)],
+      params: [barrelParam("val", "Unknown")],
+    }
+    const source = generateBarrel([entry])
+    expect(source).toContain("{ val }: { val: unknown }")
+  })
 })
