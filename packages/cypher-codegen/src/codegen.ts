@@ -4,7 +4,7 @@ import { Console, Effect, Layer } from "effect"
 import { globSync } from "node:fs"
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs"
 import { basename, dirname } from "node:path"
-import { Neo4jClientLive, Neo4jConfig } from "@/lib/effect-neo4j"
+import { UnconfiguredNeo4jClient, Neo4jConfig } from "@/lib/effect-neo4j"
 import { extractSchema, saveSchema, loadSchema } from "./SchemaExtractor"
 import { analyzeQuery, type ResolvedParam } from "./QueryAnalyzer"
 import { type QueryEntry } from "./CypherDeclarationGen"
@@ -44,7 +44,7 @@ const extractSchemaCommand = Command.make(
       yield* Console.log(`  ${schema.nodeProperties.length} node properties, ${schema.relProperties.length} relationship properties`)
     }).pipe(
       Effect.provide(
-        Neo4jClientLive.pipe(
+        UnconfiguredNeo4jClient.pipe(
           Layer.provide(
             Layer.succeed(Neo4jConfig, { uri: neo4jUri, user: neo4jUser, password: neo4jPassword, database: neo4jDatabase }),
           ),
@@ -128,7 +128,7 @@ const allCommand = Command.make(
       yield* Console.log(`Generated ${output} with ${entries.length} typed queries`)
     }).pipe(
       Effect.provide(
-        Neo4jClientLive.pipe(
+        UnconfiguredNeo4jClient.pipe(
           Layer.provide(
             Layer.succeed(Neo4jConfig, { uri: neo4jUri, user: neo4jUser, password: neo4jPassword, database: neo4jDatabase }),
           ),

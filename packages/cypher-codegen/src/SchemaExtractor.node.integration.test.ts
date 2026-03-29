@@ -1,6 +1,6 @@
 import { layer, expect } from "@effect/vitest"
 import { Effect, Layer } from "effect"
-import { Neo4jClient, Neo4jClientLive } from "@/lib/effect-neo4j"
+import { Neo4jClient, UnconfiguredNeo4jClient } from "@/lib/effect-neo4j"
 import { Neo4jConfigFromVitest } from "@/lib/effect-vitest-testcontainers"
 import { extractSchema } from "./SchemaExtractor"
 
@@ -11,7 +11,7 @@ const seed = Effect.flatMap(Neo4jClient, (neo4j) =>
   ]),
 )
 
-const TestNeo4j = Neo4jClientLive.pipe(Layer.provide(Neo4jConfigFromVitest))
+const TestNeo4j = UnconfiguredNeo4jClient.pipe(Layer.provide(Neo4jConfigFromVitest))
 
 layer(TestNeo4j, { timeout: "120 seconds" })("extractSchema (integration)", (it) => {
   it.effect("returns a GraphSchema with node and relationship properties", () =>

@@ -1,10 +1,10 @@
 import { layer, expect } from "@effect/vitest"
 import { Effect, Layer } from "effect"
-import { Neo4jClientLive } from "@/lib/effect-neo4j"
+import { UnconfiguredNeo4jClient } from "@/lib/effect-neo4j"
 import { CleanNeo4jGraph, Neo4jConfigFromVitest } from "@/lib/effect-vitest-testcontainers"
 import { query as fixtureQuery } from "./Fixture.cypher"
 
-const TestNeo4j = Neo4jClientLive.pipe(Layer.provide(Neo4jConfigFromVitest))
+const TestNeo4j = UnconfiguredNeo4jClient.pipe(Layer.provide(Neo4jConfigFromVitest))
 
 layer(TestNeo4j, { timeout: "120 seconds" })("Cypher plugin (integration)", (it) => {
   it.scoped("Fixture.cypher query runs against real Neo4j and returns empty result", () =>
