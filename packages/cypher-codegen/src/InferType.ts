@@ -7,7 +7,7 @@ import type {
   AtomicExpressionContext,
 } from "./generated-parser/CypherParser.js"
 import type { GraphSchema } from "./GraphSchemaModel"
-import { ScalarType, ListType, MapType, NodeType, UnknownType, type CypherType } from "./CypherType"
+import { ScalarType, ListType, MapType, NullableType, NodeType, UnknownType, type CypherType } from "./CypherType"
 
 // ── Type environment ──
 
@@ -39,14 +39,14 @@ function normalizeNeo4jType(raw: string): CypherType {
   }
 }
 
-function lookupPropertyType(schema: GraphSchema, label: string, propertyName: string): CypherType | undefined {
+function lookupPropertyType(schema: GraphSchema, label: string, propertyName: string): { type: CypherType; mandatory: boolean } | undefined {
   const prop = schema.nodeProperties.find(
     (p) => p.labels.includes(label) && p.propertyName === propertyName,
   )
   if (!prop) return undefined
   const rawType = prop.propertyTypes[0]
   if (!rawType) return undefined
-  return normalizeNeo4jType(rawType)
+  return { type: normalizeNeo4jType(rawType), mandatory: prop.mandatory }
 }
 
 // ── Known function return types ──
@@ -98,8 +98,21 @@ export function inferExpressionType(
   // addSubExpression: multDivExpression ((PLUS | SUB) multDivExpression)*
   const addSub = addSubs[0]
   const multDivs = addSub.multDivExpression()
-  // Arithmetic: for now, return the type of the first operand
-  // (could do numeric promotion, but simple approach works for most cases)
+
+  // String concatenation: if multiple operands and any is String, result is String
+  if (multDivs.length > 1) {
+    const inferSingle = (md: typeof multDivs[0]): CypherType => {
+      const p = md.powerExpression()[0]
+      const u = p.unaryAddSubExpression()[0]
+      return inferAtomicType(u.atomicExpression()!, env, schema)
+    }
+    const types = multDivs.map(inferSingle)
+    if (types.some((t) => t._tag === "ScalarType" && t.scalarType === "String")) {
+      return new ScalarType({ scalarType: "String" })
+    }
+    // Numeric: return first operand type
+    return types[0]
+  }
 
   // multDivExpression: powerExpression ((MULT | DIV | MOD) powerExpression)*
   const multDiv = multDivs[0]
@@ -168,8 +181,12 @@ function inferPropertyExpressionType(
   for (const nameCtx of dotNames) {
     const propName = nameCtx.getText()
     if (current._tag === "NodeType") {
-      const resolved = lookupPropertyType(schema, current.label, propName)
-      current = resolved ?? new UnknownType({})
+      const lookup = lookupPropertyType(schema, current.label, propName)
+      if (lookup) {
+        current = lookup.mandatory ? lookup.type : NullableType(lookup.type)
+      } else {
+        current = new UnknownType({})
+      }
     } else {
       current = new UnknownType({})
     }
@@ -301,10 +318,11 @@ function inferFunctionType(
     return ListType(new UnknownType({}))
   }
 
-  // coalesce(x, ...) → type of first arg
+  // coalesce(x, ...) → type of first arg, stripped of nullable (coalesce provides fallback)
   if (funcName === "coalesce") {
     if (args.length > 0) {
-      return inferExpressionType(args[0], env, schema)
+      const argType = inferExpressionType(args[0], env, schema)
+      return argType._tag === "NullableType" ? argType.inner : argType
     }
     return new UnknownType({})
   }

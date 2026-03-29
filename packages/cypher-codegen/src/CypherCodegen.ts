@@ -36,6 +36,8 @@ function cypherTypeToSchema(ct: CypherType): string {
         .map((f) => `${f.name}: ${cypherTypeToSchema(f.value)}`)
         .join(", ")
       return `Schema.Struct({ ${fields} })`
+    case "NullableType":
+      return `Schema.NullOr(${cypherTypeToSchema(ct.inner)})`
     case "UnknownType":
       return "Neo4jValue"
     case "NodeType":
@@ -61,6 +63,9 @@ function collectNeo4jImports(ct: CypherType, imports: Set<string>): void {
     case "MapType":
       for (const f of ct.fields) collectNeo4jImports(f.value, imports)
       break
+    case "NullableType":
+      collectNeo4jImports(ct.inner, imports)
+      break
     case "UnknownType":
     case "NodeType":
       imports.add("Neo4jValue")
@@ -80,6 +85,7 @@ function needsTemporalString(columns: ReadonlyArray<ResolvedColumn>): boolean {
       case "ScalarType": return TEMPORAL_SCALAR_TYPES.has(ct.scalarType)
       case "ListType": return hasTemporalScalar(ct.element)
       case "MapType": return ct.fields.some((f) => hasTemporalScalar(f.value))
+      case "NullableType": return hasTemporalScalar(ct.inner)
       default: return false
     }
   }

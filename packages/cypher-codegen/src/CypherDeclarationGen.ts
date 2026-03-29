@@ -29,6 +29,8 @@ function cypherTypeToTs(ct: CypherType): string {
       if (ct.fields.length === 0) return "unknown"
       const fields = ct.fields.map((f) => `readonly ${f.name}: ${cypherTypeToTs(f.value)}`).join("; ")
       return `{ ${fields} }`
+    case "NullableType":
+      return `${cypherTypeToTs(ct.inner)} | null`
     case "UnknownType":
     case "NodeType":
       return "unknown"

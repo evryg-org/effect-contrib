@@ -34,7 +34,12 @@ export interface MapType {
   readonly fields: ReadonlyArray<MapField>
 }
 
-export type CypherType = ScalarType | ListType | MapType | NodeType | UnknownType
+export interface NullableType {
+  readonly _tag: "NullableType"
+  readonly inner: CypherType
+}
+
+export type CypherType = ScalarType | ListType | MapType | NullableType | NodeType | UnknownType
 
 // ── Constructors for recursive variants ──
 
@@ -46,6 +51,11 @@ export const ListType = (element: CypherType): ListType => ({
 export const MapType = (fields: ReadonlyArray<MapField>): MapType => ({
   _tag: "MapType" as const,
   fields,
+})
+
+export const NullableType = (inner: CypherType): NullableType => ({
+  _tag: "NullableType" as const,
+  inner,
 })
 
 // ── Schema (for encode/decode if needed) ──
@@ -62,6 +72,10 @@ const CypherTypeSchema: Schema.Schema<CypherType> = Schema.Union(
       name: Schema.String,
       value: Schema.suspend((): Schema.Schema<CypherType> => CypherTypeSchema),
     })),
+  }),
+  Schema.Struct({
+    _tag: Schema.Literal("NullableType"),
+    inner: Schema.suspend((): Schema.Schema<CypherType> => CypherTypeSchema),
   }),
   NodeType,
   UnknownType,

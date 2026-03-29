@@ -5,14 +5,15 @@ import type {
   ListType,
   MapType,
   MapField,
+  NullableType,
   NodeType,
   UnknownType,
 } from "./CypherType"
 
 describe("CypherType union", () => {
-  it("is exactly five variants", () => {
+  it("is exactly six variants", () => {
     expectTypeOf<CypherType>().toEqualTypeOf<
-      ScalarType | ListType | MapType | NodeType | UnknownType
+      ScalarType | ListType | MapType | NullableType | NodeType | UnknownType
     >()
   })
 
@@ -20,8 +21,15 @@ describe("CypherType union", () => {
     expectTypeOf<ScalarType>().toMatchTypeOf<CypherType>()
     expectTypeOf<ListType>().toMatchTypeOf<CypherType>()
     expectTypeOf<MapType>().toMatchTypeOf<CypherType>()
+    expectTypeOf<NullableType>().toMatchTypeOf<CypherType>()
     expectTypeOf<NodeType>().toMatchTypeOf<CypherType>()
     expectTypeOf<UnknownType>().toMatchTypeOf<CypherType>()
+  })
+})
+
+describe("NullableType recursion", () => {
+  it("inner is CypherType (recursive)", () => {
+    expectTypeOf<NullableType["inner"]>().toEqualTypeOf<CypherType>()
   })
 })
 

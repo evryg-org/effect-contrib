@@ -1,7 +1,7 @@
 import { describe, it, expect } from "@effect/vitest"
 import { analyzeQuery, type ResolvedColumn, type ResolvedParam } from "./QueryAnalyzer"
 import { GraphSchema, NodeProperty, RelProperty } from "./SchemaExtractor"
-import { ScalarType, ListType, MapType, UnknownType, type CypherType } from "./CypherType"
+import { ScalarType, ListType, MapType, NullableType, UnknownType, type CypherType } from "./CypherType"
 
 // ── Schema fixture mimicking a typical analysis graph ──
 
@@ -69,14 +69,14 @@ describe("analyzeQuery — RETURN projections", () => {
       expectedColumns: [col("methodCount", S("Long"), false)],
     },
     {
-      label: "non-mandatory property from MATCH is non-nullable (app enforces writes)",
+      label: "non-mandatory property from MATCH is nullable",
       cypher: "MATCH (c:Class) RETURN c.namespace AS namespace",
-      expectedColumns: [col("namespace", S("String"), false)],
+      expectedColumns: [col("namespace", S("String"), true)],
     },
     {
-      label: "StringArray property from MATCH is non-nullable",
+      label: "non-mandatory StringArray property from MATCH is nullable",
       cypher: "MATCH (c:Class) RETURN c.domains AS domains",
-      expectedColumns: [col("domains", ListType(S("String")), false)],
+      expectedColumns: [col("domains", ListType(S("String")), true)],
     },
     {
       label: "DISTINCT does not change types",
@@ -213,9 +213,9 @@ describe("analyzeQuery — real Neo4j type strings", () => {
       expectedColumns: [col("fqcn", S("String"), false)],
     },
     {
-      label: "FLOAT NOT NULL normalizes to Double (non-nullable from MATCH)",
+      label: "FLOAT NOT NULL normalizes to Double (non-mandatory in realSchema)",
       cypher: "MATCH (c:Class) RETURN c.method_count AS cnt",
-      expectedColumns: [col("cnt", S("Double"), false)],
+      expectedColumns: [col("cnt", S("Double"), true)],
     },
     {
       label: "LIST<STRING NOT NULL> NOT NULL normalizes to List(String)",
@@ -223,9 +223,9 @@ describe("analyzeQuery — real Neo4j type strings", () => {
       expectedColumns: [col("domains", ListType(S("String")), false)],
     },
     {
-      label: "non-mandatory property from MATCH is non-nullable (app owns write side)",
+      label: "non-mandatory property from MATCH is nullable",
       cypher: "MATCH (c:Class) RETURN c.name AS name",
-      expectedColumns: [col("name", S("String"), false)],
+      expectedColumns: [col("name", S("String"), true)],
     },
   ])("$label", ({ cypher, expectedColumns }) => {
     const result = analyzeQuery(cypher, realSchema)
@@ -297,7 +297,7 @@ describe("analyzeQuery — multi-WITH chain (ClassProfiles pattern)", () => {
     expect(result.columns).toEqual([
       col("fqcn", S("String"), false),
       col("methodProfiles", ListType(MapType([
-        { name: "visibility", value: S("String") },
+        { name: "visibility", value: NullableType(S("String")) },
         { name: "id", value: S("String") },
       ])), false),
       col("totalComplexity", S("Long"), false),

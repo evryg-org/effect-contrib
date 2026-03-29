@@ -1,6 +1,6 @@
 import { describe, it, expect } from "@effect/vitest"
 import { inferExpressionType, type TypeEnv } from "./InferType"
-import { ScalarType, ListType, MapType, NodeType, UnknownType, type CypherType } from "./CypherType"
+import { ScalarType, ListType, MapType, NullableType, NodeType, UnknownType, type CypherType } from "./CypherType"
 import { GraphSchema, NodeProperty, RelProperty } from "./SchemaExtractor"
 import { CharStream, CommonTokenStream } from "antlr4ng"
 import { CypherLexer } from "./generated-parser/CypherLexer.js"
@@ -19,6 +19,7 @@ const schema = new GraphSchema({
     new NodeProperty({ labels: ["Method"], propertyName: "visibility", propertyTypes: ["String"], mandatory: false }),
     new NodeProperty({ labels: ["Method"], propertyName: "params", propertyTypes: ["StringArray"], mandatory: false }),
     new NodeProperty({ labels: ["Method"], propertyName: "returnType", propertyTypes: ["String"], mandatory: false }),
+    new NodeProperty({ labels: ["Method"], propertyName: "ccn", propertyTypes: ["Long"], mandatory: false }),
   ],
   relProperties: [],
 })
@@ -111,7 +112,7 @@ describe("inferExpressionType — collect", () => {
     expect(result).toEqual(ListType(new ScalarType({ scalarType: "String" })))
   })
 
-  it("collect(map literal) returns ListType(MapType(...))", () => {
+  it("collect(map literal) returns ListType(MapType(...)) with nullable fields", () => {
     const env = envWith({
       m: { type: new NodeType({ label: "Method" }), nullable: false },
     })
@@ -120,9 +121,10 @@ describe("inferExpressionType — collect", () => {
       env,
       schema,
     )
+    // visibility is mandatory: false → NullableType; id is mandatory: true → plain
     expect(result).toEqual(ListType(
       MapType([
-        { name: "visibility", value: new ScalarType({ scalarType: "String" }) },
+        { name: "visibility", value: NullableType(new ScalarType({ scalarType: "String" })) },
         { name: "id", value: new ScalarType({ scalarType: "String" }) },
       ]),
     ))
@@ -146,7 +148,7 @@ describe("inferExpressionType — size", () => {
 })
 
 describe("inferExpressionType — map literal", () => {
-  it("infers field types recursively", () => {
+  it("infers field types recursively with nullability", () => {
     const env = envWith({
       m: { type: new NodeType({ label: "Method" }), nullable: false },
     })
@@ -155,9 +157,10 @@ describe("inferExpressionType — map literal", () => {
       env,
       schema,
     )
+    // id is mandatory: true, visibility is mandatory: false
     expect(result).toEqual(MapType([
       { name: "name", value: new ScalarType({ scalarType: "String" }) },
-      { name: "vis", value: new ScalarType({ scalarType: "String" }) },
+      { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) },
     ]))
   })
 })
@@ -196,9 +199,48 @@ describe("inferExpressionType — nested collect with CASE and map", () => {
     )
     expect(result).toEqual(ListType(
       MapType([
-        { name: "visibility", value: new ScalarType({ scalarType: "String" }) },
+        { name: "visibility", value: NullableType(new ScalarType({ scalarType: "String" })) },
         { name: "id", value: new ScalarType({ scalarType: "String" }) },
       ]),
     ))
+  })
+})
+
+describe("inferExpressionType — nullable property access", () => {
+  it("non-mandatory property wraps in NullableType", () => {
+    const env = envWith({ m: { type: new NodeType({ label: "Method" }), nullable: false } })
+    const result = inferExpressionType(parseExpression("m.visibility"), env, schema)
+    expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
+  })
+
+  it("mandatory property does NOT wrap in NullableType", () => {
+    const env = envWith({ m: { type: new NodeType({ label: "Method" }), nullable: false } })
+    const result = inferExpressionType(parseExpression("m.id"), env, schema)
+    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
+  })
+
+  it("map literal with nullable field has NullableType value", () => {
+    const env = envWith({ m: { type: new NodeType({ label: "Method" }), nullable: false } })
+    const result = inferExpressionType(
+      parseExpression("{id: m.id, ccn: m.ccn}"),
+      env,
+      schema,
+    )
+    expect(result).toEqual(MapType([
+      { name: "id", value: new ScalarType({ scalarType: "String" }) },
+      { name: "ccn", value: NullableType(new ScalarType({ scalarType: "Long" })) },
+    ]))
+  })
+})
+
+describe("inferExpressionType — string concatenation", () => {
+  it("string + string infers as String", () => {
+    const env = envWith({ m: { type: new NodeType({ label: "Method" }), nullable: false } })
+    const result = inferExpressionType(
+      parseExpression("m.id + m.id"),
+      env,
+      schema,
+    )
+    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
   })
 })

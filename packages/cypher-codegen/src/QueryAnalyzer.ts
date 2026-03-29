@@ -139,9 +139,14 @@ function computeEnvFromProjection(
     if (!exprCtx) continue
 
     const alias = aliasCtx ? aliasCtx.getText() : exprCtx.getText()
-    const type = inferExpressionType(exprCtx, env, schema)
+    let type = inferExpressionType(exprCtx, env, schema)
+    let nullable = inferNullable(exprCtx.getText(), env)
 
-    const nullable = inferNullable(exprCtx.getText(), env)
+    // Unwrap top-level NullableType into the env entry's nullable flag
+    if (type._tag === "NullableType") {
+      nullable = true
+      type = type.inner
+    }
 
     newEnv.set(alias, { type, nullable })
   }
@@ -173,8 +178,14 @@ function resolveProjection(
     if (!exprCtx) return { name: "", type: new UnknownType({}), nullable: true }
 
     const alias = aliasCtx ? aliasCtx.getText() : exprCtx.getText()
-    const type = inferExpressionType(exprCtx as Parameters<typeof inferExpressionType>[0], env, schema)
-    const nullable = inferNullable(exprCtx.getText(), env)
+    let type = inferExpressionType(exprCtx as Parameters<typeof inferExpressionType>[0], env, schema)
+    let nullable = inferNullable(exprCtx.getText(), env)
+
+    // Unwrap top-level NullableType into the column's nullable flag
+    if (type._tag === "NullableType") {
+      nullable = true
+      type = type.inner
+    }
 
     return { name: alias, type, nullable }
   })
