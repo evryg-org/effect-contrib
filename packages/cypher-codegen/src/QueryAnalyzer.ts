@@ -1,6 +1,6 @@
 import { CharStream, CommonTokenStream, ParseTreeWalker } from "antlr4ng"
 import { CypherLexer } from "./generated-parser/CypherLexer.js"
-import { CypherParser, type MatchStContext, type NodePatternContext, type ReturnStContext } from "./generated-parser/CypherParser.js"
+import { CypherParser, type MatchStContext, type NodePatternContext, type ReturnStContext, type WithStContext } from "./generated-parser/CypherParser.js"
 import { CypherParserListener } from "./generated-parser/CypherParserListener.js"
 import type { GraphSchema } from "./GraphSchemaModel"
 
@@ -117,14 +117,95 @@ function collectReturnType(innerType: Neo4jType | undefined): Neo4jType {
 // ── Types for intermediate state ──
 
 interface Binding { label: string; optional: boolean }
-interface Projection {
-  alias: string
-  variable?: string
-  property?: string
-  functionName?: string
-  functionArg?: { variable: string; property: string }
-}
 interface ParamUsage { paramName: string; label?: string; property?: string }
+
+// ── Resolve expression type from a projection expression text ──
+
+function resolveExprType(
+  exprText: string,
+  schema: GraphSchema,
+  bindings: Map<string, Binding>,
+  withTypes: Map<string, { type: Neo4jType; nullable: boolean }>,
+): { type: Neo4jType; nullable: boolean } | undefined {
+  // Function invocation: count(*), collect(c.name), coalesce(c.prop, default)
+  const funcMatch = exprText.match(/^(\w+)\((.+)\)$/i)
+  if (funcMatch) {
+    const funcName = funcMatch[1].toLowerCase()
+    const argText = funcMatch[2]
+
+    // coalesce(var.prop, default) — extract the first arg's property type
+    if (funcName === "coalesce") {
+      const args = argText.split(",")
+      const firstArg = args[0].trim()
+      const propMatch = firstArg.match(/^(\w+)\.(\w+)$/)
+      if (propMatch) {
+        const binding = bindings.get(propMatch[1])
+        if (binding) {
+          const lookup = lookupPropertyType(schema, binding.label, propMatch[2])
+          if (lookup) return { type: lookup.type, nullable: false }
+        }
+      }
+      return { type: "String", nullable: false }
+    }
+
+    // collect(var.prop) — returns array of the property type
+    if (funcName === "collect") {
+      const propMatch = argText.match(/^(\w+)\.(\w+)$/)
+      if (propMatch) {
+        const binding = bindings.get(propMatch[1])
+        if (binding) {
+          const lookup = lookupPropertyType(schema, binding.label, propMatch[2])
+          if (lookup) return { type: collectReturnType(lookup.type), nullable: false }
+        }
+      }
+      // collect({...}) or collect(CASE WHEN ...) — unresolvable complex expression
+      return { type: "Unknown", nullable: false }
+    }
+
+    // type(r) — returns the relationship type name as String
+    if (funcName === "type") {
+      return { type: "String", nullable: false }
+    }
+
+    const aggType = AGGREGATE_RETURN_TYPES[funcName]
+    if (aggType) return { type: aggType, nullable: false }
+    return { type: "Unknown", nullable: false }
+  }
+
+  // Property expression: var.prop
+  const propMatch = exprText.match(/^(\w+)\.(\w+)$/)
+  if (propMatch) {
+    const binding = bindings.get(propMatch[1])
+    if (binding) {
+      const lookup = lookupPropertyType(schema, binding.label, propMatch[2])
+      if (lookup) return { type: lookup.type, nullable: binding.optional }
+    }
+    return { type: "String", nullable: true }
+  }
+
+  // Bare variable — check WITH-computed types, then fall back to Unknown
+  const withType = withTypes.get(exprText)
+  if (withType) return withType
+
+  return undefined
+}
+
+// ── Extract projections from a projection body (shared between WITH and RETURN) ──
+
+interface ProjectionEntry {
+  alias: string
+  exprText: string
+}
+
+function extractProjectionEntries(projBody: { projectionItems(): { projectionItem(): any[] } | null } | null): ProjectionEntry[] {
+  const items = projBody?.projectionItems()?.projectionItem() ?? []
+  return items.map((item: any) => {
+    const aliasCtx = item.symbol()
+    const exprText = item.expression()?.getText() ?? ""
+    const alias = aliasCtx ? aliasCtx.getText() : exprText
+    return { alias, exprText }
+  })
+}
 
 // ── Public API ──
 
@@ -132,11 +213,11 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
   const tree = parse(cypher)
 
   const bindings = new Map<string, Binding>()
-  const projections: Projection[] = []
+  const withTypes = new Map<string, { type: Neo4jType; nullable: boolean }>()
+  const returnEntries: ProjectionEntry[] = []
   const paramUsages: ParamUsage[] = []
   let inOptionalMatch = false
 
-  // Build listener with property assignments (required by antlr4ng generated listeners)
   const listener = new CypherParserListener()
 
   listener.enterMatchSt = (ctx: MatchStContext) => {
@@ -168,106 +249,29 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
     }
   }
 
-  listener.enterReturnSt = (ctx: ReturnStContext) => {
-    const items = ctx.projectionBody()?.projectionItems()?.projectionItem() ?? []
-    for (const item of items) {
-      const aliasCtx = item.symbol()
-      const exprText = item.expression()?.getText() ?? ""
-      // When no explicit AS alias, Cypher uses the expression text as implicit alias
-      const alias = aliasCtx ? aliasCtx.getText() : exprText
-
-      // Function invocation: count(*), collect(c.name), coalesce(c.prop, default)
-      const funcMatch = exprText.match(/^(\w+)\((.+)\)$/i)
-      if (funcMatch) {
-        const funcName = funcMatch[1].toLowerCase()
-        const argText = funcMatch[2]
-
-        // coalesce(var.prop, default) — extract the first arg's property type
-        if (funcName === "coalesce") {
-          const args = argText.split(",")
-          const firstArg = args[0].trim()
-          const propMatch = firstArg.match(/^(\w+)\.(\w+)$/)
-          if (propMatch) {
-            projections.push({ alias, functionName: funcName, functionArg: { variable: propMatch[1], property: propMatch[2] } })
-          } else {
-            projections.push({ alias, functionName: funcName })
-          }
-          continue
-        }
-
-        const propMatch = argText.match(/^(\w+)\.(\w+)$/)
-        if (propMatch) {
-          projections.push({ alias, functionName: funcName, functionArg: { variable: propMatch[1], property: propMatch[2] } })
-        } else {
-          projections.push({ alias, functionName: funcName })
-        }
-        continue
+  // Track WITH-computed variable types
+  listener.enterWithSt = (ctx: WithStContext) => {
+    const entries = extractProjectionEntries(ctx.projectionBody())
+    for (const { alias, exprText } of entries) {
+      const resolved = resolveExprType(exprText, schema, bindings, withTypes)
+      if (resolved) {
+        withTypes.set(alias, resolved)
       }
-
-      // Property expression: var.prop
-      const propMatch = exprText.match(/^(\w+)\.(\w+)$/)
-      if (propMatch) {
-        projections.push({ alias, variable: propMatch[1], property: propMatch[2] })
-        continue
-      }
-
-      projections.push({ alias })
     }
+  }
+
+  listener.enterReturnSt = (ctx: ReturnStContext) => {
+    returnEntries.push(...extractProjectionEntries(ctx.projectionBody()))
   }
 
   ParseTreeWalker.DEFAULT.walk(listener, tree)
 
   // Resolve columns
-  const columns: ResolvedColumn[] = projections.map((proj) => {
-    if (proj.functionName) {
-      // coalesce(var.prop, default) — same type as the property, but non-nullable
-      if (proj.functionName === "coalesce" && proj.functionArg) {
-        const binding = bindings.get(proj.functionArg.variable)
-        if (binding) {
-          const lookup = lookupPropertyType(schema, binding.label, proj.functionArg.property)
-          if (lookup) return { name: proj.alias, type: lookup.type, nullable: false }
-        }
-        return { name: proj.alias, type: "String" as Neo4jType, nullable: false }
-      }
-
-      // collect(var.prop) — returns array of the property type
-      if (proj.functionName === "collect") {
-        if (proj.functionArg) {
-          const binding = bindings.get(proj.functionArg.variable)
-          if (binding) {
-            const lookup = lookupPropertyType(schema, binding.label, proj.functionArg.property)
-            if (lookup) return { name: proj.alias, type: collectReturnType(lookup.type), nullable: false }
-          }
-        }
-        // collect({...}) or collect(CASE WHEN ...) — unresolvable complex expression
-        return { name: proj.alias, type: "Unknown" as Neo4jType, nullable: false }
-      }
-
-      // type(r) — returns the relationship type name as String
-      if (proj.functionName === "type") {
-        return { name: proj.alias, type: "String" as Neo4jType, nullable: false }
-      }
-
-      const aggType = AGGREGATE_RETURN_TYPES[proj.functionName]
-      if (aggType) return { name: proj.alias, type: aggType, nullable: false }
-      // Unresolvable function call
-      return { name: proj.alias, type: "Unknown" as Neo4jType, nullable: false }
-    }
-
-    if (proj.variable && proj.property) {
-      const binding = bindings.get(proj.variable)
-      if (binding) {
-        const lookup = lookupPropertyType(schema, binding.label, proj.property)
-        if (lookup) {
-          return { name: proj.alias, type: lookup.type, nullable: binding.optional }
-        }
-      }
-      return { name: proj.alias, type: "String" as Neo4jType, nullable: true }
-    }
-
-    // Bare variable (no dot, no function) — if it's a known node binding, skip;
-    // otherwise it's a WITH-computed value whose type we can't resolve
-    return { name: proj.alias, type: "Unknown" as Neo4jType, nullable: true }
+  const columns: ResolvedColumn[] = returnEntries.map((entry) => {
+    const resolved = resolveExprType(entry.exprText, schema, bindings, withTypes)
+    if (resolved) return { name: entry.alias, ...resolved }
+    // Bare variable with no WITH type — unknown
+    return { name: entry.alias, type: "Unknown" as Neo4jType, nullable: true }
   })
 
   // Resolve params

@@ -100,7 +100,7 @@ describe("generateModule with columns (typed codegen)", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.method_count AS cnt", [
       col("cnt", "Long", false),
     ])
-    expect(source).toContain('import { Neo4jInt } from "@/lib/effect-neo4j"')
+    expect(source).toContain('import { Neo4jClient, Neo4jInt } from "@/lib/effect-neo4j"')
     expect(source).toContain("Neo4jInt")
     expect(source).not.toContain("Neo4jInteger")
   })
@@ -147,7 +147,7 @@ describe("generateModule with columns (typed codegen)", () => {
       "MATCH (m:Method) RETURN m.id AS id, collect({x: 1}) AS data",
       [col("id", "String", false), col("data", "Unknown", false)],
     )
-    expect(source).toContain('import { Neo4jValue } from "@/lib/effect-neo4j"')
+    expect(source).toContain('import { Neo4jClient, Neo4jValue } from "@/lib/effect-neo4j"')
     expect(source).toContain("Neo4jValue")
     expect(source).not.toContain("Schema.Unknown")
     expect(source).toContain("Schema.String")
@@ -158,7 +158,7 @@ describe("generateModule with columns (typed codegen)", () => {
       "MATCH (c:Class) RETURN c.method_count AS cnt, collect({x: 1}) AS data",
       [col("cnt", "Long", false), col("data", "Unknown", false)],
     )
-    expect(source).toContain('import { Neo4jInt, Neo4jValue } from "@/lib/effect-neo4j"')
+    expect(source).toContain('import { Neo4jClient, Neo4jInt, Neo4jValue } from "@/lib/effect-neo4j"')
   })
 })
 
