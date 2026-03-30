@@ -1,7 +1,7 @@
 import { Schema } from "effect"
 import { readFileSync, writeFileSync } from "node:fs"
 
-// ── Domain models ──
+// ── DDD Subdomain models --
 
 export class NodeProperty extends Schema.Class<NodeProperty>("NodeProperty")({
   labels: Schema.Array(Schema.String),
