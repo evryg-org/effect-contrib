@@ -233,6 +233,46 @@ describe("inferExpressionType — nullable property access", () => {
   })
 })
 
+describe("inferExpressionType — property access on nullable variable", () => {
+  it("mandatory property on nullable variable wraps in NullableType", () => {
+    const env = envWith({ mc: { type: new NodeType({ label: "Method" }), nullable: true } })
+    const result = inferExpressionType(parseExpression("mc.id"), env, schema)
+    expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
+  })
+
+  it("non-mandatory property on nullable variable stays NullableType", () => {
+    const env = envWith({ mc: { type: new NodeType({ label: "Method" }), nullable: true } })
+    const result = inferExpressionType(parseExpression("mc.visibility"), env, schema)
+    expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
+  })
+
+  it("map literal with nullable variable makes all fields nullable", () => {
+    const env = envWith({ mc: { type: new NodeType({ label: "Method" }), nullable: true } })
+    const result = inferExpressionType(
+      parseExpression("{id: mc.id, vis: mc.visibility}"),
+      env,
+      schema,
+    )
+    expect(result).toEqual(MapType([
+      { name: "id", value: NullableType(new ScalarType({ scalarType: "String" })) },
+      { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) },
+    ]))
+  })
+
+  it("collect(map) with nullable variable wraps mandatory fields", () => {
+    const env = envWith({ mc: { type: new NodeType({ label: "Method" }), nullable: true } })
+    const result = inferExpressionType(
+      parseExpression("collect({id: mc.id, vis: mc.visibility})"),
+      env,
+      schema,
+    )
+    expect(result).toEqual(ListType(MapType([
+      { name: "id", value: NullableType(new ScalarType({ scalarType: "String" })) },
+      { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) },
+    ])))
+  })
+})
+
 describe("inferExpressionType — string concatenation", () => {
   it("string + string infers as String", () => {
     const env = envWith({ m: { type: new NodeType({ label: "Method" }), nullable: false } })

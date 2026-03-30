@@ -282,6 +282,21 @@ describe("analyzeQuery — collect with map literals", () => {
   })
 })
 
+describe("analyzeQuery — collect(map) from OPTIONAL MATCH nullability", () => {
+  it("collect(map) from OPTIONAL MATCH makes mandatory fields nullable", () => {
+    const cypher = `MATCH (c:Class)
+                    OPTIONAL MATCH (c)-[:BELONGS_TO]->(m:Module)
+                    WITH c, collect({name: m.name}) AS data
+                    RETURN data`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([
+      col("data", ListType(MapType([
+        { name: "name", value: NullableType(S("String")) },
+      ])), false),
+    ])
+  })
+})
+
 describe("analyzeQuery — multi-WITH chain (ClassProfiles pattern)", () => {
   it("resolves types through chained WITH...MATCH...WITH", () => {
     const cypher = `
@@ -298,7 +313,7 @@ describe("analyzeQuery — multi-WITH chain (ClassProfiles pattern)", () => {
       col("fqcn", S("String"), false),
       col("methodProfiles", ListType(MapType([
         { name: "visibility", value: NullableType(S("String")) },
-        { name: "id", value: S("String") },
+        { name: "id", value: NullableType(S("String")) },
       ])), false),
       col("totalComplexity", S("Long"), false),
       col("moduleName", S("String"), true),

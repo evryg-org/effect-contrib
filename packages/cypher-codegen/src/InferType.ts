@@ -176,6 +176,10 @@ function inferPropertyExpressionType(
   // No property access — just the atom
   if (!dotNames || dotNames.length === 0) return atomType
 
+  // Check if the base variable is nullable (e.g. from OPTIONAL MATCH)
+  const symbol = atom.symbol()
+  const varNullable = symbol ? env.get(symbol.getText())?.nullable === true : false
+
   // Property chain: resolve through dot access
   let current = atomType
   for (const nameCtx of dotNames) {
@@ -191,6 +195,12 @@ function inferPropertyExpressionType(
       current = new UnknownType({})
     }
   }
+
+  // If the base variable is nullable, ensure the result is wrapped in NullableType
+  if (varNullable && current._tag !== "NullableType") {
+    current = NullableType(current)
+  }
+
   return current
 }
 
