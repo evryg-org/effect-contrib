@@ -24,8 +24,8 @@ const schema = new GraphSchema({
     new NodeProperty({ labels: ["Method"], propertyName: "ccn", propertyTypes: ["Long"], mandatory: false }),
     new NodeProperty({ labels: ["Method"], propertyName: "file", propertyTypes: ["String"], mandatory: false }),
     new NodeProperty({ labels: ["Module"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["Domain"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["Domain"], propertyName: "color", propertyTypes: ["String"], mandatory: true }),
+    new NodeProperty({ labels: ["DddSubdomain"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
+    new NodeProperty({ labels: ["DddSubdomain"], propertyName: "color", propertyTypes: ["String"], mandatory: true }),
     new NodeProperty({ labels: ["Entrypoint"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
     new NodeProperty({ labels: ["Entrypoint"], propertyName: "type", propertyTypes: ["String"], mandatory: true }),
     new NodeProperty({ labels: ["Pattern"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
@@ -85,7 +85,7 @@ describe("analyzeQuery — RETURN projections", () => {
     },
     {
       label: "multiple return columns",
-      cypher: "MATCH (d:Domain) RETURN d.name AS name, d.color AS color",
+      cypher: "MATCH (d:DddSubdomain) RETURN d.name AS name, d.color AS color",
       expectedColumns: [col("name", S("String"), false), col("color", S("String"), false)],
     },
   ])("$label", ({ cypher, expectedColumns }) => {
