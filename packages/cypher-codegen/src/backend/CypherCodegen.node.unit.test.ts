@@ -1,7 +1,7 @@
 import { describe, it, expect } from "@effect/vitest"
 import { extractParams, generateModule } from "./CypherCodegen"
-import type { ResolvedColumn } from "./QueryAnalyzer"
-import { ScalarType, ListType, MapType, UnknownType, type CypherType } from "./CypherType"
+import type { ResolvedColumn } from "../frontend/QueryAnalyzer"
+import { ScalarType, ListType, MapType, UnknownType, type CypherType } from "../types/CypherType"
 
 describe("extractParams", () => {
   it.each([
@@ -184,7 +184,7 @@ describe("generateModule with columns (typed codegen)", () => {
 // ── Barrel generation (typed params) ──
 
 import { generateBarrel, type BarrelEntry } from "./CypherCodegen"
-import type { ResolvedParam } from "./QueryAnalyzer"
+import type { ResolvedParam } from "../frontend/QueryAnalyzer"
 
 const barrelParam = (name: string, type: string): ResolvedParam =>
   ({ name, type }) as ResolvedParam

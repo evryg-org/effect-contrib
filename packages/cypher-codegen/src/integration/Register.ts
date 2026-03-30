@@ -1,9 +1,9 @@
 import { registerHooks } from "node:module"
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
-import { generateModule } from "./CypherCodegen"
-import { analyzeQuery } from "./QueryAnalyzer"
-import { loadSchema, type GraphSchema } from "./GraphSchemaModel"
+import { generateModule } from "../backend/CypherCodegen"
+import { analyzeQuery } from "../frontend/QueryAnalyzer"
+import { loadSchema, type GraphSchema } from "../schema/GraphSchemaModel"
 
 let schema: GraphSchema | undefined
 try {

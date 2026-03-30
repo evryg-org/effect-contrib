@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
-import { generateModule } from "./CypherCodegen"
-import { analyzeQuery } from "./QueryAnalyzer"
-import { loadSchema, type GraphSchema } from "./GraphSchemaModel"
+import { generateModule } from "../backend/CypherCodegen"
+import { analyzeQuery } from "../frontend/QueryAnalyzer"
+import { loadSchema, type GraphSchema } from "../schema/GraphSchemaModel"
 
 export const cypherPlugin = (opts?: { schemaPath?: string }) => {
   let schema: GraphSchema | undefined

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "@effect/vitest"
 import { generateDeclarations, type QueryEntry } from "./CypherDeclarationGen"
-import type { ResolvedColumn, ResolvedParam } from "./QueryAnalyzer"
-import { ScalarType, ListType, type CypherType } from "./CypherType"
+import type { ResolvedColumn, ResolvedParam } from "../frontend/QueryAnalyzer"
+import { ScalarType, ListType, type CypherType } from "../types/CypherType"
 
 const S = (t: "String" | "Long" | "Double" | "Boolean") => new ScalarType({ scalarType: t })
 

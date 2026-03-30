@@ -1,7 +1,7 @@
 import { describe, it, expect } from "@effect/vitest"
 import { analyzeQuery, type ResolvedColumn, type ResolvedParam } from "./QueryAnalyzer"
-import { GraphSchema, NodeProperty, RelProperty } from "./SchemaExtractor"
-import { ScalarType, ListType, MapType, NullableType, UnknownType, type CypherType } from "./CypherType"
+import { GraphSchema, NodeProperty, RelProperty } from "../schema/SchemaExtractor"
+import { ScalarType, ListType, MapType, NullableType, UnknownType, type CypherType } from "../types/CypherType"
 
 // ── Schema fixture mimicking a typical analysis graph ──
 

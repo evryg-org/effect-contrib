@@ -7,8 +7,8 @@ import {
   ReadingStatementContext,
   type ReturnStContext,
 } from "./generated-parser/CypherParser.js"
-import type { GraphSchema } from "./GraphSchemaModel"
-import { NodeType, UnknownType, type CypherType } from "./CypherType"
+import type { GraphSchema } from "../schema/GraphSchemaModel"
+import { NodeType, UnknownType, type CypherType } from "../types/CypherType"
 import { inferExpressionType, type TypeEnv } from "./InferType"
 
 // ── Public types ──

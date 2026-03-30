@@ -6,8 +6,8 @@ import type {
   QueryAnalysis,
   analyzeQuery,
 } from "./QueryAnalyzer"
-import type { CypherType } from "./CypherType"
-import type { GraphSchema } from "./SchemaExtractor"
+import type { CypherType } from "../types/CypherType"
+import type { GraphSchema } from "../schema/SchemaExtractor"
 
 describe("ResolvedColumn", () => {
   it("nullable is required boolean, not optional", () => {

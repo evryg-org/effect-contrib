@@ -5,10 +5,10 @@ import { globSync } from "node:fs"
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs"
 import { basename, dirname } from "node:path"
 import { UnconfiguredNeo4jClient, Neo4jConfig } from "@/lib/effect-neo4j"
-import { extractSchema, saveSchema, loadSchema } from "./SchemaExtractor"
-import { analyzeQuery, type ResolvedParam } from "./QueryAnalyzer"
-import { type QueryEntry } from "./CypherDeclarationGen"
-import { generateBarrel, extractParams, type BarrelEntry } from "./CypherCodegen"
+import { extractSchema, saveSchema, loadSchema } from "../schema/SchemaExtractor"
+import { analyzeQuery, type ResolvedParam } from "../frontend/QueryAnalyzer"
+import { type QueryEntry } from "../backend/CypherDeclarationGen"
+import { generateBarrel, extractParams, type BarrelEntry } from "../backend/CypherCodegen"
 
 /** Merge analyzer-typed params with regex-extracted params (catches WHERE-clause params the ANTLR walker misses) */
 function mergeParams(analyzerParams: ReadonlyArray<ResolvedParam>, cypher: string): ResolvedParam[] {

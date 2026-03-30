@@ -6,8 +6,8 @@ import type {
   CaseExpressionContext,
   AtomicExpressionContext,
 } from "./generated-parser/CypherParser.js"
-import type { GraphSchema } from "./GraphSchemaModel"
-import { ScalarType, ListType, MapType, NullableType, NodeType, UnknownType, type CypherType } from "./CypherType"
+import type { GraphSchema } from "../schema/GraphSchemaModel"
+import { ScalarType, ListType, MapType, NullableType, NodeType, UnknownType, type CypherType } from "../types/CypherType"
 
 // ── Type environment ──
 
