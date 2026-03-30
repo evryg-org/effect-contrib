@@ -283,16 +283,27 @@ describe("analyzeQuery — collect with map literals", () => {
 })
 
 describe("analyzeQuery — collect(map) from OPTIONAL MATCH nullability", () => {
-  it("collect(map) from OPTIONAL MATCH makes mandatory fields nullable", () => {
+  it("collect(CASE WHEN) from OPTIONAL MATCH narrows mandatory fields", () => {
     const cypher = `MATCH (c:Class)
                     OPTIONAL MATCH (c)-[:BELONGS_TO]->(m:Module)
-                    WITH c, collect({name: m.name}) AS data
+                    WITH c, collect(CASE WHEN m IS NOT NULL THEN {name: m.name} END) AS data
                     RETURN data`
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual([
       col("data", ListType(MapType([
-        { name: "name", value: NullableType(S("String")) },
+        { name: "name", value: S("String") },
       ])), false),
+    ])
+  })
+
+  it("collect(scalar) from OPTIONAL MATCH strips nullable", () => {
+    const cypher = `MATCH (c:Class)
+                    OPTIONAL MATCH (c)-[:IMPLEMENTS]->(i:Class)
+                    WITH c, collect(DISTINCT i.fqcn) AS ifaces
+                    RETURN ifaces`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([
+      col("ifaces", ListType(S("String")), false),
     ])
   })
 })
@@ -303,7 +314,7 @@ describe("analyzeQuery — multi-WITH chain (ClassProfiles pattern)", () => {
       MATCH (c:Class)
       OPTIONAL MATCH (m:Method)-[:BELONGS_TO]->(c)
       WITH c,
-        collect({visibility: m.visibility, id: m.id}) AS methodProfiles,
+        collect(CASE WHEN m IS NOT NULL THEN {visibility: m.visibility, id: m.id} END) AS methodProfiles,
         sum(m.ccn) AS totalComplexity
       OPTIONAL MATCH (c)-[:BELONGS_TO]->(mod:Module)
       WITH c, methodProfiles, totalComplexity, mod.name AS moduleName
@@ -313,7 +324,7 @@ describe("analyzeQuery — multi-WITH chain (ClassProfiles pattern)", () => {
       col("fqcn", S("String"), false),
       col("methodProfiles", ListType(MapType([
         { name: "visibility", value: NullableType(S("String")) },
-        { name: "id", value: NullableType(S("String")) },
+        { name: "id", value: S("String") },
       ])), false),
       col("totalComplexity", S("Long"), false),
       col("moduleName", S("String"), true),

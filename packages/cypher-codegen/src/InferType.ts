@@ -301,13 +301,62 @@ function inferCaseType(
     // With initial CASE expr: exprs[0]=case, exprs[1]=when, exprs[2]=then, ...
     // Without: exprs[0]=when, exprs[1]=then, ...
     const hasInitialExpr = caseExpr.expression().length > thenTokens.length * 2 + (caseExpr.ELSE() ? 1 : 0)
+    const whenIndex = hasInitialExpr ? 1 : 0
     const thenIndex = hasInitialExpr ? 2 : 1
+
+    // Narrow nullable variables if WHEN clause is `var IS NOT NULL`
+    let thenEnv = env
+    if (exprs.length > whenIndex) {
+      const narrowedVar = extractIsNotNullVar(exprs[whenIndex])
+      if (narrowedVar && env.has(narrowedVar) && env.get(narrowedVar)!.nullable) {
+        thenEnv = new Map([...env, [narrowedVar, { ...env.get(narrowedVar)!, nullable: false }]])
+      }
+    }
+
     if (exprs.length > thenIndex) {
-      return inferExpressionType(exprs[thenIndex], env, schema)
+      return inferExpressionType(exprs[thenIndex], thenEnv, schema)
     }
   }
 
   return new UnknownType({})
+}
+
+/** Extract variable name from `var IS NOT NULL` expression, or undefined */
+function extractIsNotNullVar(expr: ExpressionContext): string | undefined {
+  // Walk: expression → xorExpression → andExpression → notExpression → comparisonExpression
+  //     → addSubExpression → multDivExpression → powerExpression → unaryAddSubExpression
+  //     → atomicExpression (which has nullExpression with NOT)
+  const xors = expr.xorExpression()
+  if (xors.length !== 1) return undefined
+  const ands = xors[0].andExpression()
+  if (ands.length !== 1) return undefined
+  const nots = ands[0].notExpression()
+  if (nots.length !== 1) return undefined
+  const comp = nots[0].comparisonExpression()
+  if (!comp) return undefined
+  const addSubs = comp.addSubExpression()
+  if (addSubs.length !== 1) return undefined
+  const multDivs = addSubs[0].multDivExpression()
+  if (multDivs.length !== 1) return undefined
+  const powers = multDivs[0].powerExpression()
+  if (powers.length !== 1) return undefined
+  const unary = powers[0].unaryAddSubExpression()[0]
+  const atomic = unary?.atomicExpression()
+  if (!atomic) return undefined
+
+  const nullExprs = atomic.nullExpression()
+  if (!nullExprs || nullExprs.length === 0) return undefined
+  // IS NOT NULL has a NOT token
+  if (!nullExprs[0].NOT()) return undefined
+
+  const propOrLabel = atomic.propertyOrLabelExpression()
+  if (!propOrLabel) return undefined
+  const propExpr = propOrLabel.propertyExpression()
+  if (!propExpr) return undefined
+  const symbol = propExpr.atom()?.symbol()
+  // Only narrow bare variables (no dot access in the IS NOT NULL check)
+  if (!symbol || (propExpr.name() && propExpr.name().length > 0)) return undefined
+  return symbol.getText()
 }
 
 function inferFunctionType(
@@ -319,11 +368,12 @@ function inferFunctionType(
   const argsChain = func.expressionChain()
   const args = argsChain?.expression() ?? []
 
-  // collect(x) → ListType(inferType(x))
+  // collect(x) → ListType(inferType(x)), stripping NullableType (collect skips nulls)
   if (funcName === "collect") {
     if (args.length > 0) {
       const argType = inferExpressionType(args[0], env, schema)
-      return ListType(argType)
+      const elementType = argType._tag === "NullableType" ? argType.inner : argType
+      return ListType(elementType)
     }
     return ListType(new UnknownType({}))
   }

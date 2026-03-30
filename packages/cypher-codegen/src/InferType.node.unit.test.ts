@@ -273,6 +273,79 @@ describe("inferExpressionType — property access on nullable variable", () => {
   })
 })
 
+describe("inferExpressionType — CASE WHEN IS NOT NULL narrowing", () => {
+  it("narrows nullable variable in THEN branch", () => {
+    const env = envWith({ m: { type: new NodeType({ label: "Method" }), nullable: true } })
+    const result = inferExpressionType(
+      parseExpression("CASE WHEN m IS NOT NULL THEN m.id END"),
+      env,
+      schema,
+    )
+    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
+  })
+
+  it("narrows nullable variable in map literal", () => {
+    const env = envWith({ m: { type: new NodeType({ label: "Method" }), nullable: true } })
+    const result = inferExpressionType(
+      parseExpression("CASE WHEN m IS NOT NULL THEN {id: m.id, vis: m.visibility} END"),
+      env,
+      schema,
+    )
+    // id: mandatory + narrowed → non-null; vis: non-mandatory → still nullable
+    expect(result).toEqual(MapType([
+      { name: "id", value: new ScalarType({ scalarType: "String" }) },
+      { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) },
+    ]))
+  })
+
+  it("does not narrow without IS NOT NULL", () => {
+    const env = envWith({ m: { type: new NodeType({ label: "Method" }), nullable: true } })
+    const result = inferExpressionType(
+      parseExpression("CASE WHEN true THEN m.id END"),
+      env,
+      schema,
+    )
+    expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
+  })
+})
+
+describe("inferExpressionType — collect strips NullableType", () => {
+  it("strips NullableType from element", () => {
+    const env = envWith({ m: { type: new NodeType({ label: "Method" }), nullable: true } })
+    const result = inferExpressionType(
+      parseExpression("collect(m.visibility)"),
+      env,
+      schema,
+    )
+    expect(result).toEqual(ListType(new ScalarType({ scalarType: "String" })))
+  })
+
+  it("non-nullable stays unchanged", () => {
+    const env = envWith({ c: { type: new NodeType({ label: "Class" }), nullable: false } })
+    const result = inferExpressionType(
+      parseExpression("collect(c.fqcn)"),
+      env,
+      schema,
+    )
+    expect(result).toEqual(ListType(new ScalarType({ scalarType: "String" })))
+  })
+})
+
+describe("inferExpressionType — CASE + collect combined", () => {
+  it("collect(CASE WHEN x IS NOT NULL THEN {map} END) narrows + collects", () => {
+    const env = envWith({ m: { type: new NodeType({ label: "Method" }), nullable: true } })
+    const result = inferExpressionType(
+      parseExpression("collect(CASE WHEN m IS NOT NULL THEN {id: m.id, vis: m.visibility} END)"),
+      env,
+      schema,
+    )
+    expect(result).toEqual(ListType(MapType([
+      { name: "id", value: new ScalarType({ scalarType: "String" }) },
+      { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) },
+    ])))
+  })
+})
+
 describe("inferExpressionType — string concatenation", () => {
   it("string + string infers as String", () => {
     const env = envWith({ m: { type: new NodeType({ label: "Method" }), nullable: false } })
