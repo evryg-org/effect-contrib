@@ -79,26 +79,26 @@ describe("generateModule with columns (typed codegen)", () => {
     expect(source).toContain("Schema.String")
   })
 
-  it("uses Schema.decodeUnknownSync for row decoding", () => {
+  it("emits Neo4jRecordToObject transform with toObject()", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.fqcn AS fqcn", [
       col("fqcn", S("String"), false),
     ])
-    expect(source).toContain("Schema.decodeUnknownSync")
+    expect(source).toContain("Neo4jRecordToObject")
+    expect(source).toContain("rec.toObject")
   })
 
-  it("generates recordToRow extractor", () => {
+  it("composes Neo4jRecordToObject with Row via Schema.compose", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.fqcn AS fqcn", [
       col("fqcn", S("String"), false),
     ])
-    expect(source).toContain("recordToRow")
-    expect(source).toContain('rec.get("fqcn")')
+    expect(source).toContain("Schema.Array(Schema.compose(Neo4jRecordToObject, Row, { strict: false }))")
   })
 
-  it("maps records in the query return", () => {
+  it("passes decoder directly to Effect.map (no lambda)", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.fqcn AS fqcn", [
       col("fqcn", S("String"), false),
     ])
-    expect(source).toContain("recs.map(recordToRow)")
+    expect(source).toContain("Effect.map(neo4j.query(cypher), decodeRows)")
   })
 
   it("imports Neo4jInt from effect-neo4j for Long columns", () => {
@@ -127,7 +127,7 @@ describe("generateModule with columns (typed codegen)", () => {
   it("falls back to untyped codegen when no columns provided", () => {
     const source = generateModule("MATCH (c:Class) RETURN c")
     expect(source).not.toContain("Schema.Struct")
-    expect(source).not.toContain("recordToRow")
+    expect(source).not.toContain("Neo4jRecordToObject")
     expect(source).toContain("neo4j.query(cypher)")
   })
 
@@ -137,7 +137,7 @@ describe("generateModule with columns (typed codegen)", () => {
     ])
     expect(source).toContain("{ fqcn }")
     expect(source).toContain("Schema.Struct")
-    expect(source).toContain("recordToRow")
+    expect(source).toContain("Schema.compose(Neo4jRecordToObject, Row")
   })
 
   it("imports Neo4jValue from effect-neo4j for Unknown column type", () => {
@@ -232,5 +232,40 @@ describe("generateBarrel — typed params", () => {
     }
     const source = generateBarrel([entry])
     expect(source).toContain("{ val }: { val: unknown }")
+  })
+
+  it("emits shared Neo4jRecordToObject transform once", () => {
+    const entry: BarrelEntry = {
+      filename: "Foo.cypher",
+      cypher: "MATCH (c:Class) RETURN c.fqcn AS fqcn",
+      columns: [col("fqcn", S("String"), false)],
+      params: [],
+    }
+    const source = generateBarrel([entry])
+    const matches = source.match(/Neo4jRecordToObject = Schema\.transform/g)
+    expect(matches).toHaveLength(1)
+    expect(source).toContain("rec.toObject")
+  })
+
+  it("composes Neo4jRecordToObject with row schema via Schema.compose", () => {
+    const entry: BarrelEntry = {
+      filename: "Foo.cypher",
+      cypher: "MATCH (c:Class) RETURN c.fqcn AS fqcn",
+      columns: [col("fqcn", S("String"), false)],
+      params: [],
+    }
+    const source = generateBarrel([entry])
+    expect(source).toContain("Schema.Array(Schema.compose(Neo4jRecordToObject, fooQueryRow, { strict: false }))")
+  })
+
+  it("passes decoder directly to Effect.map (no lambda)", () => {
+    const entry: BarrelEntry = {
+      filename: "Foo.cypher",
+      cypher: "MATCH (c:Class) RETURN c.fqcn AS fqcn",
+      columns: [col("fqcn", S("String"), false)],
+      params: [],
+    }
+    const source = generateBarrel([entry])
+    expect(source).toContain("Effect.map(neo4j.query(fooQueryCypher), decodeFooQuery)")
   })
 })

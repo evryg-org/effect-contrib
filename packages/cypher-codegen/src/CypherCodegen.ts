@@ -153,6 +153,13 @@ function generateTypedModule(cypher: string, columns: ReadonlyArray<ResolvedColu
   lines.push(`const cypher = ${JSON.stringify(cypher)};`)
   lines.push(``)
 
+  // Neo4j Record → plain object transform
+  lines.push(`const Neo4jRecordToObject = Schema.transform(`)
+  lines.push(`  Schema.Unknown, Schema.Unknown,`)
+  lines.push(`  { strict: true, decode: (rec: any) => rec.toObject(), encode: (obj) => obj },`)
+  lines.push(`);`)
+  lines.push(``)
+
   // Temporal string transform (only if needed)
   if (needsTemporalString(columns)) {
     lines.push(`const TemporalString = Schema.transform(`)
@@ -170,16 +177,10 @@ function generateTypedModule(cypher: string, columns: ReadonlyArray<ResolvedColu
   lines.push(`});`)
   lines.push(``)
 
-  // Decoder
-  lines.push(`const decodeRow = Schema.decodeUnknownSync(Row);`)
-  lines.push(``)
-
-  // recordToRow
-  lines.push(`const recordToRow = (rec) => decodeRow({`)
-  for (const col of columns) {
-    lines.push(`  ${col.name}: rec.get("${col.name}"),`)
-  }
-  lines.push(`});`)
+  // Decoder (compose transform + struct, wrap in array)
+  lines.push(`const decodeRows = Schema.decodeUnknownSync(`)
+  lines.push(`  Schema.Array(Schema.compose(Neo4jRecordToObject, Row, { strict: false }))`)
+  lines.push(`);`)
   lines.push(``)
 
   // Query export
@@ -192,10 +193,10 @@ function generateTypedModule(cypher: string, columns: ReadonlyArray<ResolvedColu
   lines.push(`  Effect.flatMap(Neo4jClient, (neo4j) =>`)
 
   if (params.length === 0) {
-    lines.push(`    Effect.map(neo4j.query(cypher), (recs) => recs.map(recordToRow)));`)
+    lines.push(`    Effect.map(neo4j.query(cypher), decodeRows));`)
   } else {
     const destructure = `{ ${params.join(", ")} }`
-    lines.push(`    Effect.map(neo4j.query(cypher, ${destructure}), (recs) => recs.map(recordToRow)));`)
+    lines.push(`    Effect.map(neo4j.query(cypher, ${destructure}), decodeRows));`)
   }
   lines.push(``)
 
@@ -232,7 +233,16 @@ export function generateBarrel(entries: ReadonlyArray<BarrelEntry>): string {
   }
   lines.push(``)
 
-  // Shared transforms (emit once if any entry needs them)
+  // Shared transforms (emit once)
+  const anyHasColumns = entries.some((e) => e.columns.length > 0)
+  if (anyHasColumns) {
+    lines.push(`const Neo4jRecordToObject = Schema.transform(`)
+    lines.push(`  Schema.Unknown, Schema.Unknown,`)
+    lines.push(`  { strict: true, decode: (rec: any) => rec.toObject(), encode: (obj) => obj },`)
+    lines.push(`)`)
+    lines.push(``)
+  }
+
   const anyNeedTemporal = entries.some((e) => needsTemporalString(e.columns))
 
   if (anyNeedTemporal) {
@@ -260,6 +270,8 @@ export function generateBarrel(entries: ReadonlyArray<BarrelEntry>): string {
     lines.push(``)
 
     if (hasColumns) {
+      const decodeName = `decode${name.charAt(0).toUpperCase() + name.slice(1)}`
+
       lines.push(`const ${name}Row = Schema.Struct({`)
       for (const col of entry.columns) {
         lines.push(`  ${col.name}: ${columnToSchema(col)},`)
@@ -268,21 +280,21 @@ export function generateBarrel(entries: ReadonlyArray<BarrelEntry>): string {
       lines.push(``)
       lines.push(`export type ${name.charAt(0).toUpperCase() + name.slice(1)}Row = typeof ${name}Row.Type`)
       lines.push(``)
-      lines.push(`const decode${name.charAt(0).toUpperCase() + name.slice(1)} = Schema.decodeUnknownSync(${name}Row)`)
+      lines.push(`const ${decodeName} = Schema.decodeUnknownSync(`)
+      lines.push(`  Schema.Array(Schema.compose(Neo4jRecordToObject, ${name}Row, { strict: false }))`)
+      lines.push(`)`)
       lines.push(``)
-
-      const recordToRow = `(rec: any) => decode${name.charAt(0).toUpperCase() + name.slice(1)}({ ${entry.columns.map((c) => `${c.name}: rec.get("${c.name}")`).join(", ")} })`
 
       if (entry.params.length === 0) {
         lines.push(`export const ${name} = () =>`)
         lines.push(`  Effect.flatMap(Neo4jClient, (neo4j) =>`)
-        lines.push(`    Effect.map(neo4j.query(${name}Cypher), (recs) => recs.map(${recordToRow})))`)
+        lines.push(`    Effect.map(neo4j.query(${name}Cypher), ${decodeName}))`)
       } else {
         const destructure = `{ ${entry.params.map((p) => p.name).join(", ")} }`
         const typeAnnotation = entry.params.map((p) => `${p.name}: ${tsTypeFor(p.type)}`).join("; ")
         lines.push(`export const ${name} = (${destructure}: { ${typeAnnotation} }) =>`)
         lines.push(`  Effect.flatMap(Neo4jClient, (neo4j) =>`)
-        lines.push(`    Effect.map(neo4j.query(${name}Cypher, ${destructure}), (recs) => recs.map(${recordToRow})))`)
+        lines.push(`    Effect.map(neo4j.query(${name}Cypher, ${destructure}), ${decodeName}))`)
       }
     } else {
       if (entry.params.length === 0) {
