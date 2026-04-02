@@ -14,7 +14,7 @@ const schema = new GraphSchema({
     new NodeProperty({ labels: ["Class"], propertyName: "method_count", propertyTypes: ["Long"], mandatory: true }),
     new NodeProperty({ labels: ["Class"], propertyName: "kind", propertyTypes: ["String"], mandatory: true }),
     new NodeProperty({ labels: ["Class"], propertyName: "isStatic", propertyTypes: ["Boolean"], mandatory: false }),
-    new NodeProperty({ labels: ["Class"], propertyName: "dddSubdomains", propertyTypes: ["StringArray"], mandatory: false }),
+    new NodeProperty({ labels: ["Class"], propertyName: "subdomains", propertyTypes: ["StringArray"], mandatory: false }),
     new NodeProperty({ labels: ["Method"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
     new NodeProperty({ labels: ["Method"], propertyName: "visibility", propertyTypes: ["String"], mandatory: false }),
     new NodeProperty({ labels: ["Method"], propertyName: "params", propertyTypes: ["StringArray"], mandatory: false }),
@@ -142,7 +142,7 @@ describe("inferExpressionType — coalesce", () => {
 describe("inferExpressionType — size", () => {
   it("size() returns Long", () => {
     const env = envWith({ c: { type: new NodeType({ label: "Class" }), nullable: false } })
-    const result = inferExpressionType(parseExpression("size(c.dddSubdomains)"), env, schema)
+    const result = inferExpressionType(parseExpression("size(c.subdomains)"), env, schema)
     expect(result).toEqual(new ScalarType({ scalarType: "Long" }))
   })
 })

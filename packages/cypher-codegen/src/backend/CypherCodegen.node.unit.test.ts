@@ -118,8 +118,8 @@ describe("generateModule with columns (typed codegen)", () => {
   })
 
   it("uses Schema.Array(Schema.String) for List(String) columns", () => {
-    const source = generateModule("MATCH (c:Class) RETURN c.dddSubdomains AS domains", [
-      col("dddSubdomains", ListType(S("String")), false),
+    const source = generateModule("MATCH (c:Class) RETURN c.subdomains AS domains", [
+      col("subdomains", ListType(S("String")), false),
     ])
     expect(source).toContain("Schema.Array(Schema.String)")
   })

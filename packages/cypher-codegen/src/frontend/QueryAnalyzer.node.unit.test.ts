@@ -14,7 +14,7 @@ const schema = new GraphSchema({
     new NodeProperty({ labels: ["Class"], propertyName: "source", propertyTypes: ["String"], mandatory: true }),
     new NodeProperty({ labels: ["Class"], propertyName: "method_count", propertyTypes: ["Long"], mandatory: true }),
     new NodeProperty({ labels: ["Class"], propertyName: "kind", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["Class"], propertyName: "dddSubdomains", propertyTypes: ["StringArray"], mandatory: false }),
+    new NodeProperty({ labels: ["Class"], propertyName: "subdomains", propertyTypes: ["StringArray"], mandatory: false }),
     new NodeProperty({ labels: ["Class"], propertyName: "isStatic", propertyTypes: ["Boolean"], mandatory: false }),
     new NodeProperty({ labels: ["Method"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
     new NodeProperty({ labels: ["Method"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
@@ -24,8 +24,8 @@ const schema = new GraphSchema({
     new NodeProperty({ labels: ["Method"], propertyName: "ccn", propertyTypes: ["Long"], mandatory: false }),
     new NodeProperty({ labels: ["Method"], propertyName: "file", propertyTypes: ["String"], mandatory: false }),
     new NodeProperty({ labels: ["Module"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["DddSubdomain"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["DddSubdomain"], propertyName: "color", propertyTypes: ["String"], mandatory: true }),
+    new NodeProperty({ labels: ["Subdomain"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
+    new NodeProperty({ labels: ["Subdomain"], propertyName: "color", propertyTypes: ["String"], mandatory: true }),
     new NodeProperty({ labels: ["Entrypoint"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
     new NodeProperty({ labels: ["Entrypoint"], propertyName: "type", propertyTypes: ["String"], mandatory: true }),
     new NodeProperty({ labels: ["Pattern"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
@@ -75,8 +75,8 @@ describe("analyzeQuery — RETURN projections", () => {
     },
     {
       label: "non-mandatory StringArray property from MATCH is nullable",
-      cypher: "MATCH (c:Class) RETURN c.dddSubdomains AS dddSubdomains",
-      expectedColumns: [col("dddSubdomains", ListType(S("String")), true)],
+      cypher: "MATCH (c:Class) RETURN c.subdomains AS subdomains",
+      expectedColumns: [col("subdomains", ListType(S("String")), true)],
     },
     {
       label: "DISTINCT does not change types",
@@ -85,7 +85,7 @@ describe("analyzeQuery — RETURN projections", () => {
     },
     {
       label: "multiple return columns",
-      cypher: "MATCH (d:DddSubdomain) RETURN d.name AS name, d.color AS color",
+      cypher: "MATCH (d:Subdomain) RETURN d.name AS name, d.color AS color",
       expectedColumns: [col("name", S("String"), false), col("color", S("String"), false)],
     },
   ])("$label", ({ cypher, expectedColumns }) => {
@@ -194,9 +194,9 @@ const realSchema = new GraphSchema({
     new NodeProperty({ labels: ["Class"], propertyName: "namespace", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
     new NodeProperty({ labels: ["Class"], propertyName: "file", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
     new NodeProperty({ labels: ["Class"], propertyName: "method_count", propertyTypes: ["FLOAT NOT NULL"], mandatory: false }),
-    new NodeProperty({ labels: ["Class"], propertyName: "dddSubdomains", propertyTypes: ["LIST<STRING NOT NULL> NOT NULL"], mandatory: true }),
+    new NodeProperty({ labels: ["Class"], propertyName: "subdomains", propertyTypes: ["LIST<STRING NOT NULL> NOT NULL"], mandatory: true }),
     new NodeProperty({ labels: ["Module"], propertyName: "name", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
-    new NodeProperty({ labels: ["Module"], propertyName: "dddSubdomains", propertyTypes: ["LIST<STRING NOT NULL> NOT NULL"], mandatory: false }),
+    new NodeProperty({ labels: ["Module"], propertyName: "subdomains", propertyTypes: ["LIST<STRING NOT NULL> NOT NULL"], mandatory: false }),
     new NodeProperty({ labels: ["Method"], propertyName: "id", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
     new NodeProperty({ labels: ["Method"], propertyName: "name", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
     new NodeProperty({ labels: ["Method"], propertyName: "ccn", propertyTypes: ["FLOAT NOT NULL"], mandatory: false }),
@@ -219,8 +219,8 @@ describe("analyzeQuery — real Neo4j type strings", () => {
     },
     {
       label: "LIST<STRING NOT NULL> NOT NULL normalizes to List(String)",
-      cypher: "MATCH (c:Class) RETURN c.dddSubdomains AS dddSubdomains",
-      expectedColumns: [col("dddSubdomains", ListType(S("String")), false)],
+      cypher: "MATCH (c:Class) RETURN c.subdomains AS subdomains",
+      expectedColumns: [col("subdomains", ListType(S("String")), false)],
     },
     {
       label: "non-mandatory property from MATCH is nullable",
@@ -236,11 +236,11 @@ describe("analyzeQuery — real Neo4j type strings", () => {
 describe("analyzeQuery — coalesce wrapping", () => {
   it("coalesce(var.prop, []) preserves the property type", () => {
     const cypher = `MATCH (mod:Module)
-                    RETURN mod.name AS name, coalesce(mod.dddSubdomains, []) AS dddSubdomains`
+                    RETURN mod.name AS name, coalesce(mod.subdomains, []) AS subdomains`
     const result = analyzeQuery(cypher, realSchema)
     expect(result.columns).toEqual([
       col("name", S("String"), false),
-      col("dddSubdomains", ListType(S("String")), false),
+      col("subdomains", ListType(S("String")), false),
     ])
   })
 
