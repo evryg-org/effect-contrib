@@ -12,8 +12,8 @@ const schema = new GraphSchema({
   vertexProperties: [
     new VertexProperty({ labels: ["Class"], propertyName: "fqcn", propertyTypes: ["String"], mandatory: true }),
     new VertexProperty({ labels: ["Class"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
-    new VertexProperty({ labels: ["Class"], propertyName: "method_count", propertyTypes: ["Long"], mandatory: true }),
     new VertexProperty({ labels: ["Class"], propertyName: "kind", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["File"], propertyName: "lineCount", propertyTypes: ["Long"], mandatory: true }),
     new VertexProperty({ labels: ["Class"], propertyName: "isStatic", propertyTypes: ["Boolean"], mandatory: false }),
     new VertexProperty({ labels: ["Class"], propertyName: "subdomains", propertyTypes: ["StringArray"], mandatory: false }),
     new VertexProperty({ labels: ["Method"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
@@ -89,8 +89,8 @@ describe("inferExpressionType — property access", () => {
   })
 
   it("resolves Long property from schema", () => {
-    const env = envWith({ c: { type: new VertexType({ label: "Class" }), nullable: false } })
-    const result = inferExpressionType(parseExpression("c.method_count"), env, schema)
+    const env = envWith({ f: { type: new VertexType({ label: "File" }), nullable: false } })
+    const result = inferExpressionType(parseExpression("f.lineCount"), env, schema)
     expect(result).toEqual(new ScalarType({ scalarType: "Long" }))
   })
 
@@ -149,8 +149,8 @@ describe("inferExpressionType — collect", () => {
 
 describe("inferExpressionType — coalesce", () => {
   it("returns type of first argument", () => {
-    const env = envWith({ c: { type: new VertexType({ label: "Class" }), nullable: false } })
-    const result = inferExpressionType(parseExpression("coalesce(c.method_count, 0)"), env, schema)
+    const env = envWith({ f: { type: new VertexType({ label: "File" }), nullable: false } })
+    const result = inferExpressionType(parseExpression("coalesce(f.lineCount, 0)"), env, schema)
     expect(result).toEqual(new ScalarType({ scalarType: "Long" }))
   })
 })
@@ -419,13 +419,47 @@ describe("inferExpressionType — standalone CASE with string literals", () => {
   })
 
   it("infers Long from THEN branch with mandatory property", () => {
-    const env = envWith({ c: { type: new VertexType({ label: "Class" }), nullable: false } })
+    const env = envWith({ f: { type: new VertexType({ label: "File" }), nullable: false } })
     const result = inferExpressionType(
-      parseExpression("CASE WHEN c.method_count > 10 THEN c.method_count ELSE c.method_count END"),
+      parseExpression("CASE WHEN f.lineCount > 10 THEN f.lineCount ELSE f.lineCount END"),
       env,
       schema,
     )
     expect(result).toEqual(new ScalarType({ scalarType: "Long" }))
+  })
+})
+
+describe("inferExpressionType — COUNT subquery", () => {
+  it("COUNT { pattern } infers as Long", () => {
+    const env = envWith({ c: { type: new VertexType({ label: "Class" }), nullable: false } })
+    const result = inferExpressionType(
+      parseExpression("COUNT { (m:Method)-[:BELONGS_TO]->(c) }"),
+      env,
+      schema,
+    )
+    expect(result).toEqual(new ScalarType({ scalarType: "Long" }))
+  })
+
+  it("COUNT { pattern WHERE predicate } infers as Long", () => {
+    const env = envWith({ c: { type: new VertexType({ label: "Class" }), nullable: false } })
+    const result = inferExpressionType(
+      parseExpression('COUNT { (m:Method)-[:BELONGS_TO]->(c) WHERE m.source = "codebase" }'),
+      env,
+      schema,
+    )
+    expect(result).toEqual(new ScalarType({ scalarType: "Long" }))
+  })
+})
+
+describe("inferExpressionType — EXISTS subquery", () => {
+  it("EXISTS { pattern } infers as Boolean", () => {
+    const env = envWith({ c: { type: new VertexType({ label: "Class" }), nullable: false } })
+    const result = inferExpressionType(
+      parseExpression("EXISTS { (m:Method)-[:BELONGS_TO]->(c) }"),
+      env,
+      schema,
+    )
+    expect(result).toEqual(new ScalarType({ scalarType: "Boolean" }))
   })
 })
 

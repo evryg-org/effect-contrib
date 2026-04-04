@@ -102,7 +102,7 @@ describe("generateModule with columns (typed codegen)", () => {
   })
 
   it("imports Neo4jInt from effect-neo4j for Long columns", () => {
-    const source = generateModule("MATCH (c:Class) RETURN c.method_count AS cnt", [
+    const source = generateModule("MATCH (f:File) RETURN f.lineCount AS cnt", [
       col("cnt", S("Long"), false),
     ])
     expect(source).toContain('import { Neo4jClient, Neo4jInt } from "@/lib/effect-neo4j"')
@@ -202,7 +202,7 @@ describe("generateBarrel — typed params", () => {
   it("emits number type for Long param", () => {
     const entry: BarrelEntry = {
       filename: "Bar.cypher",
-      cypher: "MATCH (c:Class {method_count: $count}) RETURN c.fqcn AS fqcn",
+      cypher: "MATCH (f:File {lineCount: $count}) RETURN f.path AS fqcn",
       columns: [col("fqcn", S("String"), false)],
       params: [barrelParam("count", "Long")],
     }

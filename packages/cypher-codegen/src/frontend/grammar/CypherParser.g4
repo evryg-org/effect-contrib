@@ -293,6 +293,7 @@ atom
     : literal
     | parameter
     | caseExpression
+    | countSubquery
     | countAll
     | listComprehension
     | patternComprehension
@@ -328,6 +329,10 @@ unionSt
 
 subqueryExist
     : EXISTS LBRACE (regularQuery | patternWhere) RBRACE
+    ;
+
+countSubquery
+    : COUNT LBRACE (regularQuery | patternWhere) RBRACE
     ;
 
 invocationName

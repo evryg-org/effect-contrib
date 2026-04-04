@@ -12,7 +12,6 @@ const schema = new GraphSchema({
     new VertexProperty({ labels: ["Class"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
     new VertexProperty({ labels: ["Class"], propertyName: "file", propertyTypes: ["String"], mandatory: false }),
     new VertexProperty({ labels: ["Class"], propertyName: "source", propertyTypes: ["String"], mandatory: true }),
-    new VertexProperty({ labels: ["Class"], propertyName: "method_count", propertyTypes: ["Long"], mandatory: true }),
     new VertexProperty({ labels: ["Class"], propertyName: "kind", propertyTypes: ["String"], mandatory: true }),
     new VertexProperty({ labels: ["Class"], propertyName: "subdomains", propertyTypes: ["StringArray"], mandatory: false }),
     new VertexProperty({ labels: ["Class"], propertyName: "isStatic", propertyTypes: ["Boolean"], mandatory: false }),
@@ -30,6 +29,8 @@ const schema = new GraphSchema({
     new VertexProperty({ labels: ["Entrypoint"], propertyName: "type", propertyTypes: ["String"], mandatory: true }),
     new VertexProperty({ labels: ["Pattern"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
     new VertexProperty({ labels: ["Pattern"], propertyName: "category", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["File"], propertyName: "path", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["File"], propertyName: "lineCount", propertyTypes: ["Long"], mandatory: true }),
   ],
   edgeProperties: [
     new EdgeProperty({ edgeType: "BELONGS_TO", propertyName: "role", propertyTypes: ["String"], mandatory: false }),
@@ -79,7 +80,12 @@ describe("analyzeQuery — RETURN projections", () => {
     },
     {
       label: "Long property infers as Long",
-      cypher: "MATCH (c:Class) RETURN c.method_count AS methodCount",
+      cypher: "MATCH (f:File) RETURN f.lineCount AS lineCount",
+      expectedColumns: [col("lineCount", S("Long"), false)],
+    },
+    {
+      label: "COUNT subquery infers as Long",
+      cypher: "MATCH (c:Class) RETURN COUNT { (m:Method)-[:BELONGS_TO]->(c) } AS methodCount",
       expectedColumns: [col("methodCount", S("Long"), false)],
     },
     {
@@ -145,7 +151,7 @@ describe("analyzeQuery — parameter extraction", () => {
     },
     {
       label: "param in WHERE IN with Long property infers LongArray",
-      cypher: "MATCH (c:Class) WHERE c.method_count IN $counts RETURN c.fqcn AS fqcn",
+      cypher: "MATCH (f:File) WHERE f.lineCount IN $counts RETURN f.path AS path",
       expectedParams: [param("counts", "LongArray")],
     },
     {
@@ -171,8 +177,8 @@ describe("analyzeQuery — WITH rebinding", () => {
   it.each([
     {
       label: "sum() propagates Long through WITH",
-      cypher: `MATCH (c:Class)
-               WITH c, sum(c.method_count) AS total
+      cypher: `MATCH (f:File)
+               WITH f, sum(f.lineCount) AS total
                RETURN total`,
       expectedColumns: [col("total", S("Long"), false)],
     },
@@ -192,8 +198,8 @@ describe("analyzeQuery — WITH rebinding", () => {
     },
     {
       label: "collect({map}) infers List(Map) through WITH",
-      cypher: `MATCH (c:Class)
-               WITH collect({name: c.fqcn, count: c.method_count}) AS data
+      cypher: `MATCH (f:File)
+               WITH collect({name: f.path, count: f.lineCount}) AS data
                RETURN data`,
       expectedColumns: [col("data", ListType(MapType([
         { name: "name", value: S("String") },
@@ -202,8 +208,8 @@ describe("analyzeQuery — WITH rebinding", () => {
     },
     {
       label: "coalesce(prop, default) propagates property type through WITH",
-      cypher: `MATCH (c:Class)
-               WITH coalesce(c.method_count, 0) AS cnt
+      cypher: `MATCH (f:File)
+               WITH coalesce(f.lineCount, 0) AS cnt
                RETURN cnt`,
       expectedColumns: [col("cnt", S("Long"), false)],
     },
@@ -222,8 +228,8 @@ const realSchema = new GraphSchema({
     new VertexProperty({ labels: ["Class"], propertyName: "source", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
     new VertexProperty({ labels: ["Class"], propertyName: "namespace", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
     new VertexProperty({ labels: ["Class"], propertyName: "file", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
-    new VertexProperty({ labels: ["Class"], propertyName: "method_count", propertyTypes: ["FLOAT NOT NULL"], mandatory: false }),
     new VertexProperty({ labels: ["Class"], propertyName: "subdomains", propertyTypes: ["LIST<STRING NOT NULL> NOT NULL"], mandatory: true }),
+    new VertexProperty({ labels: ["File"], propertyName: "lineCount", propertyTypes: ["FLOAT NOT NULL"], mandatory: false }),
     new VertexProperty({ labels: ["Module"], propertyName: "name", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
     new VertexProperty({ labels: ["Module"], propertyName: "subdomains", propertyTypes: ["LIST<STRING NOT NULL> NOT NULL"], mandatory: false }),
     new VertexProperty({ labels: ["Method"], propertyName: "id", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
@@ -243,7 +249,7 @@ describe("analyzeQuery — real Neo4j type strings", () => {
     },
     {
       label: "FLOAT NOT NULL normalizes to Double (non-mandatory in realSchema)",
-      cypher: "MATCH (c:Class) RETURN c.method_count AS cnt",
+      cypher: "MATCH (f:File) RETURN f.lineCount AS cnt",
       expectedColumns: [col("cnt", S("Double"), true)],
     },
     {
@@ -411,8 +417,8 @@ describe("analyzeQuery — CASE expression inference", () => {
     },
     {
       label: "CASE in RETURN with string literals",
-      cypher: `MATCH (c:Class)
-               RETURN CASE WHEN c.method_count > 10 THEN 'large' ELSE 'small' END AS size`,
+      cypher: `MATCH (f:File)
+               RETURN CASE WHEN f.lineCount > 10 THEN 'large' ELSE 'small' END AS size`,
       expectedColumns: [col("size", S("String"), false)],
     },
     {

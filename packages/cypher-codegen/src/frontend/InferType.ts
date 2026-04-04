@@ -345,6 +345,12 @@ function inferAtomType(
   // count(*)
   if (atom.countAll()) return new ScalarType({ scalarType: "Long" })
 
+  // COUNT { pattern } subquery → Long
+  if (atom.countSubquery()) return new ScalarType({ scalarType: "Long" })
+
+  // EXISTS { pattern } subquery → Boolean
+  if (atom.subqueryExist()) return new ScalarType({ scalarType: "Boolean" })
+
   // CASE expression
   const caseExpr = atom.caseExpression()
   if (caseExpr) return inferCaseType(caseExpr, env, schema)
