@@ -37,7 +37,9 @@ If `env(x).nullable = true`, the entire result is wrapped in `NullableType` rega
 | `collect(e)`                        | `List<strip_nullable(infer(e))>`                  |
 | `coalesce(e, ...)`                  | `strip_nullable(infer(e))`                        |
 | `count(*)`, `sum`, `size`, `length` | `Long`                                            |
-| `avg`, `toFloat`                    | `Double`                                          |
+| `avg`                               | `Nullable(Double)` — null on empty input set      |
+| `min`, `max`                        | `Nullable(Long)` — null on empty input set        |
+| `toFloat`                           | `Double`                                          |
 | `toString`                          | `String`                                          |
 | `type(r)`                           | `String`                                          |
 | `keys(x)`, `labels(x)`              | `List<String>`                                    |

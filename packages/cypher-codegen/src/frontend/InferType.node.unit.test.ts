@@ -111,7 +111,9 @@ describe("inferExpressionType — aggregate functions", () => {
   it.each([
     { expr: "count(*)", expected: new ScalarType({ scalarType: "Long" }) },
     { expr: "sum(x)", expected: new ScalarType({ scalarType: "Long" }) },
-    { expr: "avg(x)", expected: new ScalarType({ scalarType: "Double" }) },
+    { expr: "avg(x)", expected: NullableType(new ScalarType({ scalarType: "Double" })) },
+    { expr: "min(x)", expected: NullableType(new ScalarType({ scalarType: "Long" })) },
+    { expr: "max(x)", expected: NullableType(new ScalarType({ scalarType: "Long" })) },
   ])("$expr infers correctly", ({ expr, expected }) => {
     const env = envWith({ x: { type: new ScalarType({ scalarType: "Long" }), nullable: false } })
     const result = inferExpressionType(parseExpression(expr), env, schema)

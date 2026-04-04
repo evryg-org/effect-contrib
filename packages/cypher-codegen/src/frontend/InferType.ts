@@ -88,9 +88,9 @@ function isListType(t: CypherType): boolean {
 const AGGREGATE_RETURN_TYPES: Record<string, CypherType> = {
   count: new ScalarType({ scalarType: "Long" }),
   sum: new ScalarType({ scalarType: "Long" }),
-  avg: new ScalarType({ scalarType: "Double" }),
-  min: new ScalarType({ scalarType: "Long" }),
-  max: new ScalarType({ scalarType: "Long" }),
+  avg: NullableType(new ScalarType({ scalarType: "Double" })),
+  min: NullableType(new ScalarType({ scalarType: "Long" })),
+  max: NullableType(new ScalarType({ scalarType: "Long" })),
   size: new ScalarType({ scalarType: "Long" }),
   length: new ScalarType({ scalarType: "Long" }),
   tointeger: new ScalarType({ scalarType: "Long" }),
