@@ -84,7 +84,7 @@ describe("generateModule with columns (typed codegen)", () => {
       col("fqcn", S("String"), false),
     ])
     expect(source).toContain("Neo4jRecordToObject")
-    expect(source).toContain("rec.toObject")
+    expect(source).toContain(".toObject()")
   })
 
   it("composes Neo4jRecordToObject with Row via Schema.compose", () => {
@@ -242,7 +242,7 @@ describe("generateBarrel — typed params", () => {
     const source = generateBarrel([entry])
     const matches = source.match(/Neo4jRecordToObject = Schema\.transform/g)
     expect(matches).toHaveLength(1)
-    expect(source).toContain("rec.toObject")
+    expect(source).toContain(".toObject()")
   })
 
   it("composes Neo4jRecordToObject with row schema via Schema.compose", () => {
@@ -276,5 +276,38 @@ describe("generateBarrel — typed params", () => {
     }
     const source = generateBarrel([entry])
     expect(source).toContain("Neo4jValue")
+  })
+})
+
+describe("generateBarrel — no any in generated code", () => {
+  it("Neo4jRecordToObject decode param is not typed as any", () => {
+    const entry: BarrelEntry = {
+      filename: "Foo.cypher",
+      cypher: "MATCH (c:Class) RETURN c.fqcn AS fqcn",
+      columns: [col("fqcn", S("String"), false)],
+      params: [],
+    }
+    const source = generateBarrel([entry])
+    expect(source).not.toContain(": any)")
+  })
+
+  it("TemporalString decode param is not typed as any", () => {
+    const entry: BarrelEntry = {
+      filename: "Temporal.cypher",
+      cypher: "MATCH (c:Class) RETURN c.createdAt AS createdAt",
+      columns: [col("createdAt", new ScalarType({ scalarType: "DateTime" }), false)],
+      params: [],
+    }
+    const source = generateBarrel([entry])
+    expect(source).not.toContain(": any)")
+  })
+})
+
+describe("generateModule — no any in generated code", () => {
+  it("Neo4jRecordToObject decode param is not typed as any", () => {
+    const source = generateModule("MATCH (c:Class) RETURN c.fqcn AS fqcn", [
+      col("fqcn", S("String"), false),
+    ])
+    expect(source).not.toContain(": any)")
   })
 })

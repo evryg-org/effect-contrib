@@ -6,8 +6,15 @@ import {
   WithStContext,
   ReadingStatementContext,
   UnwindStContext,
+  ListExpressionContext,
+  NodePatternContext,
+  PatternElemContext,
+  RelationshipPatternContext,
+  RelationDetailContext,
+  ParameterContext,
   type ReturnStContext,
 } from "./generated-parser/CypherParser.js"
+import * as antlr from "antlr4ng"
 import type { GraphSchema } from "@/lib/effect-neo4j-schema/GraphSchemaModel"
 import { VertexType, VertexUnionType, EdgeType, UnknownType, type CypherType } from "../types/CypherType"
 import { inferExpressionType, type TypeEnv } from "./InferType"
@@ -85,6 +92,16 @@ function lookupParamType(schema: GraphSchema, label: string, propertyName: strin
   return normalizeNeo4jType(rawType)
 }
 
+function scalarToArrayType(scalar: Neo4jType): Neo4jType {
+  switch (scalar) {
+    case "String": return "StringArray"
+    case "Long": return "LongArray"
+    case "Double": return "DoubleArray"
+    case "Boolean": return "BooleanArray"
+    default: return "StringArray"
+  }
+}
+
 // ── TypeEnv helpers ──
 
 function extendEnvFromMatch(env: TypeEnv, matchSt: MatchStContext, schema: GraphSchema): TypeEnv {
@@ -126,15 +143,14 @@ function extendEnvFromMatch(env: TypeEnv, matchSt: MatchStContext, schema: Graph
 }
 
 function visitNodePatterns(
-  node: any,
+  node: antlr.ParserRuleContext,
   cb: (varName: string, label: string) => void,
   relCb?: (varName: string, relType: string) => void,
 ): void {
-  if (!node) return
   // Check if this is a nodePattern
-  if (node.constructor.name === "NodePatternContext") {
-    const sym = node.symbol?.()
-    const labels = node.nodeLabels?.()
+  if (node instanceof NodePatternContext) {
+    const sym = node.symbol()
+    const labels = node.nodeLabels()
     if (sym && labels) {
       const varName = sym.getText()
       const label = labels.getText().replace(/^:/, "")
@@ -145,9 +161,9 @@ function visitNodePatterns(
     }
   }
   // Check if this is a relationshipPattern with a variable and type
-  if (relCb && node.constructor.name === "RelationDetailContext") {
-    const sym = node.symbol?.()
-    const relTypes = node.relationshipTypes?.()
+  if (relCb && node instanceof RelationDetailContext) {
+    const sym = node.symbol()
+    const relTypes = node.relationshipTypes()
     if (sym && relTypes) {
       const varName = sym.getText()
       const relType = relTypes.getText().replace(/^:/, "")
@@ -155,9 +171,11 @@ function visitNodePatterns(
     }
   }
   // Recurse into children
-  const count = node.getChildCount?.() ?? 0
-  for (let i = 0; i < count; i++) {
-    visitNodePatterns(node.getChild(i), cb, relCb)
+  for (let i = 0; i < node.getChildCount(); i++) {
+    const child = node.getChild(i)
+    if (child instanceof antlr.ParserRuleContext) {
+      visitNodePatterns(child, cb, relCb)
+    }
   }
 }
 
@@ -178,7 +196,7 @@ function visitNodePatterns(
 //
 
 function refineUnlabeledNodesFromConnectivity(
-  part: any,
+  part: antlr.ParserRuleContext,
   env: Map<string, { type: CypherType; nullable: boolean }>,
   schema: GraphSchema,
   isOptional: boolean,
@@ -255,22 +273,20 @@ interface ChainNode {
 
 /** Walk all pattern element chains, calling cb with the ordered list of nodes */
 function walkPatternChains(
-  node: any,
+  node: antlr.ParserRuleContext,
   cb: (segments: ChainNode[]) => void,
 ): void {
-  if (!node) return
-
   // PatternElemContext: nodePattern patternElemChain*
-  if (node.constructor.name === "PatternElemContext") {
-    const firstNodeCtx = node.nodePattern?.()
-    const chains = node.patternElemChain?.() ?? []
+  if (node instanceof PatternElemContext) {
+    const firstNodeCtx = node.nodePattern()
+    const chains = node.patternElemChain()
     if (firstNodeCtx && chains.length > 0) {
       const segments: ChainNode[] = []
       segments.push(extractChainNode(firstNodeCtx))
 
       for (const chain of chains) {
-        const relCtx = chain.relationshipPattern?.()
-        const nextNodeCtx = chain.nodePattern?.()
+        const relCtx = chain.relationshipPattern()
+        const nextNodeCtx = chain.nodePattern()
         if (!nextNodeCtx) continue
 
         // Annotate previous segment with relationship info
@@ -284,30 +300,32 @@ function walkPatternChains(
   }
 
   // Recurse into children
-  const count = node.getChildCount?.() ?? 0
-  for (let i = 0; i < count; i++) {
-    walkPatternChains(node.getChild(i), cb)
+  for (let i = 0; i < node.getChildCount(); i++) {
+    const child = node.getChild(i)
+    if (child instanceof antlr.ParserRuleContext) {
+      walkPatternChains(child, cb)
+    }
   }
 }
 
-function extractChainNode(nodeCtx: any): ChainNode {
-  const sym = nodeCtx.symbol?.()
-  const labels = nodeCtx.nodeLabels?.()
+function extractChainNode(nodeCtx: NodePatternContext): ChainNode {
+  const sym = nodeCtx.symbol()
+  const labels = nodeCtx.nodeLabels()
   return {
     varName: sym?.getText() ?? undefined,
     label: labels ? labels.getText().replace(/^:/, "") : undefined,
   }
 }
 
-function extractRelInfo(relCtx: any): ChainNode["relToNext"] {
+function extractRelInfo(relCtx: RelationshipPatternContext | null): ChainNode["relToNext"] {
   if (!relCtx) return { relType: undefined, hasLeftArrow: false, hasRightArrow: false }
-  const detail = relCtx.relationDetail?.()
-  const relTypes = detail?.relationshipTypes?.()
+  const detail = relCtx.relationDetail()
+  const relTypes = detail?.relationshipTypes()
   const relType = relTypes ? relTypes.getText().replace(/^:/, "") : undefined
   return {
     relType,
-    hasLeftArrow: relCtx.LT?.() !== null && relCtx.LT?.() !== undefined,
-    hasRightArrow: relCtx.GT?.() !== null && relCtx.GT?.() !== undefined,
+    hasLeftArrow: relCtx.LT() !== null && relCtx.LT() !== undefined,
+    hasRightArrow: relCtx.GT() !== null && relCtx.GT() !== undefined,
   }
 }
 
@@ -399,40 +417,122 @@ function resolveProjection(
 
 // ── Param extraction ──
 
-interface ParamUsage { paramName: string; label?: string; property?: string }
+interface ParamUsage { paramName: string; label?: string; property?: string; isInClause?: boolean }
+
+/** Walk an ANTLR parse tree, calling cb for every node of the given context class. */
+function walkTree<T extends antlr.ParserRuleContext>(
+  node: antlr.ParserRuleContext,
+  contextClass: new (...args: never[]) => T,
+  cb: (ctx: T) => void,
+): void {
+  if (node instanceof contextClass) cb(node)
+  for (let i = 0; i < node.getChildCount(); i++) {
+    const child = node.getChild(i)
+    if (child instanceof antlr.ParserRuleContext) {
+      walkTree(child, contextClass, cb)
+    }
+  }
+}
+
+/** Build a map of variable name → label from all (var:Label) patterns in the tree. */
+function buildVarLabelMap(tree: antlr.ParserRuleContext): Map<string, string> {
+  const varLabels = new Map<string, string>()
+  walkTree(tree, NodePatternContext, (np) => {
+    const sym = np.symbol()
+    const labels = np.nodeLabels()
+    if (sym && labels) {
+      varLabels.set(sym.getText(), labels.getText().replace(/^:/, ""))
+    }
+  })
+  return varLabels
+}
+
+/** Find the first ParameterContext ($param) within a subtree. */
+function findParameter(ctx: antlr.ParserRuleContext): ParameterContext | null {
+  if (ctx instanceof ParameterContext) return ctx
+  for (let i = 0; i < ctx.getChildCount(); i++) {
+    const child = ctx.getChild(i)
+    if (child instanceof antlr.ParserRuleContext) {
+      const found = findParameter(child)
+      if (found) return found
+    }
+  }
+  return null
+}
 
 function extractParams(tree: ReturnType<typeof parse>, schema: GraphSchema): ResolvedParam[] {
   const paramUsages: ParamUsage[] = []
+  const seenParams = new Set<string>()
+  const varLabels = buildVarLabelMap(tree)
 
-  // Walk all node patterns looking for property constraints with params
-  function visit(node: any) {
-    if (!node) return
-    if (node.constructor.name === "NodePatternContext") {
-      const sym = node.symbol?.()
-      const labels = node.nodeLabels?.()
-      const props = node.properties?.()
-      if (sym && labels && props) {
-        const label = labels.getText().replace(/^:/, "")
-        const text = props.getText()
-        const paramRe = /(\w+):\$(\w+)/g
-        for (const match of text.matchAll(paramRe)) {
-          paramUsages.push({ paramName: match[2], label, property: match[1] })
-        }
+  // Pass 1: Walk all node patterns looking for property constraints with params
+  walkTree(tree, NodePatternContext, (np) => {
+    const sym = np.symbol()
+    const labels = np.nodeLabels()
+    const props = np.properties()
+    if (sym && labels && props) {
+      const label = labels.getText().replace(/^:/, "")
+      const text = props.getText()
+      const paramRe = /(\w+):\$(\w+)/g
+      for (const match of text.matchAll(paramRe)) {
+        paramUsages.push({ paramName: match[2], label, property: match[1] })
+        seenParams.add(match[2])
       }
     }
-    const count = node.getChildCount?.() ?? 0
-    for (let i = 0; i < count; i++) {
-      visit(node.getChild(i))
+  })
+
+  // Pass 2: Walk ListExpressionContext nodes for `expr.prop IN $param`
+  // AST structure: parent(AtomicExpressionContext) has children:
+  //   [0] PropertyOrLabelExpressionContext (LHS: c.fqcn)
+  //   [1] ListExpressionContext (IN $param)
+  walkTree(tree, ListExpressionContext, (listExpr) => {
+    if (!listExpr.IN()) return
+
+    // The $param is inside the ListExpressionContext's propertyOrLabelExpression
+    const rhsPropExpr = listExpr.propertyOrLabelExpression()
+    if (!rhsPropExpr) return
+    const paramCtx = findParameter(rhsPropExpr)
+    if (!paramCtx) return
+
+    const paramSym = paramCtx.symbol()
+    if (!paramSym) return
+    const paramName = paramSym.getText()
+    if (seenParams.has(paramName)) return
+    seenParams.add(paramName)
+
+    // The LHS (e.g., c.fqcn) is a sibling in the parent before the ListExpressionContext
+    const parent = listExpr.parent
+    if (!parent) { paramUsages.push({ paramName, isInClause: true }); return }
+
+    // Find the PropertyOrLabelExpressionContext sibling that comes before this ListExpressionContext
+    let lhsText: string | undefined
+    for (let i = 0; i < parent.getChildCount(); i++) {
+      const child = parent.getChild(i)
+      if (child === listExpr) break
+      if (child instanceof antlr.ParserRuleContext) lhsText = child.getText()
     }
-  }
-  visit(tree)
+
+    if (!lhsText) { paramUsages.push({ paramName, isInClause: true }); return }
+
+    const dotIdx = lhsText.indexOf(".")
+    if (dotIdx === -1) {
+      paramUsages.push({ paramName, isInClause: true })
+      return
+    }
+    const varName = lhsText.slice(0, dotIdx)
+    const property = lhsText.slice(dotIdx + 1)
+    const label = varLabels.get(varName)
+    paramUsages.push({ paramName, label, property, isInClause: true })
+  })
 
   return paramUsages.map((usage) => {
     if (usage.label && usage.property) {
       const type = lookupParamType(schema, usage.label, usage.property)
-      if (type) return { name: usage.paramName, type }
+      if (type) {
+        return { name: usage.paramName, type: usage.isInClause ? scalarToArrayType(type) : type }
+      }
     }
-    return { name: usage.paramName, type: "String" as Neo4jType }
+    return { name: usage.paramName, type: (usage.isInClause ? "StringArray" : "String") as Neo4jType }
   })
 }
 
@@ -440,7 +540,7 @@ function extractParams(tree: ReturnType<typeof parse>, schema: GraphSchema): Res
 
 export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis => {
   const tree = parse(cypher)
-  const singleQuery = tree.query()!.regularQuery()!.singleQuery()!
+  const singleQuery = tree.query().regularQuery()!.singleQuery()
   const multi = singleQuery.multiPartQ()
   const single = multi?.singlePartQ() ?? singleQuery.singlePartQ()!
 

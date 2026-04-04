@@ -5,6 +5,8 @@ import type {
   FunctionInvocationContext,
   CaseExpressionContext,
   AtomicExpressionContext,
+  MapLitContext,
+  MapPairContext,
 } from "./generated-parser/CypherParser.js"
 import type { GraphSchema } from "@/lib/effect-neo4j-schema/GraphSchemaModel"
 import { ScalarType, ListType, MapType, NullableType, VertexType, VertexUnionType, EdgeType, UnknownType, NeverType, type CypherType } from "../types/CypherType"
@@ -134,7 +136,7 @@ export function inferExpressionType(
   if (not.NOT()) return new ScalarType({ scalarType: "Boolean" })
 
   // comparisonExpression: addSubExpression (comparisonSigns addSubExpression)*
-  const comp = not.comparisonExpression()!
+  const comp = not.comparisonExpression()
   const addSubs = comp.addSubExpression()
   if (addSubs.length > 1) return new ScalarType({ scalarType: "Boolean" })
 
@@ -147,7 +149,7 @@ export function inferExpressionType(
     const inferSingle = (md: typeof multDivs[0]): CypherType => {
       const p = md.powerExpression()[0]
       const u = p.unaryAddSubExpression()[0]
-      return inferAtomicType(u.atomicExpression()!, env, schema)
+      return inferAtomicType(u.atomicExpression(), env, schema)
     }
     const types = multDivs.map(inferSingle)
 
@@ -176,7 +178,7 @@ export function inferExpressionType(
   const unary = power.unaryAddSubExpression()[0]
 
   // unaryAddSubExpression: (PLUS | SUB)? atomicExpression
-  const atomic = unary.atomicExpression()!
+  const atomic = unary.atomicExpression()
 
   return inferAtomicType(atomic, env, schema)
 }
@@ -187,7 +189,7 @@ function inferAtomicType(
   schema: GraphSchema,
 ): CypherType {
   // atomicExpression: propertyOrLabelExpression (stringExpression | listExpression | nullExpression)*
-  const propOrLabel = atomic.propertyOrLabelExpression()!
+  const propOrLabel = atomic.propertyOrLabelExpression()
 
   // Check for IS [NOT] NULL postfix
   const nullExprs = atomic.nullExpression()
@@ -204,14 +206,14 @@ function inferAtomicType(
     // IN predicate → boolean
     if (listExpr.IN()) return new ScalarType({ scalarType: "Boolean" })
     // Array indexing [expr] → element type of the base expression, unwrapping NullableType
-    const baseType = inferPropertyExpressionType(propOrLabel.propertyExpression()!, env, schema)
+    const baseType = inferPropertyExpressionType(propOrLabel.propertyExpression(), env, schema)
     const unwrapped = baseType._tag === "NullableType" ? baseType.inner : baseType
     if (unwrapped._tag === "ListType") return unwrapped.element
     throw new CypherTypeError(`Cannot index into non-list type '${baseType._tag}'`)
   }
 
   // propertyOrLabelExpression: propertyExpression nodeLabels?
-  const propExpr = propOrLabel.propertyExpression()!
+  const propExpr = propOrLabel.propertyExpression()
 
   return inferPropertyExpressionType(propExpr, env, schema)
 }
@@ -222,7 +224,7 @@ function inferPropertyExpressionType(
   schema: GraphSchema,
 ): CypherType {
   // propertyExpression: atom (DOT name)*
-  const atom = propExpr.atom()!
+  const atom = propExpr.atom()
   const dotNames = propExpr.name()
 
   const atomType = inferAtomType(atom, env, schema)
@@ -354,13 +356,13 @@ function inferAtomType(
   // Reduce expression: reduce(acc = init, x IN list | body)
   const reduceExpr = atom.reduceExpression()
   if (reduceExpr) {
-    const accName = reduceExpr.symbol()!.getText()
+    const accName = reduceExpr.symbol().getText()
     const initExpr = reduceExpr.expression()
     const initType = inferExpressionType(initExpr[0], env, schema)
 
-    const filterExpr = reduceExpr.filterExpression()!
-    const iterVarName = filterExpr.symbol()!.getText()
-    const listExpr = filterExpr.expression()!
+    const filterExpr = reduceExpr.filterExpression()
+    const iterVarName = filterExpr.symbol().getText()
+    const listExpr = filterExpr.expression()
     const listType = inferExpressionType(listExpr, env, schema)
     const elemType = extractListElementType(listType)
 
@@ -380,9 +382,9 @@ function inferAtomType(
   // List comprehension: [x IN list | body] or [x IN list WHERE pred]
   const listComp = atom.listComprehension()
   if (listComp) {
-    const filterExpr = listComp.filterExpression()!
-    const iterVarName = filterExpr.symbol()!.getText()
-    const listExpr = filterExpr.expression()!
+    const filterExpr = listComp.filterExpression()
+    const iterVarName = filterExpr.symbol().getText()
+    const listExpr = filterExpr.expression()
     const listType = inferExpressionType(listExpr, env, schema)
     const elemType = extractListElementType(listType)
 
@@ -425,10 +427,10 @@ function inferMapLitType(
   env: TypeEnv,
   schema: GraphSchema,
 ): CypherType {
-  const pairs = (mapLit as any).mapPair?.() ?? []
+  const pairs = (mapLit).mapPair?.() ?? []
   if (!Array.isArray(pairs)) return MapType([])
 
-  const fields = pairs.map((pair: any) => {
+  const fields = pairs.map((pair: MapPairContext) => {
     const name = pair.name?.()?.getText?.() ?? ""
     const expr = pair.expression?.()
     if (!expr) throw new CypherTypeError("Map field missing expression")
@@ -523,7 +525,7 @@ function inferFunctionType(
   env: TypeEnv,
   schema: GraphSchema,
 ): CypherType {
-  const funcName = func.invocationName()!.getText().toLowerCase()
+  const funcName = func.invocationName().getText().toLowerCase()
   const argsChain = func.expressionChain()
   const args = argsChain?.expression() ?? []
 

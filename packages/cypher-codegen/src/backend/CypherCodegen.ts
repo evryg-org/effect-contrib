@@ -167,7 +167,7 @@ function generateTypedModule(cypher: string, columns: ReadonlyArray<ResolvedColu
   // Neo4j Record → plain object transform
   lines.push(`const Neo4jRecordToObject = Schema.transform(`)
   lines.push(`  Schema.Unknown, Schema.Unknown,`)
-  lines.push(`  { strict: true, decode: (rec: any) => rec.toObject(), encode: (obj) => obj },`)
+  lines.push(`  { strict: true, decode: (rec) => (rec as { toObject(): Record<string, unknown> }).toObject(), encode: (obj) => obj },`)
   lines.push(`);`)
   lines.push(``)
 
@@ -249,7 +249,7 @@ export function generateBarrel(entries: ReadonlyArray<BarrelEntry>): string {
   if (anyHasColumns) {
     lines.push(`const Neo4jRecordToObject = Schema.transform(`)
     lines.push(`  Schema.Unknown, Schema.Unknown,`)
-    lines.push(`  { strict: true, decode: (rec: any) => rec.toObject(), encode: (obj) => obj },`)
+    lines.push(`  { strict: true, decode: (rec) => (rec as { toObject(): Record<string, unknown> }).toObject(), encode: (obj) => obj },`)
     lines.push(`)`)
     lines.push(``)
   }
@@ -259,7 +259,7 @@ export function generateBarrel(entries: ReadonlyArray<BarrelEntry>): string {
   if (anyNeedTemporal) {
     lines.push(`const TemporalString = Schema.transform(`)
     lines.push(`  Schema.Unknown, Schema.String,`)
-    lines.push(`  { decode: (v: any) => v.toString(), encode: (s: string) => s },`)
+    lines.push(`  { decode: (v) => (v as { toString(): string }).toString(), encode: (s: string) => s },`)
     lines.push(`)`)
     lines.push(``)
   }

@@ -138,6 +138,21 @@ describe("analyzeQuery — parameter extraction", () => {
       cypher: "MATCH (c:Class) RETURN c.fqcn AS fqcn",
       expectedParams: [],
     },
+    {
+      label: "param in WHERE IN clause infers StringArray from property type",
+      cypher: "MATCH (c:Class) WHERE c.fqcn IN $ids RETURN c.fqcn AS fqcn",
+      expectedParams: [param("ids", "StringArray")],
+    },
+    {
+      label: "param in WHERE IN with Long property infers LongArray",
+      cypher: "MATCH (c:Class) WHERE c.method_count IN $counts RETURN c.fqcn AS fqcn",
+      expectedParams: [param("counts", "LongArray")],
+    },
+    {
+      label: "param in WHERE IN with multiple params",
+      cypher: "MATCH (c:Class) WHERE c.fqcn IN $ids AND c.name IN $names RETURN c.fqcn AS fqcn",
+      expectedParams: [param("ids", "StringArray"), param("names", "StringArray")],
+    },
   ])("$label", ({ cypher, expectedParams }) => {
     const result = analyzeQuery(cypher, schema)
     expect(result.params).toEqual(expectedParams)
