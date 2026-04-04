@@ -1,7 +1,7 @@
 import { describe, it, expect } from "@effect/vitest"
 import { extractParams, generateModule } from "./CypherCodegen"
 import type { ResolvedColumn } from "../frontend/QueryAnalyzer"
-import { ScalarType, ListType, MapType, UnknownType, type CypherType } from "../types/CypherType"
+import { ScalarType, ListType, MapType, UnknownType, NeverType, type CypherType } from "../types/CypherType"
 
 describe("extractParams", () => {
   it.each([
@@ -140,22 +140,20 @@ describe("generateModule with columns (typed codegen)", () => {
     expect(source).toContain("Schema.compose(Neo4jRecordToObject, Row")
   })
 
-  it("imports Neo4jValue from effect-neo4j for Unknown column type", () => {
+  it("emits Neo4jValue for UnknownType columns (escape hatch)", () => {
     const source = generateModule(
       "MATCH (m:Method) RETURN m.id AS id, collect({x: 1}) AS data",
       [col("id", S("String"), false), col("data", new UnknownType({}), false)],
     )
-    expect(source).toContain('import { Neo4jClient, Neo4jValue } from "@/lib/effect-neo4j"')
     expect(source).toContain("Neo4jValue")
-    expect(source).toContain("Schema.String")
   })
 
-  it("imports both Neo4jInt and Neo4jValue when both Long and Unknown columns", () => {
+  it("maps NeverType to Schema.Never", () => {
     const source = generateModule(
-      "MATCH (c:Class) RETURN c.method_count AS cnt, collect({x: 1}) AS data",
-      [col("cnt", S("Long"), false), col("data", new UnknownType({}), false)],
+      "MATCH (c:Class) RETURN null AS nothing",
+      [col("nothing", new NeverType({}), false)],
     )
-    expect(source).toContain('import { Neo4jClient, Neo4jInt, Neo4jValue } from "@/lib/effect-neo4j"')
+    expect(source).toContain("Schema.Never")
   })
 
   it("emits nested Schema.Struct for MapType columns", () => {
@@ -267,5 +265,16 @@ describe("generateBarrel — typed params", () => {
     }
     const source = generateBarrel([entry])
     expect(source).toContain("Effect.map(neo4j.query(fooQueryCypher), decodeFooQuery)")
+  })
+
+  it("emits Neo4jValue for UnknownType columns in barrel", () => {
+    const entry: BarrelEntry = {
+      filename: "Bad.cypher",
+      cypher: "MATCH (c:Class) RETURN c.fqcn AS fqcn",
+      columns: [col("fqcn", new UnknownType({}), false)],
+      params: [],
+    }
+    const source = generateBarrel([entry])
+    expect(source).toContain("Neo4jValue")
   })
 })

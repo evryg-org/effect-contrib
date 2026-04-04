@@ -1,39 +1,53 @@
 import { describe, it, expect } from "@effect/vitest"
 import { analyzeQuery, type ResolvedColumn, type ResolvedParam } from "./QueryAnalyzer"
-import { GraphSchema, NodeProperty, RelProperty } from "../schema/SchemaExtractor"
-import { ScalarType, ListType, MapType, NullableType, UnknownType, type CypherType } from "../types/CypherType"
+import { GraphSchema, VertexProperty, EdgeProperty, EdgeConnectivity } from "@/lib/effect-neo4j-schema/GraphSchemaModel"
+import { ScalarType, ListType, MapType, NullableType, VertexUnionType, UnknownType, type CypherType } from "../types/CypherType"
 
 // ── Schema fixture mimicking a typical analysis graph ──
 
 const schema = new GraphSchema({
-  nodeProperties: [
-    new NodeProperty({ labels: ["Class"], propertyName: "fqcn", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["Class"], propertyName: "namespace", propertyTypes: ["String"], mandatory: false }),
-    new NodeProperty({ labels: ["Class"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["Class"], propertyName: "file", propertyTypes: ["String"], mandatory: false }),
-    new NodeProperty({ labels: ["Class"], propertyName: "source", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["Class"], propertyName: "method_count", propertyTypes: ["Long"], mandatory: true }),
-    new NodeProperty({ labels: ["Class"], propertyName: "kind", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["Class"], propertyName: "subdomains", propertyTypes: ["StringArray"], mandatory: false }),
-    new NodeProperty({ labels: ["Class"], propertyName: "isStatic", propertyTypes: ["Boolean"], mandatory: false }),
-    new NodeProperty({ labels: ["Method"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["Method"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["Method"], propertyName: "visibility", propertyTypes: ["String"], mandatory: false }),
-    new NodeProperty({ labels: ["Method"], propertyName: "params", propertyTypes: ["StringArray"], mandatory: false }),
-    new NodeProperty({ labels: ["Method"], propertyName: "returnType", propertyTypes: ["String"], mandatory: false }),
-    new NodeProperty({ labels: ["Method"], propertyName: "ccn", propertyTypes: ["Long"], mandatory: false }),
-    new NodeProperty({ labels: ["Method"], propertyName: "file", propertyTypes: ["String"], mandatory: false }),
-    new NodeProperty({ labels: ["Module"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["Subdomain"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["Subdomain"], propertyName: "color", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["Entrypoint"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["Entrypoint"], propertyName: "type", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["Pattern"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
-    new NodeProperty({ labels: ["Pattern"], propertyName: "category", propertyTypes: ["String"], mandatory: true }),
+  vertexProperties: [
+    new VertexProperty({ labels: ["Class"], propertyName: "fqcn", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Class"], propertyName: "namespace", propertyTypes: ["String"], mandatory: false }),
+    new VertexProperty({ labels: ["Class"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Class"], propertyName: "file", propertyTypes: ["String"], mandatory: false }),
+    new VertexProperty({ labels: ["Class"], propertyName: "source", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Class"], propertyName: "method_count", propertyTypes: ["Long"], mandatory: true }),
+    new VertexProperty({ labels: ["Class"], propertyName: "kind", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Class"], propertyName: "subdomains", propertyTypes: ["StringArray"], mandatory: false }),
+    new VertexProperty({ labels: ["Class"], propertyName: "isStatic", propertyTypes: ["Boolean"], mandatory: false }),
+    new VertexProperty({ labels: ["Method"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Method"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Method"], propertyName: "visibility", propertyTypes: ["String"], mandatory: false }),
+    new VertexProperty({ labels: ["Method"], propertyName: "params", propertyTypes: ["StringArray"], mandatory: false }),
+    new VertexProperty({ labels: ["Method"], propertyName: "returnType", propertyTypes: ["String"], mandatory: false }),
+    new VertexProperty({ labels: ["Method"], propertyName: "ccn", propertyTypes: ["Long"], mandatory: false }),
+    new VertexProperty({ labels: ["Method"], propertyName: "file", propertyTypes: ["String"], mandatory: false }),
+    new VertexProperty({ labels: ["Module"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Subdomain"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Subdomain"], propertyName: "color", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Entrypoint"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Entrypoint"], propertyName: "type", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Pattern"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Pattern"], propertyName: "category", propertyTypes: ["String"], mandatory: true }),
   ],
-  relProperties: [
-    new RelProperty({ relType: "BELONGS_TO", propertyName: "role", propertyTypes: ["String"], mandatory: false }),
-    new RelProperty({ relType: "HANDLED_BY", propertyName: "role", propertyTypes: ["String"], mandatory: false }),
+  edgeProperties: [
+    new EdgeProperty({ edgeType: "BELONGS_TO", propertyName: "role", propertyTypes: ["String"], mandatory: false }),
+    new EdgeProperty({ edgeType: "HANDLED_BY", propertyName: "role", propertyTypes: ["String"], mandatory: false }),
+    new EdgeProperty({ edgeType: "CALLS", propertyName: "confidence", propertyTypes: ["String"], mandatory: true }),
+    new EdgeProperty({ edgeType: "CALLS", propertyName: "edge_count", propertyTypes: ["Double"], mandatory: true }),
+    new EdgeProperty({ edgeType: "CALLS", propertyName: "reason", propertyTypes: ["String"], mandatory: true }),
+    new EdgeProperty({ edgeType: "IMPORTS", propertyName: "mechanism", propertyTypes: ["String"], mandatory: true }),
+    new EdgeProperty({ edgeType: "EXTENDS", propertyName: "confidence", propertyTypes: ["String"], mandatory: true }),
+    new EdgeProperty({ edgeType: "EXTENDS", propertyName: "edge_count", propertyTypes: ["Double"], mandatory: true }),
+    new EdgeProperty({ edgeType: "EXTENDS", propertyName: "reason", propertyTypes: ["String"], mandatory: true }),
+    new EdgeProperty({ edgeType: "IMPLEMENTS", propertyName: "confidence", propertyTypes: ["String"], mandatory: true }),
+    new EdgeProperty({ edgeType: "IMPLEMENTS", propertyName: "edge_count", propertyTypes: ["Double"], mandatory: true }),
+    new EdgeProperty({ edgeType: "IMPLEMENTS", propertyName: "reason", propertyTypes: ["String"], mandatory: true }),
+    new EdgeProperty({ edgeType: "USES", propertyName: "confidence", propertyTypes: ["String"], mandatory: true }),
+    new EdgeProperty({ edgeType: "USES", propertyName: "edge_count", propertyTypes: ["Double"], mandatory: true }),
+    new EdgeProperty({ edgeType: "USES", propertyName: "reason", propertyTypes: ["String"], mandatory: true }),
+    new EdgeProperty({ edgeType: "EVIDENCED_BY", propertyName: "role", propertyTypes: ["String"], mandatory: true }),
   ],
 })
 
@@ -187,22 +201,22 @@ describe("analyzeQuery — WITH rebinding", () => {
 // ── Real Neo4j type strings (e.g. "STRING NOT NULL", "FLOAT NOT NULL") ──
 
 const realSchema = new GraphSchema({
-  nodeProperties: [
-    new NodeProperty({ labels: ["Class"], propertyName: "fqcn", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
-    new NodeProperty({ labels: ["Class"], propertyName: "name", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
-    new NodeProperty({ labels: ["Class"], propertyName: "source", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
-    new NodeProperty({ labels: ["Class"], propertyName: "namespace", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
-    new NodeProperty({ labels: ["Class"], propertyName: "file", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
-    new NodeProperty({ labels: ["Class"], propertyName: "method_count", propertyTypes: ["FLOAT NOT NULL"], mandatory: false }),
-    new NodeProperty({ labels: ["Class"], propertyName: "subdomains", propertyTypes: ["LIST<STRING NOT NULL> NOT NULL"], mandatory: true }),
-    new NodeProperty({ labels: ["Module"], propertyName: "name", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
-    new NodeProperty({ labels: ["Module"], propertyName: "subdomains", propertyTypes: ["LIST<STRING NOT NULL> NOT NULL"], mandatory: false }),
-    new NodeProperty({ labels: ["Method"], propertyName: "id", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
-    new NodeProperty({ labels: ["Method"], propertyName: "name", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
-    new NodeProperty({ labels: ["Method"], propertyName: "ccn", propertyTypes: ["FLOAT NOT NULL"], mandatory: false }),
-    new NodeProperty({ labels: ["Method"], propertyName: "file", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
+  vertexProperties: [
+    new VertexProperty({ labels: ["Class"], propertyName: "fqcn", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
+    new VertexProperty({ labels: ["Class"], propertyName: "name", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
+    new VertexProperty({ labels: ["Class"], propertyName: "source", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
+    new VertexProperty({ labels: ["Class"], propertyName: "namespace", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
+    new VertexProperty({ labels: ["Class"], propertyName: "file", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
+    new VertexProperty({ labels: ["Class"], propertyName: "method_count", propertyTypes: ["FLOAT NOT NULL"], mandatory: false }),
+    new VertexProperty({ labels: ["Class"], propertyName: "subdomains", propertyTypes: ["LIST<STRING NOT NULL> NOT NULL"], mandatory: true }),
+    new VertexProperty({ labels: ["Module"], propertyName: "name", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
+    new VertexProperty({ labels: ["Module"], propertyName: "subdomains", propertyTypes: ["LIST<STRING NOT NULL> NOT NULL"], mandatory: false }),
+    new VertexProperty({ labels: ["Method"], propertyName: "id", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
+    new VertexProperty({ labels: ["Method"], propertyName: "name", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
+    new VertexProperty({ labels: ["Method"], propertyName: "ccn", propertyTypes: ["FLOAT NOT NULL"], mandatory: false }),
+    new VertexProperty({ labels: ["Method"], propertyName: "file", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
   ],
-  relProperties: [],
+  edgeProperties: [],
 })
 
 describe("analyzeQuery — real Neo4j type strings", () => {
@@ -329,5 +343,270 @@ describe("analyzeQuery — multi-WITH chain (ClassProfiles pattern)", () => {
       col("totalComplexity", S("Long"), false),
       col("moduleName", S("String"), true),
     ])
+  })
+})
+
+describe("analyzeQuery — relationship property access", () => {
+  it.each([
+    {
+      label: "mandatory rel property in RETURN",
+      cypher: `MATCH (a:Method)-[r:CALLS]->(b:Method)
+               RETURN r.confidence AS confidence`,
+      expectedColumns: [col("confidence", S("String"), false)],
+    },
+    {
+      label: "multiple rel properties in RETURN",
+      cypher: `MATCH (a:Method)-[r:CALLS]->(b:Method)
+               RETURN r.confidence AS confidence, r.edge_count AS edgeCount`,
+      expectedColumns: [
+        col("confidence", S("String"), false),
+        col("edgeCount", S("Double"), false),
+      ],
+    },
+    {
+      label: "non-mandatory rel property is nullable",
+      cypher: `MATCH (c:Class)-[r:BELONGS_TO]->(m:Module)
+               RETURN r.role AS role`,
+      expectedColumns: [col("role", S("String"), true)],
+    },
+    {
+      label: "rel property mixed with node properties",
+      cypher: `MATCH (a:Method)-[r:CALLS]->(b:Method)
+               RETURN a.id AS callerId, b.id AS calleeId, r.confidence AS confidence`,
+      expectedColumns: [
+        col("callerId", S("String"), false),
+        col("calleeId", S("String"), false),
+        col("confidence", S("String"), false),
+      ],
+    },
+  ])("$label", ({ cypher, expectedColumns }) => {
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual(expectedColumns)
+  })
+})
+
+describe("analyzeQuery — CASE expression inference", () => {
+  it.each([
+    {
+      label: "CASE in WITH with string literals",
+      cypher: `MATCH (m:Method) WHERE m.ccn IS NOT NULL
+               WITH CASE WHEN m.ccn <= 5 THEN '1-5' ELSE '21+' END AS bucket
+               RETURN bucket`,
+      expectedColumns: [col("bucket", S("String"), false)],
+    },
+    {
+      label: "CASE in RETURN with string literals",
+      cypher: `MATCH (c:Class)
+               RETURN CASE WHEN c.method_count > 10 THEN 'large' ELSE 'small' END AS size`,
+      expectedColumns: [col("size", S("String"), false)],
+    },
+    {
+      label: "multiple CASE in WITH",
+      cypher: `MATCH (m:Method) WHERE m.ccn IS NOT NULL
+               WITH CASE WHEN m.ccn <= 5 THEN '1-5' ELSE '21+' END AS bucket,
+                    CASE WHEN m.ccn <= 5 THEN 'low' ELSE 'high' END AS tier
+               RETURN bucket, tier`,
+      expectedColumns: [
+        col("bucket", S("String"), false),
+        col("tier", S("String"), false),
+      ],
+    },
+  ])("$label", ({ cypher, expectedColumns }) => {
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual(expectedColumns)
+  })
+})
+
+// ── Analyzer gap fixes ──
+
+describe("analyzeQuery — toLower function", () => {
+  it("recognizes toLower as a string function", () => {
+    const cypher = `MATCH (src:Class)-[d:EXTENDS]->(tgt:Class)
+                     RETURN src.fqcn AS from, tgt.fqcn AS to, toLower(type(d)) AS kind`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([
+      col("from", S("String"), false),
+      col("to", S("String"), false),
+      col("kind", S("String"), false),
+    ])
+  })
+})
+
+describe("analyzeQuery — CASE with integer literal THEN branches", () => {
+  it("infers Long type from CASE THEN integer literal", () => {
+    const cypher = `MATCH (m:Method) WHERE m.ccn IS NOT NULL
+                     WITH CASE
+                       WHEN m.ccn <= 5 THEN 1
+                       WHEN m.ccn <= 10 THEN 2
+                       ELSE 3
+                     END AS sortOrder
+                     RETURN sortOrder, count(*) AS count`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns[0]).toEqual(col("sortOrder", S("Long"), false))
+    expect(result.columns[1]).toEqual(col("count", S("Long"), false))
+  })
+})
+
+describe("analyzeQuery — unlabeled node variable", () => {
+  it("does not throw for unlabeled node in MATCH pattern", () => {
+    const cypher = `MATCH (c:Class)-[ev:EVIDENCED_BY]->(e)
+                     RETURN labels(e) AS entityType, ev.role AS role`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns[0]).toEqual(col("entityType", ListType(S("String")), false))
+    expect(result.columns[1]).toEqual(col("role", S("String"), false))
+  })
+})
+
+describe("analyzeQuery — UNWIND with CASE null guard", () => {
+  it("propagates list element type through UNWIND", () => {
+    const cypher = `MATCH (c:Class)
+                     WITH collect(c) AS classes
+                     UNWIND CASE WHEN size(classes) > 0 THEN classes ELSE [null] END AS c
+                     RETURN c.fqcn AS fqcn`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns[0]).toEqual(col("fqcn", S("String"), false))
+  })
+})
+
+describe("analyzeQuery — union edge type property access", () => {
+  it("resolves property on union edge type EXTENDS|IMPLEMENTS|USES", () => {
+    const cypher = `MATCH (a:Class)-[r:EXTENDS|IMPLEMENTS|USES]->(b:Class)
+                     RETURN a.fqcn AS fromFqcn, b.fqcn AS toFqcn, r.confidence AS confidence`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([
+      col("fromFqcn", S("String"), false),
+      col("toFqcn", S("String"), false),
+      col("confidence", S("String"), false),
+    ])
+  })
+})
+
+// ── Remaining codegen error regressions ──
+
+describe("analyzeQuery — nullable list indexing", () => {
+  it("indexes into a nullable list (subdomains[0])", () => {
+    const cypher = `MATCH (c:Class)
+                     WHERE c.source = "codebase"
+                     RETURN coalesce(c.subdomains[0], 'Uncategorized') AS subdomain`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([
+      col("subdomain", S("String"), false),
+    ])
+  })
+})
+
+describe("analyzeQuery — unlabeled node with property access (legacy UnknownType)", () => {
+  it("falls back to UnknownType when no connectivity info", () => {
+    const cypher = `MATCH (c:Class)-[ev:EVIDENCED_BY]->(e)
+                     RETURN coalesce(e.fqcn, e.id, e.path) AS entityId,
+                            ev.role AS role`
+    // No connectivity in this schema → UnknownType fallback
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns[0].name).toBe("entityId")
+    expect(result.columns[1]).toEqual(col("role", S("String"), false))
+  })
+})
+
+describe("analyzeQuery — Method.commits wrong property", () => {
+  it("does not have commits on Method", () => {
+    const cypher = `MATCH (m:Method)
+                     RETURN m.id AS id, m.ccn AS ccn`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([
+      col("id", S("String"), false),
+      col("ccn", S("Long"), true),
+    ])
+  })
+})
+
+describe("analyzeQuery — Entrypoint.commandName wrong property", () => {
+  it("does not have commandName on Entrypoint", () => {
+    const cypher = `MATCH (e:Entrypoint)
+                     RETURN e.id AS id, e.type AS type`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([
+      col("id", S("String"), false),
+      col("type", S("String"), false),
+    ])
+  })
+})
+
+// ── Edge connectivity inference ──
+
+const connectivitySchema = new GraphSchema({
+  vertexProperties: [
+    new VertexProperty({ labels: ["Class"], propertyName: "fqcn", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Class"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Method"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Method"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Method"], propertyName: "file", propertyTypes: ["String"], mandatory: false }),
+    new VertexProperty({ labels: ["ContextMapRelationship"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
+  ],
+  edgeProperties: [
+    new EdgeProperty({ edgeType: "EVIDENCED_BY", propertyName: "role", propertyTypes: ["String"], mandatory: true }),
+  ],
+  edgeConnectivity: [
+    new EdgeConnectivity({ edgeType: "EVIDENCED_BY", fromLabel: "ContextMapRelationship", toLabel: "Class" }),
+    new EdgeConnectivity({ edgeType: "EVIDENCED_BY", fromLabel: "ContextMapRelationship", toLabel: "Method" }),
+  ],
+})
+
+describe("analyzeQuery — edge connectivity inference", () => {
+  it("infers VertexUnionType for unlabeled node via EVIDENCED_BY", () => {
+    const cypher = `MATCH (cm:ContextMapRelationship)-[:EVIDENCED_BY]->(e)
+                     RETURN coalesce(e.fqcn, e.id) AS entityId`
+    const result = analyzeQuery(cypher, connectivitySchema)
+    // e.fqcn is on Class (mandatory), e.id is on Method (mandatory)
+    // Both exist as NullableType because not present on ALL union members
+    // coalesce strips nullable → String
+    expect(result.columns[0]).toEqual(col("entityId", S("String"), false))
+  })
+
+  it("infers VertexUnionType — property on all members mandatory → non-nullable", () => {
+    const cypher = `MATCH (cm:ContextMapRelationship)-[:EVIDENCED_BY]->(e)
+                     RETURN e.name AS name`
+    const result = analyzeQuery(cypher, connectivitySchema)
+    // name is mandatory on both Class and Method → non-nullable
+    expect(result.columns[0]).toEqual(col("name", S("String"), false))
+  })
+
+  it("infers VertexUnionType — property on some members → nullable", () => {
+    const cypher = `MATCH (cm:ContextMapRelationship)-[:EVIDENCED_BY]->(e)
+                     RETURN e.fqcn AS fqcn`
+    const result = analyzeQuery(cypher, connectivitySchema)
+    // fqcn is on Class (mandatory) but NOT on Method → NullableType
+    expect(result.columns[0]).toEqual(col("fqcn", S("String"), true))
+  })
+
+  it("infers VertexUnionType — property on no member → CypherTypeError", () => {
+    const cypher = `MATCH (cm:ContextMapRelationship)-[:EVIDENCED_BY]->(e)
+                     RETURN e.nonexistent AS x`
+    expect(() => analyzeQuery(cypher, connectivitySchema)).toThrow("not found on any member")
+  })
+
+  it("infers single-label connectivity as VertexType", () => {
+    const singleSchema = new GraphSchema({
+      vertexProperties: [
+        new VertexProperty({ labels: ["Entrypoint"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
+        new VertexProperty({ labels: ["Class"], propertyName: "fqcn", propertyTypes: ["String"], mandatory: true }),
+      ],
+      edgeProperties: [],
+      edgeConnectivity: [
+        new EdgeConnectivity({ edgeType: "HANDLED_BY", fromLabel: "Entrypoint", toLabel: "Class" }),
+      ],
+    })
+    const cypher = `MATCH (e:Entrypoint)-[:HANDLED_BY]->(c)
+                     RETURN c.fqcn AS fqcn`
+    const result = analyzeQuery(cypher, singleSchema)
+    // Single target → VertexType("Class"), fqcn mandatory → non-nullable
+    expect(result.columns[0]).toEqual(col("fqcn", S("String"), false))
+  })
+
+  it("infers VertexUnionType for left-arrow pattern", () => {
+    const cypher = `MATCH (e)<-[:EVIDENCED_BY]-(cm:ContextMapRelationship)
+                     RETURN e.name AS name`
+    const result = analyzeQuery(cypher, connectivitySchema)
+    // Reversed direction: cm is source, e is target → same inference
+    expect(result.columns[0]).toEqual(col("name", S("String"), false))
   })
 })

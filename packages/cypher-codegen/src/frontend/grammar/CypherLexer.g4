@@ -127,11 +127,12 @@ SCALAR     : 'SCALAR';
 OF         : 'OF';
 ADD        : 'ADD';
 DROP       : 'DROP';
+REDUCE     : 'REDUCE';
 
-ID: LetterOrDigit+;
+ID: Letter LetterOrDigit*;
 
 ESC_LITERAL    : '`' .*? '`';
-CHAR_LITERAL   : '\'' (~['\\\r\n] | EscapeSequence)? '\'';
+CHAR_LITERAL   : '\'' (~['\\\r\n] | EscapeSequence)* '\'';
 STRING_LITERAL : '"' (~["\\\r\n] | EscapeSequence)* '"';
 
 DIGIT : SUB? (HexDigit | OctalDigit | Digits | FLOAT);

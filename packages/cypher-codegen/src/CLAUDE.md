@@ -1,13 +1,14 @@
-# node-effect-cypher
+# cypher-codegen
 
-Effect-based Cypher query codegen library. Imports `.cypher` files as typed Effect modules via Node loader hooks or Vite plugin.
+Cypher type checker and compiler. Parses `.cypher` files, infers column/parameter types via the `CypherType` ADT, and generates typed Effect modules. Integrates via Node loader hooks or Vite plugin.
+
+Schema model and annotations live in `@/lib/effect-neo4j-schema`.
 
 ## Architecture
 
-- **Grammar**: `grammar/CypherParser.g4` (OpenCypher ANTLR4 grammar) generates `generated-parser/*.ts`
+- **Grammar**: `frontend/grammar/CypherParser.g4` (OpenCypher ANTLR4 grammar) generates `frontend/generated-parser/*.ts`
 - **QueryAnalyzer**: Walks ANTLR AST to infer column types and extract parameters
 - **CypherCodegen**: Generates typed Effect modules from `.cypher` files (single-file `generateModule` or barrel `generateBarrel`)
-- **SchemaExtractor**: Reads Neo4j graph schema via `db.schema.nodeTypeProperties()` for property type resolution
 - **Register.ts**: Node `registerHooks` loader for `.cypher` imports at runtime
 - **VitePlugin.ts**: Vite transform for `.cypher` imports at build time
 - **codegen.ts**: CLI (`pnpm codegen:cypher`) with `extract-schema`, `generate`, and `all` subcommands

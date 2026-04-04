@@ -6,14 +6,17 @@ import type {
   MapType,
   MapField,
   NullableType,
-  NodeType,
+  VertexType,
+  VertexUnionType,
+  EdgeType,
   UnknownType,
+  NeverType,
 } from "./CypherType"
 
 describe("CypherType union", () => {
-  it("is exactly six variants", () => {
+  it("is exactly nine variants", () => {
     expectTypeOf<CypherType>().toEqualTypeOf<
-      ScalarType | ListType | MapType | NullableType | NodeType | UnknownType
+      ScalarType | ListType | MapType | NullableType | VertexType | VertexUnionType | EdgeType | UnknownType | NeverType
     >()
   })
 
@@ -22,8 +25,17 @@ describe("CypherType union", () => {
     expectTypeOf<ListType>().toMatchTypeOf<CypherType>()
     expectTypeOf<MapType>().toMatchTypeOf<CypherType>()
     expectTypeOf<NullableType>().toMatchTypeOf<CypherType>()
-    expectTypeOf<NodeType>().toMatchTypeOf<CypherType>()
+    expectTypeOf<VertexType>().toMatchTypeOf<CypherType>()
+    expectTypeOf<VertexUnionType>().toMatchTypeOf<CypherType>()
+    expectTypeOf<EdgeType>().toMatchTypeOf<CypherType>()
     expectTypeOf<UnknownType>().toMatchTypeOf<CypherType>()
+    expectTypeOf<NeverType>().toMatchTypeOf<CypherType>()
+  })
+})
+
+describe("EdgeType", () => {
+  it("has an edgeType field", () => {
+    expectTypeOf<EdgeType["edgeType"]>().toEqualTypeOf<string>()
   })
 })
 
@@ -55,8 +67,14 @@ describe("ScalarType precision", () => {
   })
 })
 
-describe("NodeType", () => {
+describe("VertexType", () => {
   it("has a label field", () => {
-    expectTypeOf<NodeType["label"]>().toEqualTypeOf<string>()
+    expectTypeOf<VertexType["label"]>().toEqualTypeOf<string>()
+  })
+})
+
+describe("VertexUnionType", () => {
+  it("has a labels field", () => {
+    expectTypeOf<VertexUnionType["labels"]>().toEqualTypeOf<readonly string[]>()
   })
 })

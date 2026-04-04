@@ -31,8 +31,12 @@ function cypherTypeToTs(ct: CypherType): string {
       return `{ ${fields} }`
     case "NullableType":
       return `${cypherTypeToTs(ct.inner)} | null`
+    case "NeverType":
+      return "never"
     case "UnknownType":
-    case "NodeType":
+    case "VertexType":
+    case "VertexUnionType":
+    case "EdgeType":
       return "unknown"
   }
 }

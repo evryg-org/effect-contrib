@@ -1,13 +1,15 @@
 import { registerHooks } from "node:module"
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
+import { Effect } from "effect"
+import { NodeContext } from "@effect/platform-node"
 import { generateModule } from "../backend/CypherCodegen"
 import { analyzeQuery } from "../frontend/QueryAnalyzer"
-import { loadSchema, type GraphSchema } from "../schema/GraphSchemaModel"
+import { loadSchema, type GraphSchema } from "../../effect-neo4j-schema/GraphSchemaModel"
 
 let schema: GraphSchema | undefined
 try {
-  schema = loadSchema("data/graph-schema.json")
+  schema = Effect.runSync(loadSchema("data/graph-schema.json").pipe(Effect.provide(NodeContext.layer)))
 } catch {
   // Schema not available — fall back to untyped codegen
 }

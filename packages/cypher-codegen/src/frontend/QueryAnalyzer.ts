@@ -5,10 +5,11 @@ import {
   MatchStContext,
   WithStContext,
   ReadingStatementContext,
+  UnwindStContext,
   type ReturnStContext,
 } from "./generated-parser/CypherParser.js"
-import type { GraphSchema } from "../schema/GraphSchemaModel"
-import { NodeType, UnknownType, type CypherType } from "../types/CypherType"
+import type { GraphSchema } from "@/lib/effect-neo4j-schema/GraphSchemaModel"
+import { VertexType, VertexUnionType, EdgeType, UnknownType, type CypherType } from "../types/CypherType"
 import { inferExpressionType, type TypeEnv } from "./InferType"
 
 // ── Public types ──
@@ -75,7 +76,7 @@ function normalizeNeo4jType(raw: string): Neo4jType {
 }
 
 function lookupParamType(schema: GraphSchema, label: string, propertyName: string): Neo4jType | undefined {
-  const prop = schema.nodeProperties.find(
+  const prop = schema.vertexProperties.find(
     (p) => p.labels.includes(label) && p.propertyName === propertyName,
   )
   if (!prop) return undefined
@@ -86,7 +87,7 @@ function lookupParamType(schema: GraphSchema, label: string, propertyName: strin
 
 // ── TypeEnv helpers ──
 
-function extendEnvFromMatch(env: TypeEnv, matchSt: MatchStContext): TypeEnv {
+function extendEnvFromMatch(env: TypeEnv, matchSt: MatchStContext, schema: GraphSchema): TypeEnv {
   const isOptional = matchSt.OPTIONAL() !== null
   const newEnv = new Map(env)
 
@@ -95,17 +96,39 @@ function extendEnvFromMatch(env: TypeEnv, matchSt: MatchStContext): TypeEnv {
   if (!patternWhere) return newEnv
 
   const patterns = patternWhere.pattern()?.patternPart() ?? []
+
+  // Pass 1: bind labeled nodes and edges
   for (const part of patterns) {
-    visitNodePatterns(part, (varName, label) => {
-      newEnv.set(varName, { type: new NodeType({ label }), nullable: isOptional })
-    })
+    visitNodePatterns(
+      part,
+      (varName, label) => {
+        if (label) {
+          newEnv.set(varName, { type: new VertexType({ label }), nullable: isOptional })
+        } else if (!newEnv.has(varName)) {
+          // Unlabeled node — bind as UnknownType initially (refined in pass 2)
+          newEnv.set(varName, { type: new UnknownType({}), nullable: isOptional })
+        }
+      },
+      (varName, edgeType) => {
+        newEnv.set(varName, { type: new EdgeType({ edgeType }), nullable: isOptional })
+      },
+    )
   }
+
+  // Pass 2: refine unlabeled nodes using edge connectivity
+  if (schema.edgeConnectivity.length > 0) {
+    for (const part of patterns) {
+      refineUnlabeledNodesFromConnectivity(part, newEnv, schema, isOptional)
+    }
+  }
+
   return newEnv
 }
 
 function visitNodePatterns(
   node: any,
   cb: (varName: string, label: string) => void,
+  relCb?: (varName: string, relType: string) => void,
 ): void {
   if (!node) return
   // Check if this is a nodePattern
@@ -116,13 +139,196 @@ function visitNodePatterns(
       const varName = sym.getText()
       const label = labels.getText().replace(/^:/, "")
       cb(varName, label)
+    } else if (sym && !labels) {
+      // Unlabeled node: bind as empty label (caller handles as UnknownType)
+      cb(sym.getText(), "")
+    }
+  }
+  // Check if this is a relationshipPattern with a variable and type
+  if (relCb && node.constructor.name === "RelationDetailContext") {
+    const sym = node.symbol?.()
+    const relTypes = node.relationshipTypes?.()
+    if (sym && relTypes) {
+      const varName = sym.getText()
+      const relType = relTypes.getText().replace(/^:/, "")
+      relCb(varName, relType)
     }
   }
   // Recurse into children
   const count = node.getChildCount?.() ?? 0
   for (let i = 0; i < count; i++) {
-    visitNodePatterns(node.getChild(i), cb)
+    visitNodePatterns(node.getChild(i), cb, relCb)
   }
+}
+
+// ── Edge connectivity inference ──
+//
+// Walks pattern chains (nodePattern → (relPattern, nodePattern)*) to find
+// unlabeled nodes adjacent to labeled nodes via typed edges. Uses the schema's
+// edge connectivity model to resolve the set of possible target labels.
+//
+// Inference rule:
+//   MATCH (a:L1)-[r:E]->(b)     where b has no label
+//   connectivity(E) = { (from, to) | ... }
+//   targets = { to | (from, to) ∈ connectivity(E), from = L1 }
+//
+//   |targets| = 1  ⟹  env(b) = VertexType(targets[0])
+//   |targets| > 1  ⟹  env(b) = VertexUnionType(targets)
+//   |targets| = 0  ⟹  keep existing binding (UnknownType)
+//
+
+function refineUnlabeledNodesFromConnectivity(
+  part: any,
+  env: Map<string, { type: CypherType; nullable: boolean }>,
+  schema: GraphSchema,
+  isOptional: boolean,
+): void {
+  walkPatternChains(part, (segments) => {
+    for (let i = 0; i < segments.length - 1; i++) {
+      const leftNode = segments[i]
+      const { relType, hasRightArrow, hasLeftArrow } = segments[i].relToNext!
+      const rightNode = segments[i + 1]
+
+      if (!relType) continue
+
+      // Determine source/target based on arrow direction
+      // (a)-[r:E]->(b): left is source, right is target (hasRightArrow)
+      // (a)<-[r:E]-(b): right is source, left is target (hasLeftArrow)
+      const pairs: Array<{ sourceNode: typeof leftNode; targetNode: typeof rightNode }> = []
+
+      if (hasRightArrow && !hasLeftArrow) {
+        pairs.push({ sourceNode: leftNode, targetNode: rightNode })
+      } else if (hasLeftArrow && !hasRightArrow) {
+        pairs.push({ sourceNode: rightNode, targetNode: leftNode })
+      } else {
+        // Undirected or bidirectional — try both directions
+        pairs.push({ sourceNode: leftNode, targetNode: rightNode })
+        pairs.push({ sourceNode: rightNode, targetNode: leftNode })
+      }
+
+      for (const { sourceNode, targetNode } of pairs) {
+        if (!targetNode.varName) continue
+        const targetEntry = env.get(targetNode.varName)
+        if (!targetEntry || targetEntry.type._tag !== "UnknownType") continue
+
+        // Resolve source label from env or from the pattern
+        const sourceLabel = sourceNode.label
+          ?? (sourceNode.varName ? getLabelFromEnv(env, sourceNode.varName) : undefined)
+        if (!sourceLabel) continue
+
+        // Look up connectivity: find all target labels for this edge type + source label
+        const targetLabels = schema.edgeConnectivity
+          .filter((c) => c.edgeType === relType && c.fromLabel === sourceLabel)
+          .map((c) => c.toLabel)
+
+        if (targetLabels.length === 1) {
+          env.set(targetNode.varName, {
+            type: new VertexType({ label: targetLabels[0] }),
+            nullable: isOptional,
+          })
+        } else if (targetLabels.length > 1) {
+          env.set(targetNode.varName, {
+            type: new VertexUnionType({ labels: targetLabels }),
+            nullable: isOptional,
+          })
+        }
+      }
+    }
+  })
+}
+
+function getLabelFromEnv(
+  env: ReadonlyMap<string, { type: CypherType; nullable: boolean }>,
+  varName: string,
+): string | undefined {
+  const entry = env.get(varName)
+  if (!entry) return undefined
+  if (entry.type._tag === "VertexType") return entry.type.label
+  return undefined
+}
+
+interface ChainNode {
+  varName: string | undefined
+  label: string | undefined
+  relToNext?: { relType: string | undefined; hasLeftArrow: boolean; hasRightArrow: boolean }
+}
+
+/** Walk all pattern element chains, calling cb with the ordered list of nodes */
+function walkPatternChains(
+  node: any,
+  cb: (segments: ChainNode[]) => void,
+): void {
+  if (!node) return
+
+  // PatternElemContext: nodePattern patternElemChain*
+  if (node.constructor.name === "PatternElemContext") {
+    const firstNodeCtx = node.nodePattern?.()
+    const chains = node.patternElemChain?.() ?? []
+    if (firstNodeCtx && chains.length > 0) {
+      const segments: ChainNode[] = []
+      segments.push(extractChainNode(firstNodeCtx))
+
+      for (const chain of chains) {
+        const relCtx = chain.relationshipPattern?.()
+        const nextNodeCtx = chain.nodePattern?.()
+        if (!nextNodeCtx) continue
+
+        // Annotate previous segment with relationship info
+        const prev = segments[segments.length - 1]
+        prev.relToNext = extractRelInfo(relCtx)
+
+        segments.push(extractChainNode(nextNodeCtx))
+      }
+      cb(segments)
+    }
+  }
+
+  // Recurse into children
+  const count = node.getChildCount?.() ?? 0
+  for (let i = 0; i < count; i++) {
+    walkPatternChains(node.getChild(i), cb)
+  }
+}
+
+function extractChainNode(nodeCtx: any): ChainNode {
+  const sym = nodeCtx.symbol?.()
+  const labels = nodeCtx.nodeLabels?.()
+  return {
+    varName: sym?.getText() ?? undefined,
+    label: labels ? labels.getText().replace(/^:/, "") : undefined,
+  }
+}
+
+function extractRelInfo(relCtx: any): ChainNode["relToNext"] {
+  if (!relCtx) return { relType: undefined, hasLeftArrow: false, hasRightArrow: false }
+  const detail = relCtx.relationDetail?.()
+  const relTypes = detail?.relationshipTypes?.()
+  const relType = relTypes ? relTypes.getText().replace(/^:/, "") : undefined
+  return {
+    relType,
+    hasLeftArrow: relCtx.LT?.() !== null && relCtx.LT?.() !== undefined,
+    hasRightArrow: relCtx.GT?.() !== null && relCtx.GT?.() !== undefined,
+  }
+}
+
+function extendEnvFromUnwind(env: TypeEnv, unwindSt: UnwindStContext, schema: GraphSchema): TypeEnv {
+  const newEnv = new Map(env)
+  const expr = unwindSt.expression()
+  const sym = unwindSt.symbol()
+  if (!expr || !sym) return newEnv
+
+  const listType = inferExpressionType(expr, newEnv, schema)
+  // Extract element type from the list
+  const unwrapped = listType._tag === "NullableType" ? listType.inner : listType
+  const elemType = unwrapped._tag === "ListType" ? unwrapped.element : listType
+
+  // If element could be a node type (from collecting nodes), bind it
+  // If it's NeverType (from [null]), treat as nullable unknown
+  const varName = sym.getText()
+  const nullable = elemType._tag === "NeverType"
+  newEnv.set(varName, { type: nullable ? new UnknownType({}) : elemType, nullable })
+
+  return newEnv
 }
 
 function computeEnvFromProjection(
@@ -246,9 +452,13 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
     for (const child of children) {
       if (child instanceof ReadingStatementContext) {
         const matchSt = child.matchSt()
-        if (matchSt) env = extendEnvFromMatch(env, matchSt)
+        if (matchSt) env = extendEnvFromMatch(env, matchSt, schema)
+        const unwindSt = child.unwindSt()
+        if (unwindSt) env = extendEnvFromUnwind(env, unwindSt, schema)
+      } else if (child instanceof UnwindStContext) {
+        env = extendEnvFromUnwind(env, child, schema)
       } else if (child instanceof MatchStContext) {
-        env = extendEnvFromMatch(env, child)
+        env = extendEnvFromMatch(env, child, schema)
       } else if (child instanceof WithStContext) {
         env = computeEnvFromProjection(child.projectionBody(), env, schema)
       }
@@ -260,9 +470,9 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
     const readings = single.readingStatement() ?? []
     for (const reading of readings) {
       const matchSt = reading.matchSt()
-      if (matchSt) {
-        env = extendEnvFromMatch(env, matchSt)
-      }
+      if (matchSt) env = extendEnvFromMatch(env, matchSt, schema)
+      const unwindSt = reading.unwindSt()
+      if (unwindSt) env = extendEnvFromUnwind(env, unwindSt, schema)
     }
   }
 

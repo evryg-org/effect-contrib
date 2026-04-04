@@ -11,11 +11,21 @@ export class ScalarType extends Schema.TaggedClass<ScalarType>()("ScalarType", {
   scalarType: ScalarTypeLiteral,
 }) {}
 
-export class NodeType extends Schema.TaggedClass<NodeType>()("NodeType", {
+export class VertexType extends Schema.TaggedClass<VertexType>()("VertexType", {
   label: Schema.String,
 }) {}
 
+export class EdgeType extends Schema.TaggedClass<EdgeType>()("EdgeType", {
+  edgeType: Schema.String,
+}) {}
+
+export class VertexUnionType extends Schema.TaggedClass<VertexUnionType>()("VertexUnionType", {
+  labels: Schema.Array(Schema.String),
+}) {}
+
 export class UnknownType extends Schema.TaggedClass<UnknownType>()("UnknownType", {}) {}
+
+export class NeverType extends Schema.TaggedClass<NeverType>()("NeverType", {}) {}
 
 // ── Recursive types (interface-first to break circularity) ──
 
@@ -39,7 +49,7 @@ export interface NullableType {
   readonly inner: CypherType
 }
 
-export type CypherType = ScalarType | ListType | MapType | NullableType | NodeType | UnknownType
+export type CypherType = ScalarType | ListType | MapType | NullableType | VertexType | VertexUnionType | EdgeType | UnknownType | NeverType
 
 // ── Constructors for recursive variants ──
 
@@ -77,7 +87,10 @@ const CypherTypeSchema: Schema.Schema<CypherType> = Schema.Union(
     _tag: Schema.Literal("NullableType"),
     inner: Schema.suspend((): Schema.Schema<CypherType> => CypherTypeSchema),
   }),
-  NodeType,
+  VertexType,
+  VertexUnionType,
+  EdgeType,
   UnknownType,
+  NeverType,
 )
 export { CypherTypeSchema }

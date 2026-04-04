@@ -6,8 +6,15 @@ import type {
   CaseExpressionContext,
   AtomicExpressionContext,
 } from "./generated-parser/CypherParser.js"
-import type { GraphSchema } from "../schema/GraphSchemaModel"
-import { ScalarType, ListType, MapType, NullableType, NodeType, UnknownType, type CypherType } from "../types/CypherType"
+import type { GraphSchema } from "@/lib/effect-neo4j-schema/GraphSchemaModel"
+import { ScalarType, ListType, MapType, NullableType, VertexType, VertexUnionType, EdgeType, UnknownType, NeverType, type CypherType } from "../types/CypherType"
+
+export class CypherTypeError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "CypherTypeError"
+  }
+}
 
 // ── Type environment ──
 
@@ -39,14 +46,39 @@ function normalizeNeo4jType(raw: string): CypherType {
   }
 }
 
-function lookupPropertyType(schema: GraphSchema, label: string, propertyName: string): { type: CypherType; mandatory: boolean } | undefined {
-  const prop = schema.nodeProperties.find(
+function lookupVertexPropertyType(schema: GraphSchema, label: string, propertyName: string): { type: CypherType; mandatory: boolean } | undefined {
+  const prop = schema.vertexProperties.find(
     (p) => p.labels.includes(label) && p.propertyName === propertyName,
   )
   if (!prop) return undefined
   const rawType = prop.propertyTypes[0]
   if (!rawType) return undefined
   return { type: normalizeNeo4jType(rawType), mandatory: prop.mandatory }
+}
+
+function lookupEdgePropertyType(schema: GraphSchema, edgeType: string, propertyName: string): { type: CypherType; mandatory: boolean } | undefined {
+  const normalized = edgeType.replace(/[:`]/g, "")
+  const prop = schema.edgeProperties.find(
+    (p) => p.edgeType.replace(/[:`]/g, "") === normalized && p.propertyName === propertyName,
+  )
+  if (!prop) return undefined
+  const rawType = prop.propertyTypes[0]
+  if (!rawType) return undefined
+  return { type: normalizeNeo4jType(rawType), mandatory: prop.mandatory }
+}
+
+// ── List element extraction ──
+
+/** Extract the element type from a list, unwrapping NullableType if present.
+ *  NullableType wraps non-mandatory properties — nullability is on the list, not the elements. */
+function extractListElementType(listType: CypherType): CypherType {
+  const unwrapped = listType._tag === "NullableType" ? listType.inner : listType
+  return unwrapped._tag === "ListType" ? unwrapped.element : unwrapped
+}
+
+function isListType(t: CypherType): boolean {
+  const unwrapped = t._tag === "NullableType" ? t.inner : t
+  return unwrapped._tag === "ListType"
 }
 
 // ── Known function return types ──
@@ -63,6 +95,17 @@ const AGGREGATE_RETURN_TYPES: Record<string, CypherType> = {
   toint: new ScalarType({ scalarType: "Long" }),
   tofloat: new ScalarType({ scalarType: "Double" }),
   tostring: new ScalarType({ scalarType: "String" }),
+  tolower: new ScalarType({ scalarType: "String" }),
+  toupper: new ScalarType({ scalarType: "String" }),
+  trim: new ScalarType({ scalarType: "String" }),
+  ltrim: new ScalarType({ scalarType: "String" }),
+  rtrim: new ScalarType({ scalarType: "String" }),
+  replace: new ScalarType({ scalarType: "String" }),
+  substring: new ScalarType({ scalarType: "String" }),
+  left: new ScalarType({ scalarType: "String" }),
+  right: new ScalarType({ scalarType: "String" }),
+  reverse: new ScalarType({ scalarType: "String" }),
+  split: ListType(new ScalarType({ scalarType: "String" })),
 }
 
 // ── Recursive expression type inference ──
@@ -99,7 +142,7 @@ export function inferExpressionType(
   const addSub = addSubs[0]
   const multDivs = addSub.multDivExpression()
 
-  // String concatenation: if multiple operands and any is String, result is String
+  // String concatenation or list concatenation: multiple addSub operands
   if (multDivs.length > 1) {
     const inferSingle = (md: typeof multDivs[0]): CypherType => {
       const p = md.powerExpression()[0]
@@ -107,6 +150,16 @@ export function inferExpressionType(
       return inferAtomicType(u.atomicExpression()!, env, schema)
     }
     const types = multDivs.map(inferSingle)
+
+    // List concatenation: List<A> + List<B> = List<A V B>
+    // NeverType is the identity for join (bottom element)
+    if (types.every(isListType)) {
+      const elements = types.map(extractListElementType)
+      const nonNever = elements.filter((e) => e._tag !== "NeverType")
+      const joined = nonNever.length > 0 ? nonNever[0] : elements[0]
+      return ListType(joined)
+    }
+
     if (types.some((t) => t._tag === "ScalarType" && t.scalarType === "String")) {
       return new ScalarType({ scalarType: "String" })
     }
@@ -150,10 +203,11 @@ function inferAtomicType(
     const listExpr = listExprs[0]
     // IN predicate → boolean
     if (listExpr.IN()) return new ScalarType({ scalarType: "Boolean" })
-    // Array indexing [expr] → element type of the base expression
+    // Array indexing [expr] → element type of the base expression, unwrapping NullableType
     const baseType = inferPropertyExpressionType(propOrLabel.propertyExpression()!, env, schema)
-    if (baseType._tag === "ListType") return baseType.element
-    return new UnknownType({})
+    const unwrapped = baseType._tag === "NullableType" ? baseType.inner : baseType
+    if (unwrapped._tag === "ListType") return unwrapped.element
+    throw new CypherTypeError(`Cannot index into non-list type '${baseType._tag}'`)
   }
 
   // propertyOrLabelExpression: propertyExpression nodeLabels?
@@ -184,15 +238,69 @@ function inferPropertyExpressionType(
   let current = atomType
   for (const nameCtx of dotNames) {
     const propName = nameCtx.getText()
-    if (current._tag === "NodeType") {
-      const lookup = lookupPropertyType(schema, current.label, propName)
+    if (current._tag === "VertexType") {
+      const vertexType = current
+      const lookup = lookupVertexPropertyType(schema, vertexType.label, propName)
       if (lookup) {
         current = lookup.mandatory ? lookup.type : NullableType(lookup.type)
       } else {
-        current = new UnknownType({})
+        const available = schema.vertexProperties
+          .filter((p) => p.labels.includes(vertexType.label))
+          .map((p) => p.propertyName)
+        throw new CypherTypeError(`Property '${propName}' not found on label '${vertexType.label}'. Available: [${available.join(", ")}]`)
       }
-    } else {
+    } else if (current._tag === "EdgeType") {
+      // Handle union edge types (e.g., "EXTENDS|IMPLEMENTS|USES")
+      const edgeTypes = current.edgeType.replace(/[:`]/g, "").split("|")
+      let lookup: { type: CypherType; mandatory: boolean } | undefined
+      for (const et of edgeTypes) {
+        lookup = lookupEdgePropertyType(schema, et, propName)
+        if (lookup) break
+      }
+      if (lookup) {
+        current = lookup.mandatory ? lookup.type : NullableType(lookup.type)
+      } else {
+        const normalized = edgeTypes.join("|")
+        const available = schema.edgeProperties
+          .filter((p) => edgeTypes.some((et) => p.edgeType.replace(/[:`]/g, "") === et))
+          .map((p) => p.propertyName)
+        throw new CypherTypeError(`Property '${propName}' not found on edge type '${normalized}'. Available: [${[...new Set(available)].join(", ")}]`)
+      }
+    } else if (current._tag === "VertexUnionType") {
+      // ── VertexUnionType property access: 3-case typing rule ──
+      //
+      //   env(x) = VertexUnionType([L1, L2, ..., Ln])
+      //
+      //   Case 1: ∀i. schema(Li, p) = (T, mandatory=true)
+      //     ⟹ x.p : T                        (mandatory on all → non-nullable)
+      //
+      //   Case 2: ∃i. schema(Li, p) = (T, _) ∧ ¬(∀i mandatory)
+      //     ⟹ x.p : NullableType(T)          (missing on some → Cypher returns null)
+      //
+      //   Case 3: ¬∃i. schema(Li, p) defined
+      //     ⟹ CypherTypeError                 (property on NO member → likely bug)
+      //
+      const lookups = current.labels.map((label) => ({
+        label,
+        result: lookupVertexPropertyType(schema, label, propName),
+      }))
+      const found = lookups.filter((l) => l.result !== undefined)
+      if (found.length === 0) {
+        const allLabels = current.labels.join(", ")
+        throw new CypherTypeError(
+          `Property '${propName}' not found on any member of VertexUnionType([${allLabels}])`,
+        )
+      }
+      const allMandatory = found.length === current.labels.length
+        && found.every((l) => l.result!.mandatory)
+      const resolvedType = found[0].result!.type
+      current = allMandatory ? resolvedType : NullableType(resolvedType)
+    } else if (current._tag === "UnknownType") {
+      // Property access on UnknownType (e.g., unlabeled node) — sound: result is UnknownType
+      // We can't verify the property exists statically, but can't reject it either
       current = new UnknownType({})
+    } else {
+      throw new CypherTypeError(`Cannot access property on type '${current._tag}'`)
     }
   }
 
@@ -219,17 +327,17 @@ function inferAtomType(
     if (literal.numLit()) return new ScalarType({ scalarType: "Long" })
     if (literal.stringLit() || literal.charLit()) return new ScalarType({ scalarType: "String" })
     if (literal.boolLit()) return new ScalarType({ scalarType: "Boolean" })
-    if (literal.NULL_W()) return new UnknownType({})
+    if (literal.NULL_W()) return new NeverType({})
     if (literal.mapLit()) return inferMapLitType(literal.mapLit()!, env, schema)
     if (literal.listLit()) {
       const chain = literal.listLit()!.expressionChain()
-      if (!chain) return ListType(new UnknownType({}))
+      if (!chain) return ListType(new NeverType({}))
       const exprs = chain.expression()
-      if (exprs.length === 0) return ListType(new UnknownType({}))
+      if (exprs.length === 0) return ListType(new NeverType({}))
       const firstType = inferExpressionType(exprs[0], env, schema)
       return ListType(firstType)
     }
-    return new UnknownType({})
+    throw new CypherTypeError("Unrecognized literal")
   }
 
   // count(*)
@@ -242,6 +350,56 @@ function inferAtomType(
   // Function invocation
   const funcInvoc = atom.functionInvocation()
   if (funcInvoc) return inferFunctionType(funcInvoc, env, schema)
+
+  // Reduce expression: reduce(acc = init, x IN list | body)
+  const reduceExpr = atom.reduceExpression()
+  if (reduceExpr) {
+    const accName = reduceExpr.symbol()!.getText()
+    const initExpr = reduceExpr.expression()
+    const initType = inferExpressionType(initExpr[0], env, schema)
+
+    const filterExpr = reduceExpr.filterExpression()!
+    const iterVarName = filterExpr.symbol()!.getText()
+    const listExpr = filterExpr.expression()!
+    const listType = inferExpressionType(listExpr, env, schema)
+    const elemType = extractListElementType(listType)
+
+    const bodyEnv: TypeEnv = new Map([
+      ...env,
+      [accName, { type: initType, nullable: false }],
+      [iterVarName, { type: elemType, nullable: false }],
+    ])
+    const bodyExpr = initExpr[1]
+    return inferExpressionType(bodyExpr, bodyEnv, schema)
+  }
+
+  // filterWith: ANY/ALL/NONE/SINGLE → Boolean
+  const filterWith = atom.filterWith()
+  if (filterWith) return new ScalarType({ scalarType: "Boolean" })
+
+  // List comprehension: [x IN list | body] or [x IN list WHERE pred]
+  const listComp = atom.listComprehension()
+  if (listComp) {
+    const filterExpr = listComp.filterExpression()!
+    const iterVarName = filterExpr.symbol()!.getText()
+    const listExpr = filterExpr.expression()!
+    const listType = inferExpressionType(listExpr, env, schema)
+    const elemType = extractListElementType(listType)
+
+    // Check for pipe expression (STICK expression)
+    const exprs = listComp.expression()
+    if (exprs) {
+      // Has pipe: [x IN list | body]
+      const bodyEnv: TypeEnv = new Map([
+        ...env,
+        [iterVarName, { type: elemType, nullable: false }],
+      ])
+      const pipeType = inferExpressionType(exprs, bodyEnv, schema)
+      return ListType(pipeType)
+    }
+    // Filter only: [x IN list WHERE pred]
+    return ListType(elemType)
+  }
 
   // Parenthesized expression
   const parenExpr = atom.parenthesizedExpression()
@@ -256,10 +414,10 @@ function inferAtomType(
     const name = symbol.getText()
     const entry = env.get(name)
     if (entry) return entry.type
-    return new UnknownType({})
+    throw new CypherTypeError(`Unbound variable '${name}'`)
   }
 
-  return new UnknownType({})
+  throw new CypherTypeError("Unhandled atom expression")
 }
 
 function inferMapLitType(
@@ -273,7 +431,8 @@ function inferMapLitType(
   const fields = pairs.map((pair: any) => {
     const name = pair.name?.()?.getText?.() ?? ""
     const expr = pair.expression?.()
-    const value = expr ? inferExpressionType(expr, env, schema) : new UnknownType({})
+    if (!expr) throw new CypherTypeError("Map field missing expression")
+    const value = inferExpressionType(expr, env, schema)
     return { name, value }
   })
 
@@ -318,7 +477,7 @@ function inferCaseType(
     }
   }
 
-  return new UnknownType({})
+  throw new CypherTypeError("CASE expression missing THEN branch")
 }
 
 /** Extract variable name from `var IS NOT NULL` expression, or undefined */
@@ -375,7 +534,7 @@ function inferFunctionType(
       const elementType = argType._tag === "NullableType" ? argType.inner : argType
       return ListType(elementType)
     }
-    return ListType(new UnknownType({}))
+    throw new CypherTypeError("collect() requires an argument")
   }
 
   // coalesce(x, ...) → type of first arg, stripped of nullable (coalesce provides fallback)
@@ -384,8 +543,11 @@ function inferFunctionType(
       const argType = inferExpressionType(args[0], env, schema)
       return argType._tag === "NullableType" ? argType.inner : argType
     }
-    return new UnknownType({})
+    throw new CypherTypeError("coalesce() requires arguments")
   }
+
+  // properties(x) → Map with unknown fields
+  if (funcName === "properties") return MapType([])
 
   // type(r) → String
   if (funcName === "type") return new ScalarType({ scalarType: "String" })
@@ -399,5 +561,5 @@ function inferFunctionType(
   const known = AGGREGATE_RETURN_TYPES[funcName]
   if (known) return known
 
-  return new UnknownType({})
+  throw new CypherTypeError(`Unrecognized function '${funcName}'`)
 }

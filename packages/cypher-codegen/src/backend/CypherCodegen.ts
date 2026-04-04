@@ -38,9 +38,13 @@ function cypherTypeToSchema(ct: CypherType): string {
       return `Schema.Struct({ ${fields} })`
     case "NullableType":
       return `Schema.NullOr(${cypherTypeToSchema(ct.inner)})`
+    case "NeverType":
+      return "Schema.Never"
     case "UnknownType":
       return "Neo4jValue"
-    case "NodeType":
+    case "VertexType":
+    case "VertexUnionType":
+    case "EdgeType":
       return "Neo4jValue"
   }
 }
@@ -66,8 +70,14 @@ function collectNeo4jImports(ct: CypherType, imports: Set<string>): void {
     case "NullableType":
       collectNeo4jImports(ct.inner, imports)
       break
+    case "NeverType":
+      break
     case "UnknownType":
-    case "NodeType":
+      imports.add("Neo4jValue")
+      break
+    case "VertexType":
+    case "VertexUnionType":
+    case "EdgeType":
       imports.add("Neo4jValue")
       break
   }
@@ -136,6 +146,7 @@ function generateUntypedModule(cypher: string): string {
 }
 
 function generateTypedModule(cypher: string, columns: ReadonlyArray<ResolvedColumn>): string {
+  // UnknownType columns emit Neo4jValue (escape hatch for unlabeled nodes)
   const params = extractParams(cypher)
   const lines: string[] = []
 
