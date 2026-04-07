@@ -1,9 +1,9 @@
 import { Command } from "@effect/cli"
 import { Console, Effect } from "effect"
 import { NodeContext } from "@effect/platform-node"
-import { extractSchema } from "@/lib/effect-neo4j-schema/resolvers/live_db/LiveDbGraphSchemaResolver"
-import { saveSchema } from "@/lib/effect-neo4j-schema/GraphSchemaModel"
-import { neo4jOptions, schemaPathOption, neo4jLayer } from "./Shared"
+import { extractSchema } from "@evryg/effect-neo4j-schema"
+import { saveSchema } from "@evryg/effect-neo4j-schema"
+import { neo4jOptions, schemaPathOption, neo4jLayer } from "./Shared.js"
 
 export const extractSchemaCommand = Command.make(
   "extract-schema",

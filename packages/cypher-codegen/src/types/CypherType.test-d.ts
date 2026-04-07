@@ -11,7 +11,7 @@ import type {
   EdgeType,
   UnknownType,
   NeverType,
-} from "./CypherType"
+} from "./CypherType.js"
 
 describe("CypherType union", () => {
   it("is exactly nine variants", () => {

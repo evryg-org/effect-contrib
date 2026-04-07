@@ -3,10 +3,10 @@ import { Console, Effect, Either, Layer } from "effect"
 import { globSync } from "node:fs"
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs"
 import { basename, dirname } from "node:path"
-import { UnconfiguredNeo4jClient, Neo4jConfig } from "@/lib/effect-neo4j"
-import type { GraphSchema } from "@/lib/effect-neo4j-schema/GraphSchemaModel"
-import { analyzeQuery, type ResolvedParam } from "../../../frontend/QueryAnalyzer"
-import { generateBarrel, extractParams, type BarrelEntry } from "../../../backend/CypherCodegen"
+import { UnconfiguredNeo4jClient, Neo4jConfig } from "@evryg/effect-neo4j"
+import type { GraphSchema } from "@evryg/effect-neo4j-schema"
+import { analyzeQuery, type ResolvedParam } from "../../../frontend/QueryAnalyzer.js"
+import { generateBarrel, extractParams, type BarrelEntry } from "../../../backend/CypherCodegen.js"
 
 // ── Options ──
 

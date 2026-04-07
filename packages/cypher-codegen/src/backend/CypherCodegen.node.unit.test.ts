@@ -1,7 +1,7 @@
 import { describe, it, expect } from "@effect/vitest"
-import { extractParams, generateModule } from "./CypherCodegen"
-import type { ResolvedColumn } from "../frontend/QueryAnalyzer"
-import { ScalarType, ListType, MapType, UnknownType, NeverType, type CypherType } from "../types/CypherType"
+import { extractParams, generateModule } from "./CypherCodegen.js"
+import type { ResolvedColumn } from "../frontend/QueryAnalyzer.js"
+import { ScalarType, ListType, MapType, UnknownType, NeverType, type CypherType } from "../types/CypherType.js"
 
 describe("extractParams", () => {
   it.each([
@@ -46,7 +46,7 @@ describe("generateModule", () => {
   it("imports Effect and Neo4jClient", () => {
     const source = generateModule("MATCH (c) RETURN c")
     expect(source).toContain('import { Effect } from "effect"')
-    expect(source).toContain('import { Neo4jClient } from "@/lib/effect-neo4j"')
+    expect(source).toContain('import { Neo4jClient } from "@evryg/effect-neo4j"')
   })
 
   it("uses Effect.flatMap over Neo4jClient", () => {
@@ -105,7 +105,7 @@ describe("generateModule with columns (typed codegen)", () => {
     const source = generateModule("MATCH (f:File) RETURN f.lineCount AS cnt", [
       col("cnt", S("Long"), false),
     ])
-    expect(source).toContain('import { Neo4jClient, Neo4jInt } from "@/lib/effect-neo4j"')
+    expect(source).toContain('import { Neo4jClient, Neo4jInt } from "@evryg/effect-neo4j"')
     expect(source).toContain("Neo4jInt")
     expect(source).not.toContain("Neo4jInteger")
   })
@@ -175,14 +175,14 @@ describe("generateModule with columns (typed codegen)", () => {
       ])), false)],
     )
     expect(source).toContain("Schema.Array(Schema.Struct({ count: Neo4jInt }))")
-    expect(source).toContain('import { Neo4jClient, Neo4jInt } from "@/lib/effect-neo4j"')
+    expect(source).toContain('import { Neo4jClient, Neo4jInt } from "@evryg/effect-neo4j"')
   })
 })
 
 // ── Barrel generation (typed params) ──
 
-import { generateBarrel, type BarrelEntry } from "./CypherCodegen"
-import type { ResolvedParam } from "../frontend/QueryAnalyzer"
+import { generateBarrel, type BarrelEntry } from "./CypherCodegen.js"
+import type { ResolvedParam } from "../frontend/QueryAnalyzer.js"
 
 const barrelParam = (name: string, type: string): ResolvedParam =>
   ({ name, type }) as ResolvedParam

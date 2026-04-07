@@ -1,11 +1,11 @@
 import { Command } from "@effect/cli"
 import { Console, Effect } from "effect"
-import { Neo4jClient } from "@/lib/effect-neo4j"
-import { compileToCypherDDL } from "@/lib/effect-neo4j-schema/Neo4jSchemaDDL"
-import { allSchemas } from "@/RootNeo4jGraphSchema"
-import { neo4jOptions, neo4jLayer } from "./Shared"
+import type { Schema } from "effect"
+import { Neo4jClient } from "@evryg/effect-neo4j"
+import { compileToCypherDDL } from "@evryg/effect-neo4j-schema"
+import { neo4jOptions, neo4jLayer } from "./Shared.js"
 
-export const applySchemaCommand = Command.make(
+export const makeApplySchemaCommand = (allSchemas: Schema.Schema.Any[]) => Command.make(
   "apply-schema",
   { ...neo4jOptions },
   (opts) =>

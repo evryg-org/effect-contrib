@@ -1,11 +1,11 @@
 import { Command } from "@effect/cli"
 import { NodeContext } from "@effect/platform-node"
 import { Console, Effect } from "effect"
-import { extractSchema } from "@/lib/effect-neo4j-schema/resolvers/live_db/LiveDbGraphSchemaResolver"
-import { saveSchema } from "@/lib/effect-neo4j-schema/GraphSchemaModel"
-import { compileToGraphSchema } from "@/lib/effect-neo4j-schema/resolvers/annotation/AnnotationGraphSchemaResolver"
-import { allSchemas } from "@/RootNeo4jGraphSchema"
-import { neo4jOptions, schemaPathOption, outputOption, cypherGlobOption, neo4jLayer, generateFromSchema } from "./Shared"
+import type { Schema } from "effect"
+import { extractSchema } from "@evryg/effect-neo4j-schema"
+import { saveSchema } from "@evryg/effect-neo4j-schema"
+import { compileToGraphSchema } from "@evryg/effect-neo4j-schema"
+import { neo4jOptions, schemaPathOption, outputOption, cypherGlobOption, neo4jLayer, generateFromSchema } from "./Shared.js"
 
 // ── generate live-db ──
 
@@ -23,7 +23,7 @@ const generateLiveDbCommand = Command.make(
 
 // ── generate annotations ──
 
-const generateAnnotationsCommand = Command.make(
+const makeGenerateAnnotationsCommand = (allSchemas: Schema.Schema.Any[]) => Command.make(
   "annotations",
   { output: outputOption, cypherGlob: cypherGlobOption },
   (opts) =>
@@ -36,6 +36,6 @@ const generateAnnotationsCommand = Command.make(
 
 // ── generate (parent) ──
 
-export const generateCommand = Command.make("generate").pipe(
-  Command.withSubcommands([generateLiveDbCommand, generateAnnotationsCommand]),
+export const makeGenerateCommand = (allSchemas: Schema.Schema.Any[]) => Command.make("generate").pipe(
+  Command.withSubcommands([generateLiveDbCommand, makeGenerateAnnotationsCommand(allSchemas)]),
 )

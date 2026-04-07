@@ -1,5 +1,5 @@
-import type { ResolvedColumn, ResolvedParam, Neo4jType } from "../frontend/QueryAnalyzer"
-import type { CypherType } from "../types/CypherType"
+import type { ResolvedColumn, ResolvedParam, Neo4jType } from "../frontend/QueryAnalyzer.js"
+import type { CypherType } from "../types/CypherType.js"
 
 export interface QueryEntry {
   readonly filename: string
@@ -64,7 +64,7 @@ export const generateDeclaration = (entry: QueryEntry): string => {
   const lines: string[] = []
 
   lines.push(`import type { Effect } from "effect"`)
-  lines.push(`import type { Neo4jClient, Neo4jQueryError } from "@/lib/effect-neo4j"`)
+  lines.push(`import type { Neo4jClient, Neo4jQueryError } from "@evryg/effect-neo4j"`)
   lines.push(``)
 
   // Row interface
@@ -93,7 +93,7 @@ export const generateDeclarations = (queries: ReadonlyArray<QueryEntry>): string
   const lines: string[] = []
 
   lines.push(`import type { Effect } from "effect"`)
-  lines.push(`import type { Neo4jClient, Neo4jQueryError } from "@/lib/effect-neo4j"`)
+  lines.push(`import type { Neo4jClient, Neo4jQueryError } from "@evryg/effect-neo4j"`)
   lines.push(``)
 
   for (const entry of queries) {

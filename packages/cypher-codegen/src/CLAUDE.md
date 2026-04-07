@@ -50,4 +50,4 @@ The upstream grammar incorrectly hoists `readingStatement*` outside the repeatin
 - Regenerate parser after grammar changes: `pnpm antlr4ng ...`
 - Regenerate queries after schema/analyzer changes: `pnpm codegen:cypher generate`
 - `.cypher` filenames must be unique across the project (barrel uses filename as identifier)
-- Neo4j schema types (`Neo4jInt`, `Neo4jValue`) come from `@/lib/effect-neo4j`
+- Neo4j schema types (`Neo4jInt`, `Neo4jValue`) come from `@evryg/effect-neo4j`

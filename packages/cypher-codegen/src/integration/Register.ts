@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { Effect } from "effect"
 import { NodeContext } from "@effect/platform-node"
-import { generateModule } from "../backend/CypherCodegen"
-import { analyzeQuery } from "../frontend/QueryAnalyzer"
-import { loadSchema, type GraphSchema } from "../../effect-neo4j-schema/GraphSchemaModel"
+import { generateModule } from "../backend/CypherCodegen.js"
+import { analyzeQuery } from "../frontend/QueryAnalyzer.js"
+import { loadSchema, type GraphSchema } from "@evryg/effect-neo4j-schema"
 
 let schema: GraphSchema | undefined
 try {

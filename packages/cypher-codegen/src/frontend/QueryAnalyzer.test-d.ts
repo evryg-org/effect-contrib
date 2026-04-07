@@ -5,9 +5,9 @@ import type {
   ResolvedParam,
   QueryAnalysis,
   analyzeQuery,
-} from "./QueryAnalyzer"
-import type { CypherType } from "../types/CypherType"
-import type { GraphSchema } from "@/lib/effect-neo4j-schema/GraphSchemaModel"
+} from "./QueryAnalyzer.js"
+import type { CypherType } from "../types/CypherType.js"
+import type { GraphSchema } from "@evryg/effect-neo4j-schema"
 
 describe("ResolvedColumn", () => {
   it("nullable is required boolean, not optional", () => {

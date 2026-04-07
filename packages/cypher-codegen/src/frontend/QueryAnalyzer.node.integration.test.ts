@@ -3,11 +3,11 @@ import { Effect, Layer } from "effect"
 import { readFileSync } from "node:fs"
 import { globSync } from "node:fs"
 import { basename } from "node:path"
-import { Neo4jClient, UnconfiguredNeo4jClient } from "@/lib/effect-neo4j"
-import { CleanNeo4jGraph, Neo4jConfigFromVitest } from "@/lib/effect-vitest-testcontainers"
-import { extractSchema } from "@/lib/effect-neo4j-schema/resolvers/live_db/LiveDbGraphSchemaResolver"
-import { analyzeQuery } from "./QueryAnalyzer"
-import { UnknownType } from "../types/CypherType"
+import { Neo4jClient, UnconfiguredNeo4jClient } from "@evryg/effect-neo4j"
+import { CleanNeo4jGraph, Neo4jConfigFromVitest } from "@evryg/effect-vitest-testcontainers"
+import { extractSchema } from "@evryg/effect-neo4j-schema"
+import { analyzeQuery } from "./QueryAnalyzer.js"
+import { UnknownType } from "../types/CypherType.js"
 
 const TestNeo4j = UnconfiguredNeo4jClient.pipe(Layer.provide(Neo4jConfigFromVitest))
 

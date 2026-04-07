@@ -1,7 +1,7 @@
 import { describe, it, expect } from "@effect/vitest"
-import { analyzeQuery, type ResolvedColumn, type ResolvedParam } from "./QueryAnalyzer"
-import { GraphSchema, VertexProperty, EdgeProperty, EdgeConnectivity } from "@/lib/effect-neo4j-schema/GraphSchemaModel"
-import { ScalarType, ListType, MapType, NullableType, VertexUnionType, UnknownType, type CypherType } from "../types/CypherType"
+import { analyzeQuery, type ResolvedColumn, type ResolvedParam } from "./QueryAnalyzer.js"
+import { GraphSchema, VertexProperty, EdgeProperty, EdgeConnectivity } from "@evryg/effect-neo4j-schema"
+import { ScalarType, ListType, MapType, NullableType, VertexUnionType, UnknownType, type CypherType } from "../types/CypherType.js"
 
 // ── Schema fixture mimicking a typical analysis graph ──
 

@@ -1,6 +1,6 @@
-import type { ResolvedColumn, ResolvedParam, Neo4jType } from "../frontend/QueryAnalyzer"
-import type { CypherType } from "../types/CypherType"
-import type { QueryEntry } from "./CypherDeclarationGen"
+import type { ResolvedColumn, ResolvedParam, Neo4jType } from "../frontend/QueryAnalyzer.js"
+import type { CypherType } from "../types/CypherType.js"
+import type { QueryEntry } from "./CypherDeclarationGen.js"
 
 const PARAM_RE = /\$([a-zA-Z_]\w*)/g
 
@@ -60,12 +60,14 @@ function collectNeo4jImports(ct: CypherType, imports: Set<string>): void {
   switch (ct._tag) {
     case "ScalarType":
       if (ct.scalarType === "Long") imports.add("Neo4jInt")
+      else if (ct.scalarType !== "Double" && ct.scalarType !== "String" && ct.scalarType !== "Boolean" && !TEMPORAL_SCALAR_TYPES.has(ct.scalarType)) imports.add("Neo4jValue")
       break
     case "ListType":
       collectNeo4jImports(ct.element, imports)
       break
     case "MapType":
-      for (const f of ct.fields) collectNeo4jImports(f.value, imports)
+      if (ct.fields.length === 0) imports.add("Neo4jValue")
+      else for (const f of ct.fields) collectNeo4jImports(f.value, imports)
       break
     case "NullableType":
       collectNeo4jImports(ct.inner, imports)
@@ -127,7 +129,7 @@ function generateUntypedModule(cypher: string): string {
   const params = extractParams(cypher)
   const lines = [
     `import { Effect } from "effect";`,
-    `import { Neo4jClient } from "@/lib/effect-neo4j";`,
+    `import { Neo4jClient } from "@evryg/effect-neo4j";`,
     ``,
     `const cypher = ${JSON.stringify(cypher)};`,
     ``,
@@ -154,9 +156,9 @@ function generateTypedModule(cypher: string, columns: ReadonlyArray<ResolvedColu
   lines.push(`import { Effect, Schema } from "effect";`)
   const neo4jImports = neo4jSchemaImports(columns)
   if (neo4jImports.length > 0) {
-    lines.push(`import { Neo4jClient, ${neo4jImports.join(", ")} } from "@/lib/effect-neo4j";`)
+    lines.push(`import { Neo4jClient, ${neo4jImports.join(", ")} } from "@evryg/effect-neo4j";`)
   } else {
-    lines.push(`import { Neo4jClient } from "@/lib/effect-neo4j";`)
+    lines.push(`import { Neo4jClient } from "@evryg/effect-neo4j";`)
   }
   lines.push(``)
 
@@ -238,9 +240,9 @@ export function generateBarrel(entries: ReadonlyArray<BarrelEntry>): string {
   const allColumns = entries.flatMap((e) => e.columns)
   const neo4jImports = neo4jSchemaImports(allColumns)
   if (neo4jImports.length > 0) {
-    lines.push(`import { Neo4jClient, ${neo4jImports.join(", ")} } from "@/lib/effect-neo4j"`)
+    lines.push(`import { Neo4jClient, ${neo4jImports.join(", ")} } from "@evryg/effect-neo4j"`)
   } else {
-    lines.push(`import { Neo4jClient } from "@/lib/effect-neo4j"`)
+    lines.push(`import { Neo4jClient } from "@evryg/effect-neo4j"`)
   }
   lines.push(``)
 

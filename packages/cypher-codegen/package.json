@@ -1,0 +1,27 @@
+{
+  "name": "@evryg/cypher-codegen",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./integration/VitePlugin": "./src/integration/VitePlugin.ts",
+    "./integration/Register": "./src/integration/Register.ts",
+    "./integration/codegen": "./src/integration/codegen.ts"
+  },
+  "dependencies": {
+    "@effect/cli": "^0.75.0",
+    "@effect/platform": "^0.96.0",
+    "@effect/platform-node": "^0.106.0",
+    "@evryg/effect-neo4j": "workspace:*",
+    "@evryg/effect-neo4j-schema": "workspace:*",
+    "antlr4ng": "^3.0.16",
+    "effect": "^3.21.0",
+    "neo4j-driver": "^6.0.1"
+  },
+  "devDependencies": {
+    "@effect/vitest": "^0.29.0",
+    "@evryg/effect-vitest-testcontainers": "workspace:*",
+    "vitest": "^3.2.1"
+  }
+}

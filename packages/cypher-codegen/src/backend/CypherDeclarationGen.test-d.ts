@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, it } from "vitest"
-import type { QueryEntry, generateDeclarations } from "./CypherDeclarationGen"
-import type { ResolvedColumn, ResolvedParam } from "../frontend/QueryAnalyzer"
+import type { QueryEntry, generateDeclarations } from "./CypherDeclarationGen.js"
+import type { ResolvedColumn, ResolvedParam } from "../frontend/QueryAnalyzer.js"
 
 describe("QueryEntry", () => {
   it("columns is ReadonlyArray<ResolvedColumn>", () => {

@@ -15,9 +15,9 @@ import {
   type ReturnStContext,
 } from "./generated-parser/CypherParser.js"
 import * as antlr from "antlr4ng"
-import type { GraphSchema } from "@/lib/effect-neo4j-schema/GraphSchemaModel"
-import { VertexType, VertexUnionType, EdgeType, UnknownType, type CypherType } from "../types/CypherType"
-import { inferExpressionType, type TypeEnv } from "./InferType"
+import type { GraphSchema } from "@evryg/effect-neo4j-schema"
+import { VertexType, VertexUnionType, EdgeType, UnknownType, type CypherType } from "../types/CypherType.js"
+import { inferExpressionType, type TypeEnv } from "./InferType.js"
 
 // ── Public types ──
 
