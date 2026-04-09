@@ -16,6 +16,8 @@ npm install --save-dev @evryg/integresql effect
 
 `effect` is the only required peer dependency.
 
+This package supports Node.js 18 and newer.
+
 Glob matching support used by `templateIdFromFiles(...)` is built in through this package's internal `fast-glob` dependency. You do not need to install `glob` or `fast-glob` yourself.
 
 This package is only the client. You still need a running IntegreSQL server connected to PostgreSQL. To install IntegreSQL itself, follow the official setup instructions: <https://github.com/allaboutapps/integresql#install>
@@ -54,9 +56,9 @@ Each call to `getConnection(...)` returns connection details for a fresh isolate
 
 For a complete Vitest + Testcontainers setup, see:
 
-- [`./test/startContainers.ts`](./test/startContainers.ts)
-- [`./test/globalSetup.ts`](./test/globalSetup.ts)
-- [`./test/examples.test.ts`](./test/examples.test.ts)
+- [`test/startContainers.ts`](https://github.com/evryg-org/effect-contrib/blob/main/packages/integresql/test/startContainers.ts)
+- [`test/globalSetup.ts`](https://github.com/evryg-org/effect-contrib/blob/main/packages/integresql/test/globalSetup.ts)
+- [`test/examples.test.ts`](https://github.com/evryg-org/effect-contrib/blob/main/packages/integresql/test/examples.test.ts)
 
 ## License
 
