@@ -1,3 +1,8 @@
+/**
+ * Helpers for deriving stable template identifiers from the contents of SQL files.
+ *
+ * @since 0.0.1
+ */
 import { Effect, pipe } from "effect"
 import glob from "fast-glob"
 import crypto from "node:crypto"
@@ -24,6 +29,8 @@ export class NoMatchingFiles extends Error {
 }
 
 /**
+ * Computes a template id by hashing the contents of all matching files.
+ *
  * @since 0.0.1
  */
 export const templateIdFromFiles = (

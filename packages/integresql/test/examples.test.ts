@@ -68,4 +68,4 @@ const makePgLayer = (databaseConfiguration: DatabaseConfiguration) =>
     username: databaseConfiguration.username,
     password: Redacted.make(databaseConfiguration.password),
     database: databaseConfiguration.database
-})
+  })
