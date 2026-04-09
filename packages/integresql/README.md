@@ -53,11 +53,7 @@ const program = getConnection({
 
 ## Recommended Setup: Vitest + Testcontainers
 
-One working setup using Vitest, Testcontainers, and `@effect/sql-pg` lives here:
-
-<https://github.com/evryg-org/effect-contrib/tree/main/packages/integresql/examples/vitest-testcontainers>
-
-In this repository, that example depends on the current local build via `file:../../dist` so CI validates the package artifact from the current commit. If you copy it into another project, replace that dependency with the published package version.
+One minimal setup using Vitest, Testcontainers, and `@effect/sql-pg` looks like this:
 
 `vitest.config.ts`
 
@@ -97,7 +93,7 @@ import { inject } from "vitest"
 import { getConnection, templateIdFromFiles } from "@evryg/integresql"
 import { makePgLayer } from "./makePgLayer.js"
 
-describe(`vitest-testcontainers example`, () => {
+describe(`vitest + testcontainers`, () => {
   it.effect(
     `creates isolated databases from a reusable template`,
     () =>

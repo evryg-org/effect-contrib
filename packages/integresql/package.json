@@ -26,9 +26,6 @@
     "build-cjs": "babel build/esm --plugins @babel/transform-export-namespace-from --plugins @babel/transform-modules-commonjs --out-dir build/cjs --source-maps",
     "build-annotate": "babel build/esm --plugins annotate-pure-calls --out-dir build/esm --source-maps",
     "check": "tsc -b tsconfig.json",
-    "examples:install": "pnpm --dir ./examples/vitest-testcontainers --ignore-workspace install --frozen-lockfile",
-    "examples:check": "pnpm --dir ./examples/vitest-testcontainers --ignore-workspace run check",
-    "examples:test": "pnpm --dir ./examples/vitest-testcontainers --ignore-workspace run test",
     "test": "vitest",
     "coverage": "vitest --coverage"
   },
