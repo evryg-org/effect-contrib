@@ -42,7 +42,7 @@ export async function startContainers(): Promise<{
       PGUSER: postgres.getUsername(),
       PGPASSWORD: postgres.getPassword(),
       PGHOST: "host.testcontainers.internal",
-      PGPORT: postgres.getFirstMappedPort().toString(),
+      PGPORT: "127.0.0.1",
       PGSSLMODE: "disable"
     })
     .withWaitStrategy(Wait.forLogMessage("server started on"))
