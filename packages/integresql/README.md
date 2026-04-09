@@ -4,137 +4,58 @@
 [![license](https://img.shields.io/npm/l/%40evryg/integresql)](https://github.com/evryg-org/effect-contrib/blob/main/LICENSE)
 [![CI](https://github.com/evryg-org/effect-contrib/actions/workflows/check.yml/badge.svg)](https://github.com/evryg-org/effect-contrib/actions/workflows/check.yml)
 
+Effect client for [IntegreSQL](https://github.com/allaboutapps/integresql), used to create isolated PostgreSQL databases for integration tests.
 
-Effect-ts wrapper around [IntegreSQL](https://github.com/allaboutapps/integresql) — instant isolated PostgreSQL databases for integration tests.
+[Installation](#installation) • [Usage](#usage) • [Testcontainers](#testcontainers) • [License](#license)
 
 ## Installation
 
 ```bash
-npm install --dev @evryg/integresql
+npm install --save-dev @evryg/integresql effect
 ```
 
-## Prerequisites
+`effect` is a required peer dependency.
 
-You need a running IntegreSQL server connected to PostgreSQL.
+This package is only the client. You still need a running IntegreSQL server connected to PostgreSQL. To install IntegreSQL itself, follow the official setup instructions: <https://github.com/allaboutapps/integresql#install>
 
-This package is only the client. It does not start IntegreSQL for you. For setup, see the official IntegreSQL docs: <https://github.com/allaboutapps/integresql#install>
-
-## Quick Start
+## Usage
 
 ```ts
-import { PgClient } from "@effect/sql-pg"
-import { Effect, pipe, Redacted } from "effect"
-import { getConnection, templateIdFromFiles, type DatabaseConfiguration } from "@evryg/integresql"
+import { Effect } from "effect"
+import {
+  getConnection,
+  templateIdFromFiles,
+  type DatabaseConfiguration
+} from "@evryg/integresql"
 
-const makePgLayer = (databaseConfiguration: DatabaseConfiguration) =>
-  PgClient.layer({
-    host: "127.0.0.1",
-    port: databaseConfiguration.port,
-    username: databaseConfiguration.username,
-    password: Redacted.make(databaseConfiguration.password),
-    database: databaseConfiguration.database
+const runMigrations = (connection: DatabaseConfiguration) =>
+  Effect.promise(() => migrateDatabase(connection))
+
+const program = Effect.gen(function*() {
+  const connection = yield* getConnection({
+    integreSQLAPIUrl: "http://127.0.0.1:5000",
+    templateId: templateIdFromFiles(["src/db/migrations/*.sql"]),
+    initializeTemplate: runMigrations
   })
 
-const program = getConnection({
-  integreSQLAPIUrl: "http://127.0.0.1:5000",
-  templateId: templateIdFromFiles(["src/db/migrations/*.sql"]),
-  initializeTemplate: (connection) =>
-    pipe(
-      Effect.gen(function*() {
-        const sql = yield* PgClient.PgClient
-        yield* sql`CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT NOT NULL)`
-      }),
-      Effect.provide(makePgLayer(connection))
-    )
+  yield* Effect.promise(() => runTestWithDatabase(connection))
 })
 ```
 
-`getConnection(...)` returns the connection details for a fresh isolated database cloned from the template.
+`templateIdFromFiles(...)` hashes your migration files so template changes track schema changes.
 
-## Recommended Setup: Vitest + Testcontainers
+`initializeTemplate(...)` runs once for a given template id to prepare the template database.
 
-One minimal setup using Vitest, Testcontainers, and `@effect/sql-pg` looks like this:
+Each call to `getConnection(...)` returns connection details for a fresh isolated test database cloned from that template.
 
-`vitest.config.ts`
+## Testcontainers
 
-```ts
-import { defineConfig } from "vitest/config"
+For a complete Vitest + Testcontainers setup, see:
 
-export default defineConfig({
-  test: {
-    globalSetup: ["./globalSetup.ts"],
-    watch: false
-  }
-})
-```
+- [`./test/startContainers.ts`](./test/startContainers.ts)
+- [`./test/globalSetup.ts`](./test/globalSetup.ts)
+- [`./test/examples.test.ts`](./test/examples.test.ts)
 
-`globalSetup.ts`
+## License
 
-```ts
-import type { TestProject } from "vitest/node"
-import { startContainers } from "./startContainers.js"
-
-export default async function setup(project: TestProject) {
-  const resources = await startContainers()
-
-  project.provide("containers", resources.config)
-
-  return () => resources.teardown()
-}
-```
-
-`example.test.ts`
-
-```ts
-import { PgClient } from "@effect/sql-pg"
-import { describe, expect, it } from "@effect/vitest"
-import { Effect, pipe } from "effect"
-import { inject } from "vitest"
-import { getConnection, templateIdFromFiles } from "@evryg/integresql"
-import { makePgLayer } from "./makePgLayer.js"
-
-describe(`vitest + testcontainers`, () => {
-  it.effect(
-    `creates isolated databases from a reusable template`,
-    () =>
-      Effect.gen(function*() {
-        const containers = inject("containers")
-
-        const databaseConfiguration = yield* getConnection({
-          templateId: templateIdFromFiles(["./schema.sql"]),
-          initializeTemplate: (connection) =>
-            pipe(
-              Effect.gen(function*() {
-                const sql = yield* PgClient.PgClient
-                yield* sql`CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT NOT NULL)`
-              }),
-              Effect.provide(makePgLayer(connection))
-            ),
-          integreSQLAPIUrl: containers.integreAPIUrl
-        })
-
-        yield* pipe(
-          Effect.gen(function*() {
-            const sql = yield* PgClient.PgClient
-            yield* sql`INSERT INTO users ${sql.insert({ name: "Ada" })}`
-            const rows = yield* sql`SELECT * FROM users`
-            expect(rows).toStrictEqual([{ id: expect.any(Number), name: "Ada" }])
-          }),
-          Effect.provide(makePgLayer(databaseConfiguration))
-        )
-      })
-  )
-})
-```
-
-## Choosing a Template ID
-
-`templateId` identifies the template database to reuse.
-
-In most projects, the right default is:
-
-```ts
-templateIdFromFiles(["src/db/migrations/*.sql"])
-```
-
-That makes the template change automatically when your schema or migration files change.
+MIT. See [`./LICENSE`](./LICENSE).
