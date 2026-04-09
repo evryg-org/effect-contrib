@@ -43,7 +43,7 @@ describe(`examples`, () => {
 
 const makePgLayer = (databaseConfiguration: DatabaseConfiguration) =>
   PgClient.layer({
-    host: "127.0.0.1",
+    host: databaseConfiguration.host,
     port: databaseConfiguration.port,
     username: databaseConfiguration.username,
     password: Redacted.make(databaseConfiguration.password),

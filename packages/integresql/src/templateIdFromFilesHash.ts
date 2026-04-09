@@ -27,25 +27,27 @@ export class NoMatchingFiles extends Error {
  * @since 0.0.1
  */
 export const templateIdFromFiles = (
-  globPatterns: [string, ...Array<string>]
-): Effect.Effect<DatabaseTemplateId, NoMatchingFiles> =>
-  pipe(
-    Effect.promise(() => glob(globPatterns)),
+  globPatterns: [string, ...Array<string>],
+  cwd: string = process.cwd()
+): Effect.Effect<DatabaseTemplateId, NoMatchingFiles> => {
+  return pipe(
+    Effect.promise(() => glob(globPatterns, { cwd })),
     Effect.filterOrFail(
       (files) => files.length > 0,
       () =>
         new NoMatchingFiles(
-          globPatterns.map((file) => path.join(process.cwd(), file))
+          globPatterns.map((file) => path.join(cwd, file))
         )
     ),
     Effect.flatMap((files) =>
       Effect.promise(async () => {
-        const filePaths = files.map((file) => path.join(process.cwd(), file))
+        const filePaths = files.map((file) => path.join(cwd, file))
         const fileHashes = await Promise.all(filePaths.map(sha1HashFile))
         return unsafeMakeDatabaseTemplateId(sha1HashString(fileHashes.join("")))
       })
     )
   )
+}
 
 /**
  * @internal
