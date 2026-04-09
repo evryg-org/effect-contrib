@@ -14,7 +14,9 @@ Effect client for [IntegreSQL](https://github.com/allaboutapps/integresql), used
 npm install --save-dev @evryg/integresql effect
 ```
 
-`effect` is a required peer dependency.
+`effect` is the only required peer dependency.
+
+Glob matching support used by `templateIdFromFiles(...)` is built in through this package's internal `fast-glob` dependency. You do not need to install `glob` or `fast-glob` yourself.
 
 This package is only the client. You still need a running IntegreSQL server connected to PostgreSQL. To install IntegreSQL itself, follow the official setup instructions: <https://github.com/allaboutapps/integresql#install>
 
