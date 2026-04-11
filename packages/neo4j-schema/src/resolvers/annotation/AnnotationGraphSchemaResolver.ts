@@ -1,16 +1,18 @@
 import { Effect, Layer } from "effect"
 import type { Schema } from "effect"
-import { VertexProperty, EdgeProperty, EdgeConnectivity, GraphSchema } from "../../GraphSchemaModel.js"
+import { EdgeConnectivity, EdgeProperty, GraphSchema, VertexProperty } from "../../GraphSchemaModel.js"
 import { GraphSchemaResolver } from "../../GraphSchemaResolver.js"
 
 // ── AST type mapping ──
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function astTypeToNeo4j(ast: any): string | undefined {
   switch (ast._tag) {
-    case "StringKeyword": return "STRING NOT NULL"
-    case "NumberKeyword": return "FLOAT NOT NULL"
-    case "BooleanKeyword": return "BOOLEAN NOT NULL"
+    case "StringKeyword":
+      return "STRING NOT NULL"
+    case "NumberKeyword":
+      return "FLOAT NOT NULL"
+    case "BooleanKeyword":
+      return "BOOLEAN NOT NULL"
     case "TupleType": {
       // Schema.Array(T) becomes TupleType with rest element
       const rest = ast.rest?.[0]
@@ -20,15 +22,15 @@ function astTypeToNeo4j(ast: any): string | undefined {
       }
       return "LIST<STRING NOT NULL> NOT NULL"
     }
-    default: return undefined
+    default:
+      return undefined
   }
 }
 
 /** Unwrap optional Union (T | undefined) to get the inner type AST */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function unwrapOptional(ast: any): any {
   if (ast._tag === "Union" && Array.isArray(ast.types)) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const nonUndef = ast.types.filter((t: any) => t._tag !== "UndefinedKeyword")
     if (nonUndef.length === 1) return nonUndef[0]
   }
@@ -38,10 +40,10 @@ function unwrapOptional(ast: any): any {
 // ── Schema compilation ──
 
 /** Compile Effect Schema structs with neo4j annotations into a GraphSchema for query validation */
-export function compileToGraphSchema(schemas: Schema.Schema.Any[]): GraphSchema {
-  const vertexProperties: VertexProperty[] = []
-  const edgeProperties: EdgeProperty[] = []
-  const edgeConnectivity: EdgeConnectivity[] = []
+export function compileToGraphSchema(schemas: Array<Schema.Schema.Any>): GraphSchema {
+  const vertexProperties: Array<VertexProperty> = []
+  const edgeProperties: Array<EdgeProperty> = []
+  const edgeConnectivity: Array<EdgeConnectivity> = []
 
   for (const schema of schemas) {
     const ast = schema.ast
@@ -55,8 +57,7 @@ export function compileToGraphSchema(schemas: Schema.Schema.Any[]): GraphSchema 
 
     // Extract edge connectivity annotations
     if (edgeType) {
-      const connectivity = annotations.neo4jEdgeConnectivity as
-        ReadonlyArray<{ from: string; to: string }> | undefined
+      const connectivity = annotations.neo4jEdgeConnectivity as ReadonlyArray<{ from: string; to: string }> | undefined
       if (connectivity) {
         for (const { from, to } of connectivity) {
           edgeConnectivity.push(new EdgeConnectivity({ edgeType, fromLabel: from, toLabel: to }))
@@ -72,19 +73,23 @@ export function compileToGraphSchema(schemas: Schema.Schema.Any[]): GraphSchema 
       if (!neo4jType) continue
 
       if (label) {
-        vertexProperties.push(new VertexProperty({
-          labels: [label],
-          propertyName: name,
-          propertyTypes: [neo4jType],
-          mandatory: !isOptional,
-        }))
+        vertexProperties.push(
+          new VertexProperty({
+            labels: [label],
+            propertyName: name,
+            propertyTypes: [neo4jType],
+            mandatory: !isOptional
+          })
+        )
       } else if (edgeType) {
-        edgeProperties.push(new EdgeProperty({
-          edgeType,
-          propertyName: name,
-          propertyTypes: [neo4jType],
-          mandatory: !isOptional,
-        }))
+        edgeProperties.push(
+          new EdgeProperty({
+            edgeType,
+            propertyName: name,
+            propertyTypes: [neo4jType],
+            mandatory: !isOptional
+          })
+        )
       }
     }
   }
@@ -95,8 +100,8 @@ export function compileToGraphSchema(schemas: Schema.Schema.Any[]): GraphSchema 
 // ── Layer ──
 
 export const AnnotationGraphSchemaResolver = (
-  schemas: Schema.Schema.Any[],
+  schemas: Array<Schema.Schema.Any>
 ): Layer.Layer<GraphSchemaResolver> =>
   Layer.succeed(GraphSchemaResolver, {
-    resolve: Effect.sync(() => compileToGraphSchema(schemas)),
+    resolve: Effect.sync(() => compileToGraphSchema(schemas))
   })

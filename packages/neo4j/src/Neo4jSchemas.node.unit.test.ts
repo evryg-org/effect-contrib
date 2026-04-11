@@ -1,4 +1,4 @@
-import { describe, it, expect } from "@effect/vitest"
+import { describe, expect, it } from "@effect/vitest"
 import { Schema } from "effect"
 import neo4j from "neo4j-driver"
 import { Neo4jInt, Neo4jValue } from "./Neo4jSchemas.js"
@@ -12,8 +12,8 @@ describe("Neo4jInt", () => {
     { label: "plain JS number", input: 42, expected: 42 },
     { label: "Neo4j Integer", input: int(42), expected: 42 },
     { label: "Neo4j Integer zero", input: int(0), expected: 0 },
-    { label: "negative Neo4j Integer", input: int(-7), expected: -7 },
-  ])("decodes $label to number", ({ input, expected }) => {
+    { label: "negative Neo4j Integer", input: int(-7), expected: -7 }
+  ])("decodes $label to number", ({ expected, input }) => {
     expect(decodeInt(input)).toBe(expected)
   })
 })
@@ -39,22 +39,22 @@ describe("Neo4jValue", () => {
       visibility: "public",
       paramCount: int(3),
       hasReturnType: true,
-      isStatic: false,
+      isStatic: false
     }
     expect(decodeValue(input)).toEqual({
       visibility: "public",
       paramCount: 3,
       hasReturnType: true,
-      isStatic: false,
+      isStatic: false
     })
   })
 
   it("handles deeply nested structures", () => {
     const input = [
-      { name: "foo", counts: [int(1), int(2)], meta: { depth: int(3) } },
+      { name: "foo", counts: [int(1), int(2)], meta: { depth: int(3) } }
     ]
     expect(decodeValue(input)).toEqual([
-      { name: "foo", counts: [1, 2], meta: { depth: 3 } },
+      { name: "foo", counts: [1, 2], meta: { depth: 3 } }
     ])
   })
 

@@ -14,10 +14,10 @@ export const neo4jIndexed = { neo4jIndex: true as const }
 export const neo4jVertex = (
   label: string,
   opts?: {
-    compositeKey?: string[]
-    compositeIndexes?: string[][]
-    fullTextIndex?: { name: string; fields: string[] }
-  },
+    compositeKey?: Array<string>
+    compositeIndexes?: Array<Array<string>>
+    fullTextIndex?: { name: string; fields: Array<string> }
+  }
 ) => ({ neo4jLabel: label, ...opts })
 
 /** Extract the neo4jLabel from a vertex schema's annotations */
@@ -32,13 +32,13 @@ function extractNeo4jLabel(vertexSchema: Schema.Schema.Any): string {
 /** Annotate an Effect Schema struct as a Neo4j edge (relationship) */
 export const neo4jEdge = (
   edgeType: string,
-  connectivity?: ReadonlyArray<{ from: Schema.Schema.Any; to: Schema.Schema.Any }>,
+  connectivity?: ReadonlyArray<{ from: Schema.Schema.Any; to: Schema.Schema.Any }>
 ) => ({
   neo4jEdgeType: edgeType,
   ...(connectivity && {
     neo4jEdgeConnectivity: connectivity.map(({ from, to }) => ({
       from: extractNeo4jLabel(from),
-      to: extractNeo4jLabel(to),
-    })),
-  }),
+      to: extractNeo4jLabel(to)
+    }))
+  })
 })

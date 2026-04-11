@@ -10,8 +10,8 @@ export const Neo4jInt: Schema.Schema<number, unknown> = Schema.transform(
   Schema.Number,
   {
     decode: (v) => (typeof v === "number" ? v : isInt(v) ? (v as { toNumber(): number }).toNumber() : Number(v)),
-    encode: (n) => n,
-  },
+    encode: (n) => n
+  }
 )
 
 /**
@@ -24,7 +24,7 @@ function coerce(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(coerce)
   if (typeof v === "object") {
     return Object.fromEntries(
-      Object.entries(v).map(([k, val]) => [k, coerce(val)]),
+      Object.entries(v).map(([k, val]) => [k, coerce(val)])
     )
   }
   return v
@@ -33,5 +33,5 @@ function coerce(v: unknown): unknown {
 export const Neo4jValue: Schema.Schema<unknown, unknown> = Schema.transform(
   Schema.Unknown,
   Schema.Unknown,
-  { decode: coerce, encode: (v) => v },
+  { decode: coerce, encode: (v) => v }
 )

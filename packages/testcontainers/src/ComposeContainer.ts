@@ -15,19 +15,19 @@ export interface ComposeOptions {
 }
 
 export const makeComposeContainer = (
-  opts: ComposeOptions,
+  opts: ComposeOptions
 ): Layer.Layer<ComposeEnvironment, Error> =>
   Layer.scoped(
     ComposeEnvironment,
-    Effect.gen(function* () {
+    Effect.gen(function*() {
       let env = new DockerComposeEnvironment(opts.composeFilePath, opts.composeFile)
       if (opts.executable) env = env.withClientOptions({ executable: opts.executable })
       if (opts.waitStrategy) env = opts.waitStrategy(env)
       const started = yield* Effect.acquireRelease(
         Effect.tryPromise({ try: () => env.up(), catch: (e) => new Error(String(e)) }),
-        (c) => Effect.promise(() => c.down()).pipe(Effect.orDie),
+        (c) => Effect.promise(() => c.down()).pipe(Effect.orDie)
       )
       yield* Effect.log("[testcontainers] Compose started")
       return started
-    }),
+    })
   )

@@ -1,11 +1,10 @@
-import { Layer, ManagedRuntime } from "effect"
-import { Neo4jConfig, UnconfiguredNeo4jClient } from "@evryg/effect-neo4j"
-import { ensureSchema } from "@evryg/effect-neo4j"
+import { ensureSchema, Neo4jConfig, UnconfiguredNeo4jClient } from "@evryg/effect-neo4j"
 import { Neo4jTestContainerLive } from "@evryg/effect-testcontainers-neo4j"
+import { Layer, ManagedRuntime } from "effect"
 import { globSync, readFileSync } from "node:fs"
 import type { GlobalSetupContext } from "vitest/node"
 
-function loadSchemaFiles(): string[] {
+function loadSchemaFiles(): Array<string> {
   return globSync("src/**/schema/*GraphSchema.cypher").sort().flatMap((file) =>
     readFileSync(file, "utf8").split(";").map((s) => s.replace(/\/\/.*$/gm, "").trim()).filter((s) => s.length > 0)
   )
@@ -17,7 +16,7 @@ const SchemaSetupLive = Layer.effectDiscard(
 
 const TestNeo4jLive = SchemaSetupLive.pipe(
   Layer.provideMerge(UnconfiguredNeo4jClient),
-  Layer.provideMerge(Neo4jTestContainerLive),
+  Layer.provideMerge(Neo4jTestContainerLive)
 )
 
 const runtime = ManagedRuntime.make(TestNeo4jLive)

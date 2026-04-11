@@ -1,8 +1,8 @@
-import { describe, it, expect } from "@effect/vitest"
+import { describe, expect, it } from "@effect/vitest"
 import { Schema } from "effect"
-import { neo4jVertex, neo4jEdge, neo4jUnique, neo4jIndexed } from "../../Neo4jSchemaAnnotations.js"
-import { compileToGraphSchema } from "./AnnotationGraphSchemaResolver.js"
+import { neo4jEdge, neo4jIndexed, neo4jUnique, neo4jVertex } from "../../Neo4jSchemaAnnotations.js"
 import { compileToCypherDDL } from "../../Neo4jSchemaDDL.js"
+import { compileToGraphSchema } from "./AnnotationGraphSchemaResolver.js"
 
 // ── Test schemas ──
 
@@ -12,27 +12,27 @@ const PersonVertex = Schema.Struct({
   age: Schema.optional(Schema.Number),
   active: Schema.optional(Schema.Boolean),
   tags: Schema.Array(Schema.String),
-  file: Schema.optional(Schema.String).annotations(neo4jIndexed),
+  file: Schema.optional(Schema.String).annotations(neo4jIndexed)
 }).annotations(neo4jVertex("Person"))
 
 const ServerVertex = Schema.Struct({
   listenPort: Schema.Number,
-  serverName: Schema.String,
+  serverName: Schema.String
 }).annotations(neo4jVertex("Server", {
-  compositeKey: ["listenPort", "serverName"],
+  compositeKey: ["listenPort", "serverName"]
 }))
 
 const IndexedVertex = Schema.Struct({
   id: Schema.String.annotations(neo4jUnique),
-  name: Schema.String,
+  name: Schema.String
 }).annotations(neo4jVertex("Indexed", {
   compositeIndexes: [["id", "name"]],
-  fullTextIndex: { name: "indexed_search", fields: ["id", "name"] },
+  fullTextIndex: { name: "indexed_search", fields: ["id", "name"] }
 }))
 
 const KnowsEdge = Schema.Struct({
   since: Schema.Number,
-  weight: Schema.optional(Schema.Number),
+  weight: Schema.optional(Schema.Number)
 }).annotations(neo4jEdge("KNOWS"))
 
 const EmptyEdge = Schema.Struct({}).annotations(neo4jEdge("FOLLOWS"))
@@ -46,7 +46,7 @@ describe("compileToGraphSchema", () => {
     it("compiles mandatory String field", () => {
       const schema = compileToGraphSchema([PersonVertex])
       const nameProp = schema.vertexProperties.find(
-        (p) => p.labels.includes("Person") && p.propertyName === "name",
+        (p) => p.labels.includes("Person") && p.propertyName === "name"
       )
       expect(nameProp).toBeDefined()
       expect(nameProp!.mandatory).toBe(true)
@@ -56,7 +56,7 @@ describe("compileToGraphSchema", () => {
     it("compiles mandatory String field with unique annotation", () => {
       const schema = compileToGraphSchema([PersonVertex])
       const idProp = schema.vertexProperties.find(
-        (p) => p.labels.includes("Person") && p.propertyName === "id",
+        (p) => p.labels.includes("Person") && p.propertyName === "id"
       )
       expect(idProp).toBeDefined()
       expect(idProp!.mandatory).toBe(true)
@@ -66,7 +66,7 @@ describe("compileToGraphSchema", () => {
     it("compiles optional Number field", () => {
       const schema = compileToGraphSchema([PersonVertex])
       const ageProp = schema.vertexProperties.find(
-        (p) => p.labels.includes("Person") && p.propertyName === "age",
+        (p) => p.labels.includes("Person") && p.propertyName === "age"
       )
       expect(ageProp).toBeDefined()
       expect(ageProp!.mandatory).toBe(false)
@@ -76,7 +76,7 @@ describe("compileToGraphSchema", () => {
     it("compiles optional Boolean field", () => {
       const schema = compileToGraphSchema([PersonVertex])
       const activeProp = schema.vertexProperties.find(
-        (p) => p.labels.includes("Person") && p.propertyName === "active",
+        (p) => p.labels.includes("Person") && p.propertyName === "active"
       )
       expect(activeProp).toBeDefined()
       expect(activeProp!.mandatory).toBe(false)
@@ -86,7 +86,7 @@ describe("compileToGraphSchema", () => {
     it("compiles Array<String> field", () => {
       const schema = compileToGraphSchema([PersonVertex])
       const tagsProp = schema.vertexProperties.find(
-        (p) => p.labels.includes("Person") && p.propertyName === "tags",
+        (p) => p.labels.includes("Person") && p.propertyName === "tags"
       )
       expect(tagsProp).toBeDefined()
       expect(tagsProp!.mandatory).toBe(true)
@@ -105,7 +105,7 @@ describe("compileToGraphSchema", () => {
     it("compiles mandatory edge property", () => {
       const schema = compileToGraphSchema([KnowsEdge])
       const sinceProp = schema.edgeProperties.find(
-        (p) => p.edgeType === "KNOWS" && p.propertyName === "since",
+        (p) => p.edgeType === "KNOWS" && p.propertyName === "since"
       )
       expect(sinceProp).toBeDefined()
       expect(sinceProp!.mandatory).toBe(true)
@@ -115,7 +115,7 @@ describe("compileToGraphSchema", () => {
     it("compiles optional edge property", () => {
       const schema = compileToGraphSchema([KnowsEdge])
       const weightProp = schema.edgeProperties.find(
-        (p) => p.edgeType === "KNOWS" && p.propertyName === "weight",
+        (p) => p.edgeType === "KNOWS" && p.propertyName === "weight"
       )
       expect(weightProp).toBeDefined()
       expect(weightProp!.mandatory).toBe(false)
@@ -143,11 +143,11 @@ describe("compileToGraphSchema", () => {
 
     it("merges multiple schemas with same label", () => {
       const PartA = Schema.Struct({
-        id: Schema.String,
+        id: Schema.String
       }).annotations(neo4jVertex("Merged"))
 
       const PartB = Schema.Struct({
-        extra: Schema.optional(Schema.Number),
+        extra: Schema.optional(Schema.Number)
       }).annotations(neo4jVertex("Merged"))
 
       const schema = compileToGraphSchema([PartA, PartB])
@@ -174,7 +174,7 @@ describe("compileToCypherDDL", () => {
   it("generates composite UNIQUE constraint for compositeKey", () => {
     const ddl = compileToCypherDDL([ServerVertex])
     expect(ddl).toContain(
-      "CREATE CONSTRAINT IF NOT EXISTS FOR (n:Server) REQUIRE (n.listenPort, n.serverName) IS UNIQUE;",
+      "CREATE CONSTRAINT IF NOT EXISTS FOR (n:Server) REQUIRE (n.listenPort, n.serverName) IS UNIQUE;"
     )
   })
 
@@ -186,7 +186,7 @@ describe("compileToCypherDDL", () => {
   it("generates FULLTEXT INDEX for fullTextIndex", () => {
     const ddl = compileToCypherDDL([IndexedVertex])
     expect(ddl).toContain(
-      "CREATE FULLTEXT INDEX indexed_search IF NOT EXISTS FOR (n:Indexed) ON EACH [n.id, n.name];",
+      "CREATE FULLTEXT INDEX indexed_search IF NOT EXISTS FOR (n:Indexed) ON EACH [n.id, n.name];"
     )
   })
 

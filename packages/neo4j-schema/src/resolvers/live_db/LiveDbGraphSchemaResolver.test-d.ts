@@ -1,12 +1,7 @@
-import { describe, expectTypeOf, it } from "vitest"
-import type { Effect } from "effect"
 import type { Neo4jClient, Neo4jQueryError } from "@evryg/effect-neo4j"
-import type {
-  VertexProperty,
-  EdgeProperty,
-  GraphSchema,
-  extractSchema,
-} from "./LiveDbGraphSchemaResolver.js"
+import type { Effect } from "effect"
+import { describe, expectTypeOf, it } from "vitest"
+import type { EdgeProperty, extractSchema, GraphSchema, VertexProperty } from "./LiveDbGraphSchemaResolver.js"
 
 describe("VertexProperty", () => {
   it("labels is ReadonlyArray<string>", () => {

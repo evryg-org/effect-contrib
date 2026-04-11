@@ -1,8 +1,8 @@
 import type { Schema } from "effect"
 
 /** Compile Effect Schema structs with neo4j annotations into Cypher DDL statements */
-export function compileToCypherDDL(schemas: Schema.Schema.Any[]): string {
-  const lines: string[] = []
+export function compileToCypherDDL(schemas: Array<Schema.Schema.Any>): string {
+  const lines: Array<string> = []
 
   for (const schema of schemas) {
     const ast = schema.ast
@@ -28,13 +28,13 @@ export function compileToCypherDDL(schemas: Schema.Schema.Any[]): string {
     }
 
     // Struct-level constraints
-    const compositeKey = annotations.compositeKey as string[] | undefined
+    const compositeKey = annotations.compositeKey as Array<string> | undefined
     if (compositeKey) {
       const fields = compositeKey.map((f) => `n.${f}`).join(", ")
       lines.push(`CREATE CONSTRAINT IF NOT EXISTS FOR (n:${label}) REQUIRE (${fields}) IS UNIQUE;`)
     }
 
-    const compositeIndexes = annotations.compositeIndexes as string[][] | undefined
+    const compositeIndexes = annotations.compositeIndexes as Array<Array<string>> | undefined
     if (compositeIndexes) {
       for (const idx of compositeIndexes) {
         const fields = idx.map((f) => `n.${f}`).join(", ")
@@ -42,7 +42,7 @@ export function compileToCypherDDL(schemas: Schema.Schema.Any[]): string {
       }
     }
 
-    const fullTextIndex = annotations.fullTextIndex as { name: string; fields: string[] } | undefined
+    const fullTextIndex = annotations.fullTextIndex as { name: string; fields: Array<string> } | undefined
     if (fullTextIndex) {
       const fields = fullTextIndex.fields.map((f) => `n.${f}`).join(", ")
       lines.push(`CREATE FULLTEXT INDEX ${fullTextIndex.name} IF NOT EXISTS FOR (n:${label}) ON EACH [${fields}];`)

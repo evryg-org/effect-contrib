@@ -1,5 +1,5 @@
-import { describe, expectTypeOf, it } from "vitest"
 import type { Schema } from "effect"
+import { describe, expectTypeOf, it } from "vitest"
 import type { Neo4jInt, Neo4jValue } from "./Neo4jSchemas.js"
 
 describe("Neo4jInt", () => {

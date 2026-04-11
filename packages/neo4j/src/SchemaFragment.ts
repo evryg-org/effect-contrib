@@ -1,12 +1,12 @@
 import { Effect } from "effect"
 import { Neo4jClient } from "./Neo4jClient.js"
 
-export type SchemaFragment = readonly string[]
+export type SchemaFragment = ReadonlyArray<string>
 
 export const ensureSchema = (
-  fragments: SchemaFragment[],
+  fragments: Array<SchemaFragment>
 ): Effect.Effect<void, Error, Neo4jClient> =>
-  Effect.gen(function* () {
+  Effect.gen(function*() {
     const queries = fragments.flat()
     if (queries.length === 0) return
     const client = yield* Neo4jClient
