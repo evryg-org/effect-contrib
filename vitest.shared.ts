@@ -27,7 +27,7 @@ const config: UserConfig = {
     sequence: {
       concurrent: true
     },
-    include: ["test/**/*.test.ts"],
+    include: ["src/**/*.test.{ts,mts,cts,tsx}"],
     alias: {
       ...alias("effect-integresql", "integresql"),
       ...alias("effect-neo4j", "neo4j"),
