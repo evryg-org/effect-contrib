@@ -1,7 +1,15 @@
-import { describe, it, expect } from "@effect/vitest"
+import { describe, expect, it } from "@effect/vitest"
+import { EdgeConnectivity, EdgeProperty, GraphSchema, VertexProperty } from "@evryg/effect-neo4j-schema"
+import {
+  type CypherType,
+  ListType,
+  MapType,
+  NullableType,
+  ScalarType,
+  UnknownType,
+  VertexUnionType
+} from "../types/CypherType.js"
 import { analyzeQuery, type ResolvedColumn, type ResolvedParam } from "./QueryAnalyzer.js"
-import { GraphSchema, VertexProperty, EdgeProperty, EdgeConnectivity } from "@evryg/effect-neo4j-schema"
-import { ScalarType, ListType, MapType, NullableType, VertexUnionType, UnknownType, type CypherType } from "../types/CypherType.js"
 
 // ── Schema fixture mimicking a typical analysis graph ──
 
@@ -13,12 +21,22 @@ const schema = new GraphSchema({
     new VertexProperty({ labels: ["Class"], propertyName: "file", propertyTypes: ["String"], mandatory: false }),
     new VertexProperty({ labels: ["Class"], propertyName: "source", propertyTypes: ["String"], mandatory: true }),
     new VertexProperty({ labels: ["Class"], propertyName: "kind", propertyTypes: ["String"], mandatory: true }),
-    new VertexProperty({ labels: ["Class"], propertyName: "subdomains", propertyTypes: ["StringArray"], mandatory: false }),
+    new VertexProperty({
+      labels: ["Class"],
+      propertyName: "subdomains",
+      propertyTypes: ["StringArray"],
+      mandatory: false
+    }),
     new VertexProperty({ labels: ["Class"], propertyName: "isStatic", propertyTypes: ["Boolean"], mandatory: false }),
     new VertexProperty({ labels: ["Method"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
     new VertexProperty({ labels: ["Method"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
     new VertexProperty({ labels: ["Method"], propertyName: "visibility", propertyTypes: ["String"], mandatory: false }),
-    new VertexProperty({ labels: ["Method"], propertyName: "params", propertyTypes: ["StringArray"], mandatory: false }),
+    new VertexProperty({
+      labels: ["Method"],
+      propertyName: "params",
+      propertyTypes: ["StringArray"],
+      mandatory: false
+    }),
     new VertexProperty({ labels: ["Method"], propertyName: "returnType", propertyTypes: ["String"], mandatory: false }),
     new VertexProperty({ labels: ["Method"], propertyName: "ccn", propertyTypes: ["Long"], mandatory: false }),
     new VertexProperty({ labels: ["Method"], propertyName: "file", propertyTypes: ["String"], mandatory: false }),
@@ -30,7 +48,7 @@ const schema = new GraphSchema({
     new VertexProperty({ labels: ["Pattern"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
     new VertexProperty({ labels: ["Pattern"], propertyName: "category", propertyTypes: ["String"], mandatory: true }),
     new VertexProperty({ labels: ["File"], propertyName: "path", propertyTypes: ["String"], mandatory: true }),
-    new VertexProperty({ labels: ["File"], propertyName: "lineCount", propertyTypes: ["Long"], mandatory: true }),
+    new VertexProperty({ labels: ["File"], propertyName: "lineCount", propertyTypes: ["Long"], mandatory: true })
   ],
   edgeProperties: [
     new EdgeProperty({ edgeType: "BELONGS_TO", propertyName: "role", propertyTypes: ["String"], mandatory: false }),
@@ -42,25 +60,33 @@ const schema = new GraphSchema({
     new EdgeProperty({ edgeType: "EXTENDS", propertyName: "confidence", propertyTypes: ["String"], mandatory: true }),
     new EdgeProperty({ edgeType: "EXTENDS", propertyName: "edge_count", propertyTypes: ["Double"], mandatory: true }),
     new EdgeProperty({ edgeType: "EXTENDS", propertyName: "reason", propertyTypes: ["String"], mandatory: true }),
-    new EdgeProperty({ edgeType: "IMPLEMENTS", propertyName: "confidence", propertyTypes: ["String"], mandatory: true }),
-    new EdgeProperty({ edgeType: "IMPLEMENTS", propertyName: "edge_count", propertyTypes: ["Double"], mandatory: true }),
+    new EdgeProperty({
+      edgeType: "IMPLEMENTS",
+      propertyName: "confidence",
+      propertyTypes: ["String"],
+      mandatory: true
+    }),
+    new EdgeProperty({
+      edgeType: "IMPLEMENTS",
+      propertyName: "edge_count",
+      propertyTypes: ["Double"],
+      mandatory: true
+    }),
     new EdgeProperty({ edgeType: "IMPLEMENTS", propertyName: "reason", propertyTypes: ["String"], mandatory: true }),
     new EdgeProperty({ edgeType: "USES", propertyName: "confidence", propertyTypes: ["String"], mandatory: true }),
     new EdgeProperty({ edgeType: "USES", propertyName: "edge_count", propertyTypes: ["Double"], mandatory: true }),
     new EdgeProperty({ edgeType: "USES", propertyName: "reason", propertyTypes: ["String"], mandatory: true }),
-    new EdgeProperty({ edgeType: "EVIDENCED_BY", propertyName: "role", propertyTypes: ["String"], mandatory: true }),
-  ],
+    new EdgeProperty({ edgeType: "EVIDENCED_BY", propertyName: "role", propertyTypes: ["String"], mandatory: true })
+  ]
 })
 
 // ── Helpers ──
 
 const S = (t: "String" | "Long" | "Double" | "Boolean") => new ScalarType({ scalarType: t })
 
-const col = (name: string, type: CypherType, nullable: boolean): ResolvedColumn =>
-  ({ name, type, nullable })
+const col = (name: string, type: CypherType, nullable: boolean): ResolvedColumn => ({ name, type, nullable })
 
-const param = (name: string, type: string): ResolvedParam =>
-  ({ name, type }) as ResolvedParam
+const param = (name: string, type: string): ResolvedParam => ({ name, type }) as ResolvedParam
 
 // ── Tests ──
 
@@ -69,45 +95,45 @@ describe("analyzeQuery — RETURN projections", () => {
     {
       label: "direct property access on mandatory field",
       cypher: "MATCH (c:Class) RETURN c.fqcn AS fqcn",
-      expectedColumns: [col("fqcn", S("String"), false)],
+      expectedColumns: [col("fqcn", S("String"), false)]
     },
     {
       label: "OPTIONAL MATCH makes properties nullable",
       cypher: `MATCH (c:Class)
                OPTIONAL MATCH (c)-[:BELONGS_TO]->(m:Module)
                RETURN m.name AS module`,
-      expectedColumns: [col("module", S("String"), true)],
+      expectedColumns: [col("module", S("String"), true)]
     },
     {
       label: "Long property infers as Long",
       cypher: "MATCH (f:File) RETURN f.lineCount AS lineCount",
-      expectedColumns: [col("lineCount", S("Long"), false)],
+      expectedColumns: [col("lineCount", S("Long"), false)]
     },
     {
       label: "COUNT subquery infers as Long",
       cypher: "MATCH (c:Class) RETURN COUNT { (m:Method)-[:BELONGS_TO]->(c) } AS methodCount",
-      expectedColumns: [col("methodCount", S("Long"), false)],
+      expectedColumns: [col("methodCount", S("Long"), false)]
     },
     {
       label: "non-mandatory property from MATCH is nullable",
       cypher: "MATCH (c:Class) RETURN c.namespace AS namespace",
-      expectedColumns: [col("namespace", S("String"), true)],
+      expectedColumns: [col("namespace", S("String"), true)]
     },
     {
       label: "non-mandatory StringArray property from MATCH is nullable",
       cypher: "MATCH (c:Class) RETURN c.subdomains AS subdomains",
-      expectedColumns: [col("subdomains", ListType(S("String")), true)],
+      expectedColumns: [col("subdomains", ListType(S("String")), true)]
     },
     {
       label: "DISTINCT does not change types",
       cypher: "MATCH (c:Class) RETURN DISTINCT c.fqcn AS fqcn",
-      expectedColumns: [col("fqcn", S("String"), false)],
+      expectedColumns: [col("fqcn", S("String"), false)]
     },
     {
       label: "multiple return columns",
       cypher: "MATCH (d:Subdomain) RETURN d.name AS name, d.color AS color",
-      expectedColumns: [col("name", S("String"), false), col("color", S("String"), false)],
-    },
+      expectedColumns: [col("name", S("String"), false), col("color", S("String"), false)]
+    }
   ])("$label", ({ cypher, expectedColumns }) => {
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual(expectedColumns)
@@ -119,13 +145,13 @@ describe("analyzeQuery — aggregate expressions", () => {
     {
       label: "count(*) infers as Long",
       cypher: "MATCH (c:Class) RETURN count(*) AS cnt",
-      expectedColumns: [col("cnt", S("Long"), false)],
+      expectedColumns: [col("cnt", S("Long"), false)]
     },
     {
       label: "collect(string) infers as List(String)",
       cypher: "MATCH (c:Class) RETURN collect(c.name) AS names",
-      expectedColumns: [col("names", ListType(S("String")), false)],
-    },
+      expectedColumns: [col("names", ListType(S("String")), false)]
+    }
   ])("$label", ({ cypher, expectedColumns }) => {
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual(expectedColumns)
@@ -137,28 +163,28 @@ describe("analyzeQuery — parameter extraction", () => {
     {
       label: "param in property constraint infers type from schema",
       cypher: "MATCH (c:Class {fqcn: $fqcn}) RETURN c.name AS name",
-      expectedParams: [param("fqcn", "String")],
+      expectedParams: [param("fqcn", "String")]
     },
     {
       label: "no params yields empty array",
       cypher: "MATCH (c:Class) RETURN c.fqcn AS fqcn",
-      expectedParams: [],
+      expectedParams: []
     },
     {
       label: "param in WHERE IN clause infers StringArray from property type",
       cypher: "MATCH (c:Class) WHERE c.fqcn IN $ids RETURN c.fqcn AS fqcn",
-      expectedParams: [param("ids", "StringArray")],
+      expectedParams: [param("ids", "StringArray")]
     },
     {
       label: "param in WHERE IN with Long property infers LongArray",
       cypher: "MATCH (f:File) WHERE f.lineCount IN $counts RETURN f.path AS path",
-      expectedParams: [param("counts", "LongArray")],
+      expectedParams: [param("counts", "LongArray")]
     },
     {
       label: "param in WHERE IN with multiple params",
       cypher: "MATCH (c:Class) WHERE c.fqcn IN $ids AND c.name IN $names RETURN c.fqcn AS fqcn",
-      expectedParams: [param("ids", "StringArray"), param("names", "StringArray")],
-    },
+      expectedParams: [param("ids", "StringArray"), param("names", "StringArray")]
+    }
   ])("$label", ({ cypher, expectedParams }) => {
     const result = analyzeQuery(cypher, schema)
     expect(result.params).toEqual(expectedParams)
@@ -180,39 +206,43 @@ describe("analyzeQuery — WITH rebinding", () => {
       cypher: `MATCH (f:File)
                WITH f, sum(f.lineCount) AS total
                RETURN total`,
-      expectedColumns: [col("total", S("Long"), false)],
+      expectedColumns: [col("total", S("Long"), false)]
     },
     {
       label: "count() propagates Long through WITH",
       cypher: `MATCH (c:Class)
                WITH count(c) AS cnt
                RETURN cnt`,
-      expectedColumns: [col("cnt", S("Long"), false)],
+      expectedColumns: [col("cnt", S("Long"), false)]
     },
     {
       label: "collect(string prop) propagates List(String) through WITH",
       cypher: `MATCH (c:Class)
                WITH collect(c.fqcn) AS names
                RETURN names`,
-      expectedColumns: [col("names", ListType(S("String")), false)],
+      expectedColumns: [col("names", ListType(S("String")), false)]
     },
     {
       label: "collect({map}) infers List(Map) through WITH",
       cypher: `MATCH (f:File)
                WITH collect({name: f.path, count: f.lineCount}) AS data
                RETURN data`,
-      expectedColumns: [col("data", ListType(MapType([
-        { name: "name", value: S("String") },
-        { name: "count", value: S("Long") },
-      ])), false)],
+      expectedColumns: [col(
+        "data",
+        ListType(MapType([
+          { name: "name", value: S("String") },
+          { name: "count", value: S("Long") }
+        ])),
+        false
+      )]
     },
     {
       label: "coalesce(prop, default) propagates property type through WITH",
       cypher: `MATCH (f:File)
                WITH coalesce(f.lineCount, 0) AS cnt
                RETURN cnt`,
-      expectedColumns: [col("cnt", S("Long"), false)],
-    },
+      expectedColumns: [col("cnt", S("Long"), false)]
+    }
   ])("$label", ({ cypher, expectedColumns }) => {
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual(expectedColumns)
@@ -223,21 +253,81 @@ describe("analyzeQuery — WITH rebinding", () => {
 
 const realSchema = new GraphSchema({
   vertexProperties: [
-    new VertexProperty({ labels: ["Class"], propertyName: "fqcn", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
-    new VertexProperty({ labels: ["Class"], propertyName: "name", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
-    new VertexProperty({ labels: ["Class"], propertyName: "source", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
-    new VertexProperty({ labels: ["Class"], propertyName: "namespace", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
-    new VertexProperty({ labels: ["Class"], propertyName: "file", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
-    new VertexProperty({ labels: ["Class"], propertyName: "subdomains", propertyTypes: ["LIST<STRING NOT NULL> NOT NULL"], mandatory: true }),
-    new VertexProperty({ labels: ["File"], propertyName: "lineCount", propertyTypes: ["FLOAT NOT NULL"], mandatory: false }),
-    new VertexProperty({ labels: ["Module"], propertyName: "name", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
-    new VertexProperty({ labels: ["Module"], propertyName: "subdomains", propertyTypes: ["LIST<STRING NOT NULL> NOT NULL"], mandatory: false }),
+    new VertexProperty({
+      labels: ["Class"],
+      propertyName: "fqcn",
+      propertyTypes: ["STRING NOT NULL"],
+      mandatory: true
+    }),
+    new VertexProperty({
+      labels: ["Class"],
+      propertyName: "name",
+      propertyTypes: ["STRING NOT NULL"],
+      mandatory: false
+    }),
+    new VertexProperty({
+      labels: ["Class"],
+      propertyName: "source",
+      propertyTypes: ["STRING NOT NULL"],
+      mandatory: false
+    }),
+    new VertexProperty({
+      labels: ["Class"],
+      propertyName: "namespace",
+      propertyTypes: ["STRING NOT NULL"],
+      mandatory: false
+    }),
+    new VertexProperty({
+      labels: ["Class"],
+      propertyName: "file",
+      propertyTypes: ["STRING NOT NULL"],
+      mandatory: false
+    }),
+    new VertexProperty({
+      labels: ["Class"],
+      propertyName: "subdomains",
+      propertyTypes: ["LIST<STRING NOT NULL> NOT NULL"],
+      mandatory: true
+    }),
+    new VertexProperty({
+      labels: ["File"],
+      propertyName: "lineCount",
+      propertyTypes: ["FLOAT NOT NULL"],
+      mandatory: false
+    }),
+    new VertexProperty({
+      labels: ["Module"],
+      propertyName: "name",
+      propertyTypes: ["STRING NOT NULL"],
+      mandatory: true
+    }),
+    new VertexProperty({
+      labels: ["Module"],
+      propertyName: "subdomains",
+      propertyTypes: ["LIST<STRING NOT NULL> NOT NULL"],
+      mandatory: false
+    }),
     new VertexProperty({ labels: ["Method"], propertyName: "id", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
-    new VertexProperty({ labels: ["Method"], propertyName: "name", propertyTypes: ["STRING NOT NULL"], mandatory: true }),
-    new VertexProperty({ labels: ["Method"], propertyName: "ccn", propertyTypes: ["FLOAT NOT NULL"], mandatory: false }),
-    new VertexProperty({ labels: ["Method"], propertyName: "file", propertyTypes: ["STRING NOT NULL"], mandatory: false }),
+    new VertexProperty({
+      labels: ["Method"],
+      propertyName: "name",
+      propertyTypes: ["STRING NOT NULL"],
+      mandatory: true
+    }),
+    new VertexProperty({
+      labels: ["Method"],
+      propertyName: "ccn",
+      propertyTypes: ["FLOAT NOT NULL"],
+      mandatory: false
+    }),
+    new VertexProperty({
+      labels: ["Method"],
+      propertyName: "file",
+      propertyTypes: ["STRING NOT NULL"],
+      mandatory: false
+    })
   ],
-  edgeProperties: [],
+  edgeProperties: []
 })
 
 describe("analyzeQuery — real Neo4j type strings", () => {
@@ -245,23 +335,23 @@ describe("analyzeQuery — real Neo4j type strings", () => {
     {
       label: "STRING NOT NULL normalizes to String",
       cypher: "MATCH (c:Class) RETURN c.fqcn AS fqcn",
-      expectedColumns: [col("fqcn", S("String"), false)],
+      expectedColumns: [col("fqcn", S("String"), false)]
     },
     {
       label: "FLOAT NOT NULL normalizes to Double (non-mandatory in realSchema)",
       cypher: "MATCH (f:File) RETURN f.lineCount AS cnt",
-      expectedColumns: [col("cnt", S("Double"), true)],
+      expectedColumns: [col("cnt", S("Double"), true)]
     },
     {
       label: "LIST<STRING NOT NULL> NOT NULL normalizes to List(String)",
       cypher: "MATCH (c:Class) RETURN c.subdomains AS subdomains",
-      expectedColumns: [col("subdomains", ListType(S("String")), false)],
+      expectedColumns: [col("subdomains", ListType(S("String")), false)]
     },
     {
       label: "non-mandatory property from MATCH is nullable",
       cypher: "MATCH (c:Class) RETURN c.name AS name",
-      expectedColumns: [col("name", S("String"), true)],
-    },
+      expectedColumns: [col("name", S("String"), true)]
+    }
   ])("$label", ({ cypher, expectedColumns }) => {
     const result = analyzeQuery(cypher, realSchema)
     expect(result.columns).toEqual(expectedColumns)
@@ -275,7 +365,7 @@ describe("analyzeQuery — coalesce wrapping", () => {
     const result = analyzeQuery(cypher, realSchema)
     expect(result.columns).toEqual([
       col("name", S("String"), false),
-      col("subdomains", ListType(S("String")), false),
+      col("subdomains", ListType(S("String")), false)
     ])
   })
 
@@ -303,9 +393,13 @@ describe("analyzeQuery — collect with map literals", () => {
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual([
       col("id", S("String"), false),
-      col("matches", ListType(MapType([
-        { name: "pattern_id", value: S("String") },
-      ])), false),
+      col(
+        "matches",
+        ListType(MapType([
+          { name: "pattern_id", value: S("String") }
+        ])),
+        false
+      )
     ])
   })
 
@@ -325,9 +419,13 @@ describe("analyzeQuery — collect(map) from OPTIONAL MATCH nullability", () => 
                     RETURN data`
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual([
-      col("data", ListType(MapType([
-        { name: "name", value: S("String") },
-      ])), false),
+      col(
+        "data",
+        ListType(MapType([
+          { name: "name", value: S("String") }
+        ])),
+        false
+      )
     ])
   })
 
@@ -338,7 +436,7 @@ describe("analyzeQuery — collect(map) from OPTIONAL MATCH nullability", () => 
                     RETURN ifaces`
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual([
-      col("ifaces", ListType(S("String")), false),
+      col("ifaces", ListType(S("String")), false)
     ])
   })
 })
@@ -357,12 +455,16 @@ describe("analyzeQuery — multi-WITH chain (ClassProfiles pattern)", () => {
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual([
       col("fqcn", S("String"), false),
-      col("methodProfiles", ListType(MapType([
-        { name: "visibility", value: NullableType(S("String")) },
-        { name: "id", value: S("String") },
-      ])), false),
+      col(
+        "methodProfiles",
+        ListType(MapType([
+          { name: "visibility", value: NullableType(S("String")) },
+          { name: "id", value: S("String") }
+        ])),
+        false
+      ),
       col("totalComplexity", S("Long"), false),
-      col("moduleName", S("String"), true),
+      col("moduleName", S("String"), true)
     ])
   })
 })
@@ -373,7 +475,7 @@ describe("analyzeQuery — relationship property access", () => {
       label: "mandatory rel property in RETURN",
       cypher: `MATCH (a:Method)-[r:CALLS]->(b:Method)
                RETURN r.confidence AS confidence`,
-      expectedColumns: [col("confidence", S("String"), false)],
+      expectedColumns: [col("confidence", S("String"), false)]
     },
     {
       label: "multiple rel properties in RETURN",
@@ -381,14 +483,14 @@ describe("analyzeQuery — relationship property access", () => {
                RETURN r.confidence AS confidence, r.edge_count AS edgeCount`,
       expectedColumns: [
         col("confidence", S("String"), false),
-        col("edgeCount", S("Double"), false),
-      ],
+        col("edgeCount", S("Double"), false)
+      ]
     },
     {
       label: "non-mandatory rel property is nullable",
       cypher: `MATCH (c:Class)-[r:BELONGS_TO]->(m:Module)
                RETURN r.role AS role`,
-      expectedColumns: [col("role", S("String"), true)],
+      expectedColumns: [col("role", S("String"), true)]
     },
     {
       label: "rel property mixed with node properties",
@@ -397,9 +499,9 @@ describe("analyzeQuery — relationship property access", () => {
       expectedColumns: [
         col("callerId", S("String"), false),
         col("calleeId", S("String"), false),
-        col("confidence", S("String"), false),
-      ],
-    },
+        col("confidence", S("String"), false)
+      ]
+    }
   ])("$label", ({ cypher, expectedColumns }) => {
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual(expectedColumns)
@@ -413,13 +515,13 @@ describe("analyzeQuery — CASE expression inference", () => {
       cypher: `MATCH (m:Method) WHERE m.ccn IS NOT NULL
                WITH CASE WHEN m.ccn <= 5 THEN '1-5' ELSE '21+' END AS bucket
                RETURN bucket`,
-      expectedColumns: [col("bucket", S("String"), false)],
+      expectedColumns: [col("bucket", S("String"), false)]
     },
     {
       label: "CASE in RETURN with string literals",
       cypher: `MATCH (f:File)
                RETURN CASE WHEN f.lineCount > 10 THEN 'large' ELSE 'small' END AS size`,
-      expectedColumns: [col("size", S("String"), false)],
+      expectedColumns: [col("size", S("String"), false)]
     },
     {
       label: "multiple CASE in WITH",
@@ -429,9 +531,9 @@ describe("analyzeQuery — CASE expression inference", () => {
                RETURN bucket, tier`,
       expectedColumns: [
         col("bucket", S("String"), false),
-        col("tier", S("String"), false),
-      ],
-    },
+        col("tier", S("String"), false)
+      ]
+    }
   ])("$label", ({ cypher, expectedColumns }) => {
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual(expectedColumns)
@@ -448,7 +550,7 @@ describe("analyzeQuery — toLower function", () => {
     expect(result.columns).toEqual([
       col("from", S("String"), false),
       col("to", S("String"), false),
-      col("kind", S("String"), false),
+      col("kind", S("String"), false)
     ])
   })
 })
@@ -497,7 +599,7 @@ describe("analyzeQuery — union edge type property access", () => {
     expect(result.columns).toEqual([
       col("fromFqcn", S("String"), false),
       col("toFqcn", S("String"), false),
-      col("confidence", S("String"), false),
+      col("confidence", S("String"), false)
     ])
   })
 })
@@ -511,7 +613,7 @@ describe("analyzeQuery — nullable list indexing", () => {
                      RETURN coalesce(c.subdomains[0], 'Uncategorized') AS subdomain`
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual([
-      col("subdomain", S("String"), false),
+      col("subdomain", S("String"), false)
     ])
   })
 })
@@ -535,7 +637,7 @@ describe("analyzeQuery — Method.commits wrong property", () => {
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual([
       col("id", S("String"), false),
-      col("ccn", S("Long"), true),
+      col("ccn", S("Long"), true)
     ])
   })
 })
@@ -547,7 +649,7 @@ describe("analyzeQuery — Entrypoint.commandName wrong property", () => {
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual([
       col("id", S("String"), false),
-      col("type", S("String"), false),
+      col("type", S("String"), false)
     ])
   })
 })
@@ -561,15 +663,20 @@ const connectivitySchema = new GraphSchema({
     new VertexProperty({ labels: ["Method"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
     new VertexProperty({ labels: ["Method"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
     new VertexProperty({ labels: ["Method"], propertyName: "file", propertyTypes: ["String"], mandatory: false }),
-    new VertexProperty({ labels: ["ContextMapRelationship"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({
+      labels: ["ContextMapRelationship"],
+      propertyName: "id",
+      propertyTypes: ["String"],
+      mandatory: true
+    })
   ],
   edgeProperties: [
-    new EdgeProperty({ edgeType: "EVIDENCED_BY", propertyName: "role", propertyTypes: ["String"], mandatory: true }),
+    new EdgeProperty({ edgeType: "EVIDENCED_BY", propertyName: "role", propertyTypes: ["String"], mandatory: true })
   ],
   edgeConnectivity: [
     new EdgeConnectivity({ edgeType: "EVIDENCED_BY", fromLabel: "ContextMapRelationship", toLabel: "Class" }),
-    new EdgeConnectivity({ edgeType: "EVIDENCED_BY", fromLabel: "ContextMapRelationship", toLabel: "Method" }),
-  ],
+    new EdgeConnectivity({ edgeType: "EVIDENCED_BY", fromLabel: "ContextMapRelationship", toLabel: "Method" })
+  ]
 })
 
 describe("analyzeQuery — edge connectivity inference", () => {
@@ -609,12 +716,12 @@ describe("analyzeQuery — edge connectivity inference", () => {
     const singleSchema = new GraphSchema({
       vertexProperties: [
         new VertexProperty({ labels: ["Entrypoint"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
-        new VertexProperty({ labels: ["Class"], propertyName: "fqcn", propertyTypes: ["String"], mandatory: true }),
+        new VertexProperty({ labels: ["Class"], propertyName: "fqcn", propertyTypes: ["String"], mandatory: true })
       ],
       edgeProperties: [],
       edgeConnectivity: [
-        new EdgeConnectivity({ edgeType: "HANDLED_BY", fromLabel: "Entrypoint", toLabel: "Class" }),
-      ],
+        new EdgeConnectivity({ edgeType: "HANDLED_BY", fromLabel: "Entrypoint", toLabel: "Class" })
+      ]
     })
     const cypher = `MATCH (e:Entrypoint)-[:HANDLED_BY]->(c)
                      RETURN c.fqcn AS fqcn`

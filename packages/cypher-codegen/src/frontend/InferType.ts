@@ -1,14 +1,22 @@
-import type {
-  ExpressionContext,
-  AtomContext,
-  PropertyExpressionContext,
-  FunctionInvocationContext,
-  CaseExpressionContext,
-  AtomicExpressionContext,
-  MapPairContext,
-} from "./generated-parser/CypherParser.js"
 import type { GraphSchema } from "@evryg/effect-neo4j-schema"
-import { ScalarType, ListType, MapType, NullableType, UnknownType, NeverType, type CypherType } from "../types/CypherType.js"
+import {
+  type CypherType,
+  ListType,
+  MapType,
+  NeverType,
+  NullableType,
+  ScalarType,
+  UnknownType
+} from "../types/CypherType.js"
+import type {
+  AtomContext,
+  AtomicExpressionContext,
+  CaseExpressionContext,
+  ExpressionContext,
+  FunctionInvocationContext,
+  MapPairContext,
+  PropertyExpressionContext
+} from "./generated-parser/CypherParser.js"
 
 export class CypherTypeError extends Error {
   constructor(message: string) {
@@ -26,30 +34,57 @@ export type TypeEnv = ReadonlyMap<string, { readonly type: CypherType; readonly 
 function normalizeNeo4jType(raw: string): CypherType {
   const upper = raw.toUpperCase().replace(/ NOT NULL/g, "").trim()
   switch (upper) {
-    case "STRING": return new ScalarType({ scalarType: "String" })
-    case "LONG": case "INTEGER": return new ScalarType({ scalarType: "Long" })
-    case "FLOAT": case "DOUBLE": return new ScalarType({ scalarType: "Double" })
-    case "BOOLEAN": return new ScalarType({ scalarType: "Boolean" })
-    case "DATE": return new ScalarType({ scalarType: "Date" })
-    case "DATETIME": case "ZONED DATETIME": return new ScalarType({ scalarType: "DateTime" })
-    case "LOCAL DATETIME": return new ScalarType({ scalarType: "LocalDateTime" })
-    case "LOCAL TIME": return new ScalarType({ scalarType: "LocalTime" })
-    case "TIME": case "ZONED TIME": return new ScalarType({ scalarType: "Time" })
-    case "DURATION": return new ScalarType({ scalarType: "Duration" })
-    case "POINT": return new ScalarType({ scalarType: "Point" })
+    case "STRING":
+      return new ScalarType({ scalarType: "String" })
+    case "LONG":
+    case "INTEGER":
+      return new ScalarType({ scalarType: "Long" })
+    case "FLOAT":
+    case "DOUBLE":
+      return new ScalarType({ scalarType: "Double" })
+    case "BOOLEAN":
+      return new ScalarType({ scalarType: "Boolean" })
+    case "DATE":
+      return new ScalarType({ scalarType: "Date" })
+    case "DATETIME":
+    case "ZONED DATETIME":
+      return new ScalarType({ scalarType: "DateTime" })
+    case "LOCAL DATETIME":
+      return new ScalarType({ scalarType: "LocalDateTime" })
+    case "LOCAL TIME":
+      return new ScalarType({ scalarType: "LocalTime" })
+    case "TIME":
+    case "ZONED TIME":
+      return new ScalarType({ scalarType: "Time" })
+    case "DURATION":
+      return new ScalarType({ scalarType: "Duration" })
+    case "POINT":
+      return new ScalarType({ scalarType: "Point" })
     default:
-      if (upper.startsWith("LIST<STRING") || upper === "STRINGARRAY") return ListType(new ScalarType({ scalarType: "String" }))
-      if (upper.startsWith("LIST<LONG") || upper.startsWith("LIST<INTEGER") || upper === "LONGARRAY") return ListType(new ScalarType({ scalarType: "Long" }))
-      if (upper.startsWith("LIST<FLOAT") || upper.startsWith("LIST<DOUBLE") || upper === "DOUBLEARRAY") return ListType(new ScalarType({ scalarType: "Double" }))
-      if (upper.startsWith("LIST<BOOLEAN") || upper === "BOOLEANARRAY") return ListType(new ScalarType({ scalarType: "Boolean" }))
+      if (upper.startsWith("LIST<STRING") || upper === "STRINGARRAY") {
+        return ListType(new ScalarType({ scalarType: "String" }))
+      }
+      if (upper.startsWith("LIST<LONG") || upper.startsWith("LIST<INTEGER") || upper === "LONGARRAY") {
+        return ListType(new ScalarType({ scalarType: "Long" }))
+      }
+      if (upper.startsWith("LIST<FLOAT") || upper.startsWith("LIST<DOUBLE") || upper === "DOUBLEARRAY") {
+        return ListType(new ScalarType({ scalarType: "Double" }))
+      }
+      if (upper.startsWith("LIST<BOOLEAN") || upper === "BOOLEANARRAY") {
+        return ListType(new ScalarType({ scalarType: "Boolean" }))
+      }
       if (upper.startsWith("LIST<")) return ListType(new ScalarType({ scalarType: "String" }))
       return new ScalarType({ scalarType: "String" })
   }
 }
 
-function lookupVertexPropertyType(schema: GraphSchema, label: string, propertyName: string): { type: CypherType; mandatory: boolean } | undefined {
+function lookupVertexPropertyType(
+  schema: GraphSchema,
+  label: string,
+  propertyName: string
+): { type: CypherType; mandatory: boolean } | undefined {
   const prop = schema.vertexProperties.find(
-    (p) => p.labels.includes(label) && p.propertyName === propertyName,
+    (p) => p.labels.includes(label) && p.propertyName === propertyName
   )
   if (!prop) return undefined
   const rawType = prop.propertyTypes[0]
@@ -57,10 +92,14 @@ function lookupVertexPropertyType(schema: GraphSchema, label: string, propertyNa
   return { type: normalizeNeo4jType(rawType), mandatory: prop.mandatory }
 }
 
-function lookupEdgePropertyType(schema: GraphSchema, edgeType: string, propertyName: string): { type: CypherType; mandatory: boolean } | undefined {
+function lookupEdgePropertyType(
+  schema: GraphSchema,
+  edgeType: string,
+  propertyName: string
+): { type: CypherType; mandatory: boolean } | undefined {
   const normalized = edgeType.replace(/[:`]/g, "")
   const prop = schema.edgeProperties.find(
-    (p) => p.edgeType.replace(/[:`]/g, "") === normalized && p.propertyName === propertyName,
+    (p) => p.edgeType.replace(/[:`]/g, "") === normalized && p.propertyName === propertyName
   )
   if (!prop) return undefined
   const rawType = prop.propertyTypes[0]
@@ -106,7 +145,7 @@ const AGGREGATE_RETURN_TYPES: Record<string, CypherType> = {
   left: new ScalarType({ scalarType: "String" }),
   right: new ScalarType({ scalarType: "String" }),
   reverse: new ScalarType({ scalarType: "String" }),
-  split: ListType(new ScalarType({ scalarType: "String" })),
+  split: ListType(new ScalarType({ scalarType: "String" }))
 }
 
 // ── Recursive expression type inference ──
@@ -114,7 +153,7 @@ const AGGREGATE_RETURN_TYPES: Record<string, CypherType> = {
 export function inferExpressionType(
   expr: ExpressionContext,
   env: TypeEnv,
-  schema: GraphSchema,
+  schema: GraphSchema
 ): CypherType {
   // expression: xorExpression (OR xorExpression)*
   const xorExprs = expr.xorExpression()
@@ -185,7 +224,7 @@ export function inferExpressionType(
 function inferAtomicType(
   atomic: AtomicExpressionContext,
   env: TypeEnv,
-  schema: GraphSchema,
+  schema: GraphSchema
 ): CypherType {
   // atomicExpression: propertyOrLabelExpression (stringExpression | listExpression | nullExpression)*
   const propOrLabel = atomic.propertyOrLabelExpression()
@@ -220,7 +259,7 @@ function inferAtomicType(
 function inferPropertyExpressionType(
   propExpr: PropertyExpressionContext,
   env: TypeEnv,
-  schema: GraphSchema,
+  schema: GraphSchema
 ): CypherType {
   // propertyExpression: atom (DOT name)*
   const atom = propExpr.atom()
@@ -248,7 +287,9 @@ function inferPropertyExpressionType(
         const available = schema.vertexProperties
           .filter((p) => p.labels.includes(vertexType.label))
           .map((p) => p.propertyName)
-        throw new CypherTypeError(`Property '${propName}' not found on label '${vertexType.label}'. Available: [${available.join(", ")}]`)
+        throw new CypherTypeError(
+          `Property '${propName}' not found on label '${vertexType.label}'. Available: [${available.join(", ")}]`
+        )
       }
     } else if (current._tag === "EdgeType") {
       // Handle union edge types (e.g., "EXTENDS|IMPLEMENTS|USES")
@@ -265,7 +306,11 @@ function inferPropertyExpressionType(
         const available = schema.edgeProperties
           .filter((p) => edgeTypes.some((et) => p.edgeType.replace(/[:`]/g, "") === et))
           .map((p) => p.propertyName)
-        throw new CypherTypeError(`Property '${propName}' not found on edge type '${normalized}'. Available: [${[...new Set(available)].join(", ")}]`)
+        throw new CypherTypeError(
+          `Property '${propName}' not found on edge type '${normalized}'. Available: [${
+            [...new Set(available)].join(", ")
+          }]`
+        )
       }
     } else if (current._tag === "VertexUnionType") {
       // ── VertexUnionType property access: 3-case typing rule ──
@@ -283,13 +328,13 @@ function inferPropertyExpressionType(
       //
       const lookups = current.labels.map((label) => ({
         label,
-        result: lookupVertexPropertyType(schema, label, propName),
+        result: lookupVertexPropertyType(schema, label, propName)
       }))
       const found = lookups.filter((l) => l.result !== undefined)
       if (found.length === 0) {
         const allLabels = current.labels.join(", ")
         throw new CypherTypeError(
-          `Property '${propName}' not found on any member of VertexUnionType([${allLabels}])`,
+          `Property '${propName}' not found on any member of VertexUnionType([${allLabels}])`
         )
       }
       const allMandatory = found.length === current.labels.length
@@ -316,7 +361,7 @@ function inferPropertyExpressionType(
 function inferAtomType(
   atom: AtomContext,
   env: TypeEnv,
-  schema: GraphSchema,
+  schema: GraphSchema
 ): CypherType {
   // atom: literal | parameter | caseExpression | countAll | listComprehension
   //     | patternComprehension | filterWith | relationshipsChainPattern
@@ -374,7 +419,7 @@ function inferAtomType(
     const bodyEnv: TypeEnv = new Map([
       ...env,
       [accName, { type: initType, nullable: false }],
-      [iterVarName, { type: elemType, nullable: false }],
+      [iterVarName, { type: elemType, nullable: false }]
     ])
     const bodyExpr = initExpr[1]
     return inferExpressionType(bodyExpr, bodyEnv, schema)
@@ -399,7 +444,7 @@ function inferAtomType(
       // Has pipe: [x IN list | body]
       const bodyEnv: TypeEnv = new Map([
         ...env,
-        [iterVarName, { type: elemType, nullable: false }],
+        [iterVarName, { type: elemType, nullable: false }]
       ])
       const pipeType = inferExpressionType(exprs, bodyEnv, schema)
       return ListType(pipeType)
@@ -430,9 +475,9 @@ function inferAtomType(
 function inferMapLitType(
   mapLit: NonNullable<ReturnType<AtomContext["literal"]>> extends { mapLit(): infer M } ? NonNullable<M> : never,
   env: TypeEnv,
-  schema: GraphSchema,
+  schema: GraphSchema
 ): CypherType {
-  const pairs = (mapLit).mapPair?.() ?? []
+  const pairs = mapLit.mapPair?.() ?? []
   if (!Array.isArray(pairs)) return MapType([])
 
   const fields = pairs.map((pair: MapPairContext) => {
@@ -449,7 +494,7 @@ function inferMapLitType(
 function inferCaseType(
   caseExpr: CaseExpressionContext,
   env: TypeEnv,
-  schema: GraphSchema,
+  schema: GraphSchema
 ): CypherType {
   // CASE expression? (WHEN expression THEN expression)+ (ELSE expression)? END
   // Infer type from the first THEN branch
@@ -528,7 +573,7 @@ function extractIsNotNullVar(expr: ExpressionContext): string | undefined {
 function inferFunctionType(
   func: FunctionInvocationContext,
   env: TypeEnv,
-  schema: GraphSchema,
+  schema: GraphSchema
 ): CypherType {
   const funcName = func.invocationName().getText().toLowerCase()
   const argsChain = func.expressionChain()

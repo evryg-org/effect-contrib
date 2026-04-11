@@ -1,4 +1,4 @@
-import type { ResolvedColumn, ResolvedParam, Neo4jType } from "../frontend/QueryAnalyzer.js"
+import type { Neo4jType, ResolvedColumn, ResolvedParam } from "../frontend/QueryAnalyzer.js"
 import type { CypherType } from "../types/CypherType.js"
 
 export interface QueryEntry {
@@ -15,10 +15,15 @@ function cypherTypeToTs(ct: CypherType): string {
   switch (ct._tag) {
     case "ScalarType":
       switch (ct.scalarType) {
-        case "String": return "string"
-        case "Long": case "Double": return "number"
-        case "Boolean": return "boolean"
-        case "Point": return "{ srid: number; x: number; y: number; z?: number }"
+        case "String":
+          return "string"
+        case "Long":
+        case "Double":
+          return "number"
+        case "Boolean":
+          return "boolean"
+        case "Point":
+          return "{ srid: number; x: number; y: number; z?: number }"
         default:
           if (TEMPORAL_SCALAR_TYPES.has(ct.scalarType)) return "string"
           return "unknown"
@@ -43,13 +48,22 @@ function cypherTypeToTs(ct: CypherType): string {
 
 function tsTypeForParam(type: Neo4jType): string {
   switch (type) {
-    case "String": return "string"
-    case "Long": case "Double": return "number"
-    case "Boolean": return "boolean"
-    case "StringArray": return "readonly string[]"
-    case "LongArray": case "DoubleArray": return "readonly number[]"
-    case "BooleanArray": return "readonly boolean[]"
-    default: return "unknown"
+    case "String":
+      return "string"
+    case "Long":
+    case "Double":
+      return "number"
+    case "Boolean":
+      return "boolean"
+    case "StringArray":
+      return "readonly string[]"
+    case "LongArray":
+    case "DoubleArray":
+      return "readonly number[]"
+    case "BooleanArray":
+      return "readonly boolean[]"
+    default:
+      return "unknown"
   }
 }
 
@@ -61,7 +75,7 @@ function fieldTypeFor(col: ResolvedColumn): string {
 // ── Per-file declaration generation (.d.cypher.ts) ──
 
 export const generateDeclaration = (entry: QueryEntry): string => {
-  const lines: string[] = []
+  const lines: Array<string> = []
 
   lines.push(`import type { Effect } from "effect"`)
   lines.push(`import type { Neo4jClient, Neo4jQueryError } from "@evryg/effect-neo4j"`)
@@ -80,7 +94,9 @@ export const generateDeclaration = (entry: QueryEntry): string => {
     lines.push(`export declare const query: () => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`)
   } else {
     const paramFields = entry.params.map((p) => `${p.name}: ${tsTypeForParam(p.type)}`).join(", ")
-    lines.push(`export declare const query: (params: { ${paramFields} }) => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`)
+    lines.push(
+      `export declare const query: (params: { ${paramFields} }) => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`
+    )
   }
   lines.push(``)
 
@@ -90,7 +106,7 @@ export const generateDeclaration = (entry: QueryEntry): string => {
 // ── Bulk generation (all entries into single file with declare module) ──
 
 export const generateDeclarations = (queries: ReadonlyArray<QueryEntry>): string => {
-  const lines: string[] = []
+  const lines: Array<string> = []
 
   lines.push(`import type { Effect } from "effect"`)
   lines.push(`import type { Neo4jClient, Neo4jQueryError } from "@evryg/effect-neo4j"`)
@@ -108,7 +124,9 @@ export const generateDeclarations = (queries: ReadonlyArray<QueryEntry>): string
       lines.push(`  export const query: () => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`)
     } else {
       const paramFields = entry.params.map((p) => `${p.name}: ${tsTypeForParam(p.type)}`).join(", ")
-      lines.push(`  export const query: (params: { ${paramFields} }) => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`)
+      lines.push(
+        `  export const query: (params: { ${paramFields} }) => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`
+      )
     }
 
     lines.push(`}`)

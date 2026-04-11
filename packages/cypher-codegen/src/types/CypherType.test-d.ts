@@ -1,16 +1,16 @@
 import { describe, expectTypeOf, it } from "vitest"
 import type {
   CypherType,
-  ScalarType,
-  ListType,
-  MapType,
-  MapField,
-  NullableType,
-  VertexType,
-  VertexUnionType,
   EdgeType,
-  UnknownType,
+  ListType,
+  MapField,
+  MapType,
   NeverType,
+  NullableType,
+  ScalarType,
+  UnknownType,
+  VertexType,
+  VertexUnionType
 } from "./CypherType.js"
 
 describe("CypherType union", () => {
@@ -75,6 +75,6 @@ describe("VertexType", () => {
 
 describe("VertexUnionType", () => {
   it("has a labels field", () => {
-    expectTypeOf<VertexUnionType["labels"]>().toEqualTypeOf<readonly string[]>()
+    expectTypeOf<VertexUnionType["labels"]>().toEqualTypeOf<ReadonlyArray<string>>()
   })
 })

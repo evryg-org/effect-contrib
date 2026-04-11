@@ -1,11 +1,11 @@
-import { registerHooks } from "node:module"
-import { readFileSync } from "node:fs"
-import { fileURLToPath } from "node:url"
-import { Effect } from "effect"
 import { NodeContext } from "@effect/platform-node"
+import { type GraphSchema, loadSchema } from "@evryg/effect-neo4j-schema"
+import { Effect } from "effect"
+import { readFileSync } from "node:fs"
+import { registerHooks } from "node:module"
+import { fileURLToPath } from "node:url"
 import { generateModule } from "../backend/CypherCodegen.js"
 import { analyzeQuery } from "../frontend/QueryAnalyzer.js"
-import { loadSchema, type GraphSchema } from "@evryg/effect-neo4j-schema"
 
 let schema: GraphSchema | undefined
 try {
@@ -29,9 +29,9 @@ registerHooks({
       return {
         format: "module",
         shortCircuit: true,
-        source: generateModule(source, columns),
+        source: generateModule(source, columns)
       }
     }
     return nextLoad(url, context)
-  },
+  }
 })

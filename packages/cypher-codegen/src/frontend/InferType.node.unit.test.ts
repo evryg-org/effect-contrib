@@ -1,10 +1,21 @@
-import { describe, it, expect } from "@effect/vitest"
-import { inferExpressionType, type TypeEnv } from "./InferType.js"
-import { ScalarType, ListType, MapType, NullableType, VertexType, VertexUnionType, EdgeType, UnknownType, NeverType, type CypherType } from "../types/CypherType.js"
-import { GraphSchema, VertexProperty, EdgeProperty } from "@evryg/effect-neo4j-schema"
+import { describe, expect, it } from "@effect/vitest"
+import { EdgeProperty, GraphSchema, VertexProperty } from "@evryg/effect-neo4j-schema"
 import { CharStream, CommonTokenStream } from "antlr4ng"
+import {
+  type CypherType,
+  EdgeType,
+  ListType,
+  MapType,
+  NeverType,
+  NullableType,
+  ScalarType,
+  UnknownType,
+  VertexType,
+  VertexUnionType
+} from "../types/CypherType.js"
 import { CypherLexer } from "./generated-parser/CypherLexer.js"
 import { CypherParser } from "./generated-parser/CypherParser.js"
+import { inferExpressionType, type TypeEnv } from "./InferType.js"
 
 // ── Helpers ──
 
@@ -15,21 +26,31 @@ const schema = new GraphSchema({
     new VertexProperty({ labels: ["Class"], propertyName: "kind", propertyTypes: ["String"], mandatory: true }),
     new VertexProperty({ labels: ["File"], propertyName: "lineCount", propertyTypes: ["Long"], mandatory: true }),
     new VertexProperty({ labels: ["Class"], propertyName: "isStatic", propertyTypes: ["Boolean"], mandatory: false }),
-    new VertexProperty({ labels: ["Class"], propertyName: "subdomains", propertyTypes: ["StringArray"], mandatory: false }),
+    new VertexProperty({
+      labels: ["Class"],
+      propertyName: "subdomains",
+      propertyTypes: ["StringArray"],
+      mandatory: false
+    }),
     new VertexProperty({ labels: ["Method"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
     new VertexProperty({ labels: ["Method"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
     new VertexProperty({ labels: ["Method"], propertyName: "visibility", propertyTypes: ["String"], mandatory: false }),
-    new VertexProperty({ labels: ["Method"], propertyName: "params", propertyTypes: ["StringArray"], mandatory: false }),
+    new VertexProperty({
+      labels: ["Method"],
+      propertyName: "params",
+      propertyTypes: ["StringArray"],
+      mandatory: false
+    }),
     new VertexProperty({ labels: ["Method"], propertyName: "returnType", propertyTypes: ["String"], mandatory: false }),
-    new VertexProperty({ labels: ["Method"], propertyName: "ccn", propertyTypes: ["Long"], mandatory: false }),
+    new VertexProperty({ labels: ["Method"], propertyName: "ccn", propertyTypes: ["Long"], mandatory: false })
   ],
   edgeProperties: [
     new EdgeProperty({ edgeType: "CALLS", propertyName: "confidence", propertyTypes: ["String"], mandatory: true }),
     new EdgeProperty({ edgeType: "CALLS", propertyName: "edge_count", propertyTypes: ["Double"], mandatory: true }),
     new EdgeProperty({ edgeType: "CALLS", propertyName: "reason", propertyTypes: ["String"], mandatory: true }),
     new EdgeProperty({ edgeType: "BELONGS_TO", propertyName: "role", propertyTypes: ["String"], mandatory: false }),
-    new EdgeProperty({ edgeType: "IMPORTS", propertyName: "mechanism", propertyTypes: ["String"], mandatory: true }),
-  ],
+    new EdgeProperty({ edgeType: "IMPORTS", propertyName: "mechanism", propertyTypes: ["String"], mandatory: true })
+  ]
 })
 
 /** Parse a Cypher expression string and return the ExpressionContext */
@@ -61,8 +82,8 @@ describe("inferExpressionType — literals", () => {
   it.each([
     { expr: "true", expected: new ScalarType({ scalarType: "Boolean" }) },
     { expr: "false", expected: new ScalarType({ scalarType: "Boolean" }) },
-    { expr: "null", expected: new NeverType({}) },
-  ])("$expr infers correctly", ({ expr, expected }) => {
+    { expr: "null", expected: new NeverType({}) }
+  ])("$expr infers correctly", ({ expected, expr }) => {
     const result = inferExpressionType(parseExpression(expr), emptyEnv, schema)
     expect(result).toEqual(expected)
   })
@@ -113,8 +134,8 @@ describe("inferExpressionType — aggregate functions", () => {
     { expr: "sum(x)", expected: new ScalarType({ scalarType: "Long" }) },
     { expr: "avg(x)", expected: NullableType(new ScalarType({ scalarType: "Double" })) },
     { expr: "min(x)", expected: NullableType(new ScalarType({ scalarType: "Long" })) },
-    { expr: "max(x)", expected: NullableType(new ScalarType({ scalarType: "Long" })) },
-  ])("$expr infers correctly", ({ expr, expected }) => {
+    { expr: "max(x)", expected: NullableType(new ScalarType({ scalarType: "Long" })) }
+  ])("$expr infers correctly", ({ expected, expr }) => {
     const env = envWith({ x: { type: new ScalarType({ scalarType: "Long" }), nullable: false } })
     const result = inferExpressionType(parseExpression(expr), env, schema)
     expect(result).toEqual(expected)
@@ -130,19 +151,19 @@ describe("inferExpressionType — collect", () => {
 
   it("collect(map literal) returns ListType(MapType(...)) with nullable fields", () => {
     const env = envWith({
-      m: { type: new VertexType({ label: "Method" }), nullable: false },
+      m: { type: new VertexType({ label: "Method" }), nullable: false }
     })
     const result = inferExpressionType(
       parseExpression("collect({visibility: m.visibility, id: m.id})"),
       env,
-      schema,
+      schema
     )
     // visibility is mandatory: false → NullableType; id is mandatory: true → plain
     expect(result).toEqual(ListType(
       MapType([
         { name: "visibility", value: NullableType(new ScalarType({ scalarType: "String" })) },
-        { name: "id", value: new ScalarType({ scalarType: "String" }) },
-      ]),
+        { name: "id", value: new ScalarType({ scalarType: "String" }) }
+      ])
     ))
   })
 })
@@ -166,17 +187,17 @@ describe("inferExpressionType — size", () => {
 describe("inferExpressionType — map literal", () => {
   it("infers field types recursively with nullability", () => {
     const env = envWith({
-      m: { type: new VertexType({ label: "Method" }), nullable: false },
+      m: { type: new VertexType({ label: "Method" }), nullable: false }
     })
     const result = inferExpressionType(
       parseExpression("{name: m.id, vis: m.visibility}"),
       env,
-      schema,
+      schema
     )
     // id is mandatory: true, visibility is mandatory: false
     expect(result).toEqual(MapType([
       { name: "name", value: new ScalarType({ scalarType: "String" }) },
-      { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) },
+      { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) }
     ]))
   })
 })
@@ -184,12 +205,12 @@ describe("inferExpressionType — map literal", () => {
 describe("inferExpressionType — CASE expression", () => {
   it("infers type from THEN branch", () => {
     const env = envWith({
-      m: { type: new VertexType({ label: "Method" }), nullable: false },
+      m: { type: new VertexType({ label: "Method" }), nullable: false }
     })
     const result = inferExpressionType(
       parseExpression("CASE WHEN m.id IS NOT NULL THEN m.id ELSE 'unknown' END"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(new ScalarType({ scalarType: "String" }))
   })
@@ -206,18 +227,18 @@ describe("inferExpressionType — comparison and boolean", () => {
 describe("inferExpressionType — nested collect with CASE and map", () => {
   it("handles the ClassProfiles pattern: collect(CASE WHEN ... THEN {map} END)", () => {
     const env = envWith({
-      m: { type: new VertexType({ label: "Method" }), nullable: false },
+      m: { type: new VertexType({ label: "Method" }), nullable: false }
     })
     const result = inferExpressionType(
       parseExpression("collect(CASE WHEN m IS NOT NULL THEN {visibility: m.visibility, id: m.id} END)"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(ListType(
       MapType([
         { name: "visibility", value: NullableType(new ScalarType({ scalarType: "String" })) },
-        { name: "id", value: new ScalarType({ scalarType: "String" }) },
-      ]),
+        { name: "id", value: new ScalarType({ scalarType: "String" }) }
+      ])
     ))
   })
 })
@@ -240,11 +261,11 @@ describe("inferExpressionType — nullable property access", () => {
     const result = inferExpressionType(
       parseExpression("{id: m.id, ccn: m.ccn}"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(MapType([
       { name: "id", value: new ScalarType({ scalarType: "String" }) },
-      { name: "ccn", value: NullableType(new ScalarType({ scalarType: "Long" })) },
+      { name: "ccn", value: NullableType(new ScalarType({ scalarType: "Long" })) }
     ]))
   })
 })
@@ -267,11 +288,11 @@ describe("inferExpressionType — property access on nullable variable", () => {
     const result = inferExpressionType(
       parseExpression("{id: mc.id, vis: mc.visibility}"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(MapType([
       { name: "id", value: NullableType(new ScalarType({ scalarType: "String" })) },
-      { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) },
+      { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) }
     ]))
   })
 
@@ -280,11 +301,11 @@ describe("inferExpressionType — property access on nullable variable", () => {
     const result = inferExpressionType(
       parseExpression("collect({id: mc.id, vis: mc.visibility})"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(ListType(MapType([
       { name: "id", value: NullableType(new ScalarType({ scalarType: "String" })) },
-      { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) },
+      { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) }
     ])))
   })
 })
@@ -295,7 +316,7 @@ describe("inferExpressionType — CASE WHEN IS NOT NULL narrowing", () => {
     const result = inferExpressionType(
       parseExpression("CASE WHEN m IS NOT NULL THEN m.id END"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(new ScalarType({ scalarType: "String" }))
   })
@@ -305,12 +326,12 @@ describe("inferExpressionType — CASE WHEN IS NOT NULL narrowing", () => {
     const result = inferExpressionType(
       parseExpression("CASE WHEN m IS NOT NULL THEN {id: m.id, vis: m.visibility} END"),
       env,
-      schema,
+      schema
     )
     // id: mandatory + narrowed → non-null; vis: non-mandatory → still nullable
     expect(result).toEqual(MapType([
       { name: "id", value: new ScalarType({ scalarType: "String" }) },
-      { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) },
+      { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) }
     ]))
   })
 
@@ -319,7 +340,7 @@ describe("inferExpressionType — CASE WHEN IS NOT NULL narrowing", () => {
     const result = inferExpressionType(
       parseExpression("CASE WHEN true THEN m.id END"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
   })
@@ -331,7 +352,7 @@ describe("inferExpressionType — collect strips NullableType", () => {
     const result = inferExpressionType(
       parseExpression("collect(m.visibility)"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(ListType(new ScalarType({ scalarType: "String" })))
   })
@@ -341,7 +362,7 @@ describe("inferExpressionType — collect strips NullableType", () => {
     const result = inferExpressionType(
       parseExpression("collect(c.fqcn)"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(ListType(new ScalarType({ scalarType: "String" })))
   })
@@ -353,11 +374,11 @@ describe("inferExpressionType — CASE + collect combined", () => {
     const result = inferExpressionType(
       parseExpression("collect(CASE WHEN m IS NOT NULL THEN {id: m.id, vis: m.visibility} END)"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(ListType(MapType([
       { name: "id", value: new ScalarType({ scalarType: "String" }) },
-      { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) },
+      { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) }
     ])))
   })
 })
@@ -368,7 +389,7 @@ describe("inferExpressionType — string concatenation", () => {
     const result = inferExpressionType(
       parseExpression("m.id + m.id"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(new ScalarType({ scalarType: "String" }))
   })
@@ -380,21 +401,21 @@ describe("inferExpressionType — relationship property access", () => {
       label: "mandatory rel property resolves from schema",
       edgeType: "CALLS",
       expr: "r.confidence",
-      expected: new ScalarType({ scalarType: "String" }),
+      expected: new ScalarType({ scalarType: "String" })
     },
     {
       label: "mandatory Double rel property resolves",
       edgeType: "CALLS",
       expr: "r.edge_count",
-      expected: new ScalarType({ scalarType: "Double" }),
+      expected: new ScalarType({ scalarType: "Double" })
     },
     {
       label: "non-mandatory rel property wraps in NullableType",
       edgeType: "BELONGS_TO",
       expr: "r.role",
-      expected: NullableType(new ScalarType({ scalarType: "String" })),
-    },
-  ])("$label", ({ edgeType, expr, expected }) => {
+      expected: NullableType(new ScalarType({ scalarType: "String" }))
+    }
+  ])("$label", ({ edgeType, expected, expr }) => {
     const env = envWith({ r: { type: new EdgeType({ edgeType }), nullable: false } })
     const result = inferExpressionType(parseExpression(expr), env, schema)
     expect(result).toEqual(expected)
@@ -413,7 +434,7 @@ describe("inferExpressionType — standalone CASE with string literals", () => {
     const result = inferExpressionType(
       parseExpression("CASE WHEN m.ccn <= 5 THEN '1-5' ELSE '21+' END"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(new ScalarType({ scalarType: "String" }))
   })
@@ -423,7 +444,7 @@ describe("inferExpressionType — standalone CASE with string literals", () => {
     const result = inferExpressionType(
       parseExpression("CASE WHEN f.lineCount > 10 THEN f.lineCount ELSE f.lineCount END"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(new ScalarType({ scalarType: "Long" }))
   })
@@ -435,7 +456,7 @@ describe("inferExpressionType — COUNT subquery", () => {
     const result = inferExpressionType(
       parseExpression("COUNT { (m:Method)-[:BELONGS_TO]->(c) }"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(new ScalarType({ scalarType: "Long" }))
   })
@@ -443,9 +464,9 @@ describe("inferExpressionType — COUNT subquery", () => {
   it("COUNT { pattern WHERE predicate } infers as Long", () => {
     const env = envWith({ c: { type: new VertexType({ label: "Class" }), nullable: false } })
     const result = inferExpressionType(
-      parseExpression('COUNT { (m:Method)-[:BELONGS_TO]->(c) WHERE m.source = "codebase" }'),
+      parseExpression("COUNT { (m:Method)-[:BELONGS_TO]->(c) WHERE m.source = \"codebase\" }"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(new ScalarType({ scalarType: "Long" }))
   })
@@ -457,7 +478,7 @@ describe("inferExpressionType — EXISTS subquery", () => {
     const result = inferExpressionType(
       parseExpression("EXISTS { (m:Method)-[:BELONGS_TO]->(c) }"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(new ScalarType({ scalarType: "Boolean" }))
   })
@@ -496,12 +517,12 @@ describe("inferExpressionType — previously unhandled constructs", () => {
 
   it("reduce with empty list init infers from iteration list", () => {
     const env = envWith({
-      items: { type: ListType(ListType(new ScalarType({ scalarType: "String" }))), nullable: false },
+      items: { type: ListType(ListType(new ScalarType({ scalarType: "String" }))), nullable: false }
     })
     const result = inferExpressionType(
       parseExpression("reduce(acc = [], x IN items | acc + x)"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(ListType(new ScalarType({ scalarType: "String" })))
   })
@@ -511,7 +532,7 @@ describe("inferExpressionType — previously unhandled constructs", () => {
     const result = inferExpressionType(
       parseExpression("any(x IN c.subdomains WHERE x = 'billing')"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(new ScalarType({ scalarType: "Boolean" }))
   })
@@ -521,7 +542,7 @@ describe("inferExpressionType — previously unhandled constructs", () => {
     const result = inferExpressionType(
       parseExpression("[x IN c.subdomains | x]"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(ListType(new ScalarType({ scalarType: "String" })))
   })
@@ -531,7 +552,7 @@ describe("inferExpressionType — previously unhandled constructs", () => {
     const result = inferExpressionType(
       parseExpression("[x IN c.subdomains WHERE x = 'billing']"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(ListType(new ScalarType({ scalarType: "String" })))
   })
@@ -541,7 +562,7 @@ describe("inferExpressionType — previously unhandled constructs", () => {
     const result = inferExpressionType(
       parseExpression("[] + c.subdomains"),
       env,
-      schema,
+      schema
     )
     expect(result).toEqual(ListType(new ScalarType({ scalarType: "String" })))
   })
@@ -558,7 +579,7 @@ describe("inferExpressionType — VertexUnionType property access", () => {
     // Both Class and Method have mandatory 'id' (Class.fqcn ≠ id, but Method.id exists)
     // Both have mandatory string 'name' property  → non-nullable String
     const env = envWith({
-      e: { type: new VertexUnionType({ labels: ["Class", "Method"] }), nullable: false },
+      e: { type: new VertexUnionType({ labels: ["Class", "Method"] }), nullable: false }
     })
     const result = inferExpressionType(parseExpression("e.kind"), env, schema)
     // kind is mandatory on Class but not on Method → should be NullableType (Case 2)
@@ -568,7 +589,7 @@ describe("inferExpressionType — VertexUnionType property access", () => {
   it("Case 2: property exists on some members → NullableType", () => {
     // fqcn exists on Class (mandatory) but not on Method
     const env = envWith({
-      e: { type: new VertexUnionType({ labels: ["Class", "Method"] }), nullable: false },
+      e: { type: new VertexUnionType({ labels: ["Class", "Method"] }), nullable: false }
     })
     const result = inferExpressionType(parseExpression("e.fqcn"), env, schema)
     expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
@@ -576,7 +597,7 @@ describe("inferExpressionType — VertexUnionType property access", () => {
 
   it("Case 3: property exists on no union member → CypherTypeError", () => {
     const env = envWith({
-      e: { type: new VertexUnionType({ labels: ["Class", "Method"] }), nullable: false },
+      e: { type: new VertexUnionType({ labels: ["Class", "Method"] }), nullable: false }
     })
     expect(() => inferExpressionType(parseExpression("e.nonexistent"), env, schema))
       .toThrow("nonexistent")
@@ -589,7 +610,7 @@ describe("inferExpressionType — VertexUnionType property access", () => {
     // Class.fqcn(mandatory), Class.kind(mandatory) — but this is single label
     // Let me use two labels that share a mandatory prop: both have String name mandatory
     const env = envWith({
-      e: { type: new VertexUnionType({ labels: ["Class", "Method"] }), nullable: false },
+      e: { type: new VertexUnionType({ labels: ["Class", "Method"] }), nullable: false }
     })
     // Both Class and Method have mandatory 'name' → non-nullable
     const result = inferExpressionType(parseExpression("e.name"), env, schema)
@@ -598,7 +619,7 @@ describe("inferExpressionType — VertexUnionType property access", () => {
 
   it("nullable variable wraps result in NullableType", () => {
     const env = envWith({
-      e: { type: new VertexUnionType({ labels: ["Class", "Method"] }), nullable: true },
+      e: { type: new VertexUnionType({ labels: ["Class", "Method"] }), nullable: true }
     })
     // name is mandatory on all members, but variable is nullable → NullableType
     const result = inferExpressionType(parseExpression("e.name"), env, schema)
@@ -607,7 +628,7 @@ describe("inferExpressionType — VertexUnionType property access", () => {
 
   it("collect on VertexUnionType property strips nullable", () => {
     const env = envWith({
-      e: { type: new VertexUnionType({ labels: ["Class", "Method"] }), nullable: false },
+      e: { type: new VertexUnionType({ labels: ["Class", "Method"] }), nullable: false }
     })
     // fqcn is on Class only → NullableType(String) → collect strips nullable
     const result = inferExpressionType(parseExpression("collect(e.fqcn)"), env, schema)
@@ -616,7 +637,7 @@ describe("inferExpressionType — VertexUnionType property access", () => {
 
   it("coalesce on VertexUnionType properties strips nullable", () => {
     const env = envWith({
-      e: { type: new VertexUnionType({ labels: ["Class", "Method"] }), nullable: false },
+      e: { type: new VertexUnionType({ labels: ["Class", "Method"] }), nullable: false }
     })
     // coalesce(e.fqcn, e.id) — both partial → NullableType, coalesce strips
     const result = inferExpressionType(parseExpression("coalesce(e.fqcn, e.id)"), env, schema)

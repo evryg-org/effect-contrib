@@ -1,9 +1,9 @@
-import { readFileSync } from "node:fs"
-import { Effect } from "effect"
 import { NodeContext } from "@effect/platform-node"
+import { type GraphSchema, loadSchema } from "@evryg/effect-neo4j-schema"
+import { Effect } from "effect"
+import { readFileSync } from "node:fs"
 import { generateModule } from "../backend/CypherCodegen.js"
 import { analyzeQuery } from "../frontend/QueryAnalyzer.js"
-import { loadSchema, type GraphSchema } from "@evryg/effect-neo4j-schema"
 
 export const cypherPlugin = (opts?: { schemaPath?: string }) => {
   let schema: GraphSchema | undefined
@@ -23,6 +23,6 @@ export const cypherPlugin = (opts?: { schemaPath?: string }) => {
         const columns = schema ? analyzeQuery(content, schema).columns : undefined
         return { code: generateModule(content, columns), map: null }
       }
-    },
+    }
   }
 }

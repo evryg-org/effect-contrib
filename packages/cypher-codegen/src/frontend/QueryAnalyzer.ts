@@ -1,30 +1,42 @@
+import type { GraphSchema } from "@evryg/effect-neo4j-schema"
 import { CharStream, CommonTokenStream } from "antlr4ng"
+import * as antlr from "antlr4ng"
+import { type CypherType, EdgeType, UnknownType, VertexType, VertexUnionType } from "../types/CypherType.js"
 import { CypherLexer } from "./generated-parser/CypherLexer.js"
+import type { RelationshipPatternContext } from "./generated-parser/CypherParser.js"
 import {
   CypherParser,
-  MatchStContext,
-  WithStContext,
-  ReadingStatementContext,
-  UnwindStContext,
   ListExpressionContext,
+  MatchStContext,
   NodePatternContext,
   PatternElemContext,
-  RelationshipPatternContext,
-  RelationDetailContext,
-  ParameterContext,
+  ReadingStatementContext,
+  UnwindStContext,
+  UnwindStContext,
+  WithStContext,
+  WithStContext
 } from "./generated-parser/CypherParser.js"
-import * as antlr from "antlr4ng"
-import type { GraphSchema } from "@evryg/effect-neo4j-schema"
-import { VertexType, VertexUnionType, EdgeType, UnknownType, type CypherType } from "../types/CypherType.js"
 import { inferExpressionType, type TypeEnv } from "./InferType.js"
 
 // ── Public types ──
 
 // Kept for backward compat with param extraction (params stay flat)
 export type Neo4jType =
-  | "String" | "Long" | "Double" | "Boolean"
-  | "Date" | "DateTime" | "LocalDateTime" | "LocalTime" | "Time" | "Duration" | "Point"
-  | "StringArray" | "LongArray" | "DoubleArray" | "BooleanArray"
+  | "String"
+  | "Long"
+  | "Double"
+  | "Boolean"
+  | "Date"
+  | "DateTime"
+  | "LocalDateTime"
+  | "LocalTime"
+  | "Time"
+  | "Duration"
+  | "Point"
+  | "StringArray"
+  | "LongArray"
+  | "DoubleArray"
+  | "BooleanArray"
   | "Unknown"
 
 export interface ResolvedColumn {
@@ -59,21 +71,52 @@ function parse(cypher: string) {
 function normalizeNeo4jType(raw: string): Neo4jType {
   const upper = raw.toUpperCase().replace(/ NOT NULL/g, "").trim()
   switch (upper) {
-    case "STRING": return "String"
-    case "LONG": case "INTEGER": return "Long"
-    case "FLOAT": case "DOUBLE": return "Double"
-    case "BOOLEAN": return "Boolean"
-    case "DATE": return "Date"
-    case "DATETIME": case "ZONED DATETIME": return "DateTime"
-    case "LOCAL DATETIME": return "LocalDateTime"
-    case "LOCAL TIME": return "LocalTime"
-    case "TIME": case "ZONED TIME": return "Time"
-    case "DURATION": return "Duration"
-    case "POINT": return "Point"
-    case "STRINGARRAY": case "LIST<STRING>": case "LIST<STRING NOT NULL>": return "StringArray"
-    case "LONGARRAY": case "LIST<LONG>": case "LIST<LONG NOT NULL>": case "LIST<INTEGER>": case "LIST<INTEGER NOT NULL>": return "LongArray"
-    case "DOUBLEARRAY": case "LIST<FLOAT>": case "LIST<FLOAT NOT NULL>": case "LIST<DOUBLE>": case "LIST<DOUBLE NOT NULL>": return "DoubleArray"
-    case "BOOLEANARRAY": case "LIST<BOOLEAN>": case "LIST<BOOLEAN NOT NULL>": return "BooleanArray"
+    case "STRING":
+      return "String"
+    case "LONG":
+    case "INTEGER":
+      return "Long"
+    case "FLOAT":
+    case "DOUBLE":
+      return "Double"
+    case "BOOLEAN":
+      return "Boolean"
+    case "DATE":
+      return "Date"
+    case "DATETIME":
+    case "ZONED DATETIME":
+      return "DateTime"
+    case "LOCAL DATETIME":
+      return "LocalDateTime"
+    case "LOCAL TIME":
+      return "LocalTime"
+    case "TIME":
+    case "ZONED TIME":
+      return "Time"
+    case "DURATION":
+      return "Duration"
+    case "POINT":
+      return "Point"
+    case "STRINGARRAY":
+    case "LIST<STRING>":
+    case "LIST<STRING NOT NULL>":
+      return "StringArray"
+    case "LONGARRAY":
+    case "LIST<LONG>":
+    case "LIST<LONG NOT NULL>":
+    case "LIST<INTEGER>":
+    case "LIST<INTEGER NOT NULL>":
+      return "LongArray"
+    case "DOUBLEARRAY":
+    case "LIST<FLOAT>":
+    case "LIST<FLOAT NOT NULL>":
+    case "LIST<DOUBLE>":
+    case "LIST<DOUBLE NOT NULL>":
+      return "DoubleArray"
+    case "BOOLEANARRAY":
+    case "LIST<BOOLEAN>":
+    case "LIST<BOOLEAN NOT NULL>":
+      return "BooleanArray"
     default:
       if (upper.startsWith("LIST<STRING")) return "StringArray"
       if (upper.startsWith("LIST<")) return "StringArray"
@@ -83,7 +126,7 @@ function normalizeNeo4jType(raw: string): Neo4jType {
 
 function lookupParamType(schema: GraphSchema, label: string, propertyName: string): Neo4jType | undefined {
   const prop = schema.vertexProperties.find(
-    (p) => p.labels.includes(label) && p.propertyName === propertyName,
+    (p) => p.labels.includes(label) && p.propertyName === propertyName
   )
   if (!prop) return undefined
   const rawType = prop.propertyTypes[0]
@@ -93,11 +136,16 @@ function lookupParamType(schema: GraphSchema, label: string, propertyName: strin
 
 function scalarToArrayType(scalar: Neo4jType): Neo4jType {
   switch (scalar) {
-    case "String": return "StringArray"
-    case "Long": return "LongArray"
-    case "Double": return "DoubleArray"
-    case "Boolean": return "BooleanArray"
-    default: return "StringArray"
+    case "String":
+      return "StringArray"
+    case "Long":
+      return "LongArray"
+    case "Double":
+      return "DoubleArray"
+    case "Boolean":
+      return "BooleanArray"
+    default:
+      return "StringArray"
   }
 }
 
@@ -127,7 +175,7 @@ function extendEnvFromMatch(env: TypeEnv, matchSt: MatchStContext, schema: Graph
       },
       (varName, edgeType) => {
         newEnv.set(varName, { type: new EdgeType({ edgeType }), nullable: isOptional })
-      },
+      }
     )
   }
 
@@ -144,7 +192,7 @@ function extendEnvFromMatch(env: TypeEnv, matchSt: MatchStContext, schema: Graph
 function visitNodePatterns(
   node: antlr.ParserRuleContext,
   cb: (varName: string, label: string) => void,
-  relCb?: (varName: string, relType: string) => void,
+  relCb?: (varName: string, relType: string) => void
 ): void {
   // Check if this is a nodePattern
   if (node instanceof NodePatternContext) {
@@ -198,12 +246,12 @@ function refineUnlabeledNodesFromConnectivity(
   part: antlr.ParserRuleContext,
   env: Map<string, { type: CypherType; nullable: boolean }>,
   schema: GraphSchema,
-  isOptional: boolean,
+  isOptional: boolean
 ): void {
   walkPatternChains(part, (segments) => {
     for (let i = 0; i < segments.length - 1; i++) {
       const leftNode = segments[i]
-      const { relType, hasRightArrow, hasLeftArrow } = segments[i].relToNext!
+      const { hasLeftArrow, hasRightArrow, relType } = segments[i].relToNext!
       const rightNode = segments[i + 1]
 
       if (!relType) continue
@@ -241,12 +289,12 @@ function refineUnlabeledNodesFromConnectivity(
         if (targetLabels.length === 1) {
           env.set(targetNode.varName, {
             type: new VertexType({ label: targetLabels[0] }),
-            nullable: isOptional,
+            nullable: isOptional
           })
         } else if (targetLabels.length > 1) {
           env.set(targetNode.varName, {
             type: new VertexUnionType({ labels: targetLabels }),
-            nullable: isOptional,
+            nullable: isOptional
           })
         }
       }
@@ -256,7 +304,7 @@ function refineUnlabeledNodesFromConnectivity(
 
 function getLabelFromEnv(
   env: ReadonlyMap<string, { type: CypherType; nullable: boolean }>,
-  varName: string,
+  varName: string
 ): string | undefined {
   const entry = env.get(varName)
   if (!entry) return undefined
@@ -273,14 +321,14 @@ interface ChainNode {
 /** Walk all pattern element chains, calling cb with the ordered list of nodes */
 function walkPatternChains(
   node: antlr.ParserRuleContext,
-  cb: (segments: ChainNode[]) => void,
+  cb: (segments: Array<ChainNode>) => void
 ): void {
   // PatternElemContext: nodePattern patternElemChain*
   if (node instanceof PatternElemContext) {
     const firstNodeCtx = node.nodePattern()
     const chains = node.patternElemChain()
     if (firstNodeCtx && chains.length > 0) {
-      const segments: ChainNode[] = []
+      const segments: Array<ChainNode> = []
       segments.push(extractChainNode(firstNodeCtx))
 
       for (const chain of chains) {
@@ -312,7 +360,7 @@ function extractChainNode(nodeCtx: NodePatternContext): ChainNode {
   const labels = nodeCtx.nodeLabels()
   return {
     varName: sym?.getText() ?? undefined,
-    label: labels ? labels.getText().replace(/^:/, "") : undefined,
+    label: labels ? labels.getText().replace(/^:/, "") : undefined
   }
 }
 
@@ -324,7 +372,7 @@ function extractRelInfo(relCtx: RelationshipPatternContext | null): ChainNode["r
   return {
     relType,
     hasLeftArrow: relCtx.LT() !== null && relCtx.LT() !== undefined,
-    hasRightArrow: relCtx.GT() !== null && relCtx.GT() !== undefined,
+    hasRightArrow: relCtx.GT() !== null && relCtx.GT() !== undefined
   }
 }
 
@@ -351,7 +399,7 @@ function extendEnvFromUnwind(env: TypeEnv, unwindSt: UnwindStContext, schema: Gr
 function computeEnvFromProjection(
   projBody: ReturnType<WithStContext["projectionBody"]>,
   env: TypeEnv,
-  schema: GraphSchema,
+  schema: GraphSchema
 ): TypeEnv {
   const newEnv: Map<string, { type: CypherType; nullable: boolean }> = new Map()
   const items = projBody?.projectionItems()?.projectionItem() ?? []
@@ -393,8 +441,8 @@ function inferNullable(exprText: string, env: TypeEnv): boolean {
 function resolveProjection(
   items: ReadonlyArray<{ symbol(): { getText(): string } | null; expression(): { getText(): string } | null }>,
   env: TypeEnv,
-  schema: GraphSchema,
-): ResolvedColumn[] {
+  schema: GraphSchema
+): Array<ResolvedColumn> {
   return items.map((item) => {
     const aliasCtx = item.symbol()
     const exprCtx = item.expression()
@@ -416,13 +464,18 @@ function resolveProjection(
 
 // ── Param extraction ──
 
-interface ParamUsage { paramName: string; label?: string | undefined; property?: string | undefined; isInClause?: boolean | undefined }
+interface ParamUsage {
+  paramName: string
+  label?: string | undefined
+  property?: string | undefined
+  isInClause?: boolean | undefined
+}
 
 /** Walk an ANTLR parse tree, calling cb for every node of the given context class. */
 function walkTree<T extends antlr.ParserRuleContext>(
   node: antlr.ParserRuleContext,
-  contextClass: new (...args: never[]) => T,
-  cb: (ctx: T) => void,
+  contextClass: new(...args: Array<never>) => T,
+  cb: (ctx: T) => void
 ): void {
   if (node instanceof contextClass) cb(node)
   for (let i = 0; i < node.getChildCount(); i++) {
@@ -459,8 +512,8 @@ function findParameter(ctx: antlr.ParserRuleContext): ParameterContext | null {
   return null
 }
 
-function extractParams(tree: ReturnType<typeof parse>, schema: GraphSchema): ResolvedParam[] {
-  const paramUsages: ParamUsage[] = []
+function extractParams(tree: ReturnType<typeof parse>, schema: GraphSchema): Array<ResolvedParam> {
+  const paramUsages: Array<ParamUsage> = []
   const seenParams = new Set<string>()
   const varLabels = buildVarLabelMap(tree)
 
@@ -501,7 +554,10 @@ function extractParams(tree: ReturnType<typeof parse>, schema: GraphSchema): Res
 
     // The LHS (e.g., c.fqcn) is a sibling in the parent before the ListExpressionContext
     const parent = listExpr.parent
-    if (!parent) { paramUsages.push({ paramName, isInClause: true }); return }
+    if (!parent) {
+      paramUsages.push({ paramName, isInClause: true })
+      return
+    }
 
     // Find the PropertyOrLabelExpressionContext sibling that comes before this ListExpressionContext
     let lhsText: string | undefined
@@ -511,7 +567,10 @@ function extractParams(tree: ReturnType<typeof parse>, schema: GraphSchema): Res
       if (child instanceof antlr.ParserRuleContext) lhsText = child.getText()
     }
 
-    if (!lhsText) { paramUsages.push({ paramName, isInClause: true }); return }
+    if (!lhsText) {
+      paramUsages.push({ paramName, isInClause: true })
+      return
+    }
 
     const dotIdx = lhsText.indexOf(".")
     if (dotIdx === -1) {

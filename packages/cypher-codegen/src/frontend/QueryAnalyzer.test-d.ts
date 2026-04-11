@@ -1,13 +1,7 @@
-import { describe, expectTypeOf, it } from "vitest"
-import type {
-  Neo4jType,
-  ResolvedColumn,
-  ResolvedParam,
-  QueryAnalysis,
-  analyzeQuery,
-} from "./QueryAnalyzer.js"
-import type { CypherType } from "../types/CypherType.js"
 import type { GraphSchema } from "@evryg/effect-neo4j-schema"
+import { describe, expectTypeOf, it } from "vitest"
+import type { CypherType } from "../types/CypherType.js"
+import type { analyzeQuery, Neo4jType, QueryAnalysis, ResolvedColumn, ResolvedParam } from "./QueryAnalyzer.js"
 
 describe("ResolvedColumn", () => {
   it("nullable is required boolean, not optional", () => {

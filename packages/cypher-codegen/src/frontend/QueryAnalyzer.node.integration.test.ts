@@ -1,13 +1,12 @@
-import { layer, expect } from "@effect/vitest"
-import { Effect, Layer } from "effect"
-import { readFileSync } from "node:fs"
-import { globSync } from "node:fs"
-import { basename } from "node:path"
+import { expect, layer } from "@effect/vitest"
 import { Neo4jClient, UnconfiguredNeo4jClient } from "@evryg/effect-neo4j"
-import { CleanNeo4jGraph, Neo4jConfigFromVitest } from "@evryg/effect-vitest-neo4j"
 import { extractSchema } from "@evryg/effect-neo4j-schema"
-import { analyzeQuery } from "./QueryAnalyzer.js"
+import { CleanNeo4jGraph, Neo4jConfigFromVitest } from "@evryg/effect-vitest-neo4j"
+import { Effect, Layer } from "effect"
+import { globSync, readFileSync } from "node:fs"
+import { basename } from "node:path"
 import { UnknownType } from "../types/CypherType.js"
+import { analyzeQuery } from "./QueryAnalyzer.js"
 
 const TestNeo4j = UnconfiguredNeo4jClient.pipe(Layer.provide(Neo4jConfigFromVitest))
 
@@ -111,7 +110,7 @@ CREATE (prop)-[:BELONGS_TO {role: "class"}]->(c2)
 
 layer(TestNeo4j, { timeout: "120 seconds" })("QueryAnalyzer — schema extraction + inference (integration)", (it) => {
   it.scoped("extracts schema with all expected labels and rel types", () =>
-    Effect.gen(function* () {
+    Effect.gen(function*() {
       yield* CleanNeo4jGraph
       const client = yield* Neo4jClient
       yield* client.query(SEED_CYPHER)
@@ -120,8 +119,21 @@ layer(TestNeo4j, { timeout: "120 seconds" })("QueryAnalyzer — schema extractio
 
       // Verify key node labels are present
       const nodeLabels = new Set(schema.vertexProperties.flatMap((p) => p.labels))
-      for (const label of ["Class", "Method", "Module", "Subdomain", "Entrypoint", "File",
-        "ReverseProxyRoute", "IntegrationContract", "Pattern", "HttpApp", "TransactionSite"]) {
+      for (
+        const label of [
+          "Class",
+          "Method",
+          "Module",
+          "Subdomain",
+          "Entrypoint",
+          "File",
+          "ReverseProxyRoute",
+          "IntegrationContract",
+          "Pattern",
+          "HttpApp",
+          "TransactionSite"
+        ]
+      ) {
         expect(nodeLabels, `missing label: ${label}`).toContain(label)
       }
 
@@ -130,11 +142,10 @@ layer(TestNeo4j, { timeout: "120 seconds" })("QueryAnalyzer — schema extractio
       for (const rt of ["CALLS", "BELONGS_TO", "IMPORTS", "INVOLVES", "MATCHES"]) {
         expect(relTypes, `missing rel type: ${rt}`).toContain(rt)
       }
-    }),
-  )
+    }))
 
   it.scoped("analyzeQuery produces no UnknownType for representative .cypher files", () =>
-    Effect.gen(function* () {
+    Effect.gen(function*() {
       yield* CleanNeo4jGraph
       const client = yield* Neo4jClient
       yield* client.query(SEED_CYPHER)
@@ -146,7 +157,7 @@ layer(TestNeo4j, { timeout: "120 seconds" })("QueryAnalyzer — schema extractio
         .filter((f) => !f.includes("__fixtures__") && !f.includes("GraphSchema"))
         .sort()
 
-      const failures: string[] = []
+      const failures: Array<string> = []
       for (const file of cypherFiles) {
         const cypher = readFileSync(file, "utf8").trim()
         try {
@@ -168,6 +179,5 @@ layer(TestNeo4j, { timeout: "120 seconds" })("QueryAnalyzer — schema extractio
         yield* Effect.log(`Queries with type errors (${failures.length}):\n  ${failures.join("\n  ")}`)
       }
       expect(failures).toEqual([])
-    }),
-  )
+    }))
 })
