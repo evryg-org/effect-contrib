@@ -1,7 +1,7 @@
 import { layer, expect } from "@effect/vitest"
 import { Chunk, Effect, Layer, Stream } from "effect"
 import { Neo4jClient, Neo4jClientLive, Neo4jQueryError } from "@/lib/effect-neo4j"
-import { Neo4jConfigFromVitest } from "@/lib/effect-vitest-testcontainers"
+import { CleanNeo4jGraph, Neo4jConfigFromVitest } from "@/lib/effect-vitest-testcontainers"
 
 const TestNeo4j = Neo4jClientLive.pipe(Layer.provide(Neo4jConfigFromVitest))
 
@@ -15,8 +15,9 @@ layer(TestNeo4j, { timeout: "120 seconds" })("Neo4jClient (integration)", (it) =
     }),
   )
 
-  it.effect("runBatch writes and reads back", () =>
+  it.scoped("runBatch writes and reads back", () =>
     Effect.gen(function* () {
+      yield* CleanNeo4jGraph
       const client = yield* Neo4jClient
       const rows = Array.from({ length: 5 }, (_, i) => ({ name: `node-${i}` }))
       const count = yield* client.runBatch(
@@ -43,8 +44,9 @@ layer(TestNeo4j, { timeout: "120 seconds" })("Neo4jClient (integration)", (it) =
     }),
   )
 
-  it.effect("queryStream emits records", () =>
+  it.scoped("queryStream emits records", () =>
     Effect.gen(function* () {
+      yield* CleanNeo4jGraph
       const client = yield* Neo4jClient
       yield* client.runBatch(
         "UNWIND $rows AS row CREATE (:StreamTest {name: row.name})",
