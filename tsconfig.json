@@ -9,6 +9,7 @@
     { "path": "packages/testcontainers" },
     { "path": "packages/vitest-neo4j" },
     { "path": "packages/testcontainers-neo4j" },
-    { "path": "packages/neo4j-schema" }
+    { "path": "packages/neo4j-schema" },
+    { "path": "packages/cypher-codegen" }
   ]
 }

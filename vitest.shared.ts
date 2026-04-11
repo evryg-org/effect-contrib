@@ -35,7 +35,8 @@ const config: UserConfig = {
       ...alias("effect-testcontainers", "testcontainers"),
       ...alias("effect-vitest-neo4j", "vitest-neo4j"),
       ...alias("effect-testcontainers-neo4j", "testcontainers-neo4j"),
-      ...alias("effect-neo4j-schema", "neo4j-schema")
+      ...alias("effect-neo4j-schema", "neo4j-schema"),
+      ...alias("cypher-codegen")
     }
   }
 }

@@ -1,5 +1,5 @@
 import { defineConfig, mergeConfig } from "vitest/config"
-import shared from "../vitest.shared"
+import shared from "../../vitest.shared"
 import { cypherPlugin } from "./src/integration/VitePlugin.ts"
 
 export default mergeConfig(shared, defineConfig({
@@ -11,7 +11,7 @@ export default mergeConfig(shared, defineConfig({
         test: {
           name: "node-integration",
           include: ["src/**/*.node.integration.test.{ts,mts,cts,tsx}"],
-          globalSetup: ["../effect-vitest-testcontainers/src/neo4j-global-setup.ts"],
+          globalSetup: ["../vitest-neo4j/src/neo4j-global-setup.ts"],
         },
       },
     ],

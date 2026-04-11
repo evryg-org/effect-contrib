@@ -1,7 +1,7 @@
 import { layer, expect } from "@effect/vitest"
 import { Effect, Layer } from "effect"
 import { UnconfiguredNeo4jClient } from "@evryg/effect-neo4j"
-import { CleanNeo4jGraph, Neo4jConfigFromVitest } from "@evryg/effect-vitest-testcontainers"
+import { CleanNeo4jGraph, Neo4jConfigFromVitest } from "@evryg/effect-vitest-neo4j"
 import { query as fixtureQuery } from "./Fixture.cypher"
 
 const TestNeo4j = UnconfiguredNeo4jClient.pipe(Layer.provide(Neo4jConfigFromVitest))

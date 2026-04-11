@@ -15,11 +15,7 @@
     "src/**/*.test-d.ts"
   ],
   "references": [
-    {
-      "path": "../effect-neo4j/tsconfig.src.json"
-    },
-    {
-      "path": "../effect-neo4j-schema/tsconfig.src.json"
-    }
+    { "path": "../neo4j/tsconfig.src.json" },
+    { "path": "../neo4j-schema/tsconfig.src.json" }
   ]
 }
