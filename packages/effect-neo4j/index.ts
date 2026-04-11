@@ -12,5 +12,6 @@ export {
   openSession,
   closeSession,
   runCypher,
+  runCypherWrite,
 } from "./Neo4jClient"
 export { verifyNeo4j } from "./VerifyNeo4j"

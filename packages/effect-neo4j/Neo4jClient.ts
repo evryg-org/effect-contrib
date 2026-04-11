@@ -48,6 +48,16 @@ export const runCypher = (
     catch: (e) => new Neo4jQueryError({ cypher, cause: e }),
   })
 
+export const runCypherWrite = (
+  session: Session,
+  cypher: string,
+  params: Record<string, unknown>,
+): Effect.Effect<QueryResult, Neo4jQueryError> =>
+  Effect.tryPromise({
+    try: () => session.executeWrite((tx) => tx.run(cypher, params)),
+    catch: (e) => new Neo4jQueryError({ cypher, cause: e }),
+  })
+
 // --- Service ---
 
 export class Neo4jClient extends Context.Tag("Neo4jClient")<Neo4jClient, {
@@ -85,16 +95,18 @@ export const Neo4jClientLive: Layer.Layer<Neo4jClient, never, Neo4jConfig> = Lay
           ),
         ),
 
-      runBatch: (cypher: string, rows: unknown[], batchSize = 1000) =>
-        Effect.gen(function* () {
-          let total = 0
-          for (let i = 0; i < rows.length; i += batchSize) {
-            const batch = rows.slice(i, i + batchSize)
-            yield* withSession((session) => runCypher(session, cypher, { rows: batch }))
-            total += batch.length
-          }
-          return total
-        }),
+      runBatch: (cypher: string, rows: unknown[], batchSize = 5000) =>
+        withSession((session) =>
+          Effect.gen(function* () {
+            let total = 0
+            for (let i = 0; i < rows.length; i += batchSize) {
+              const batch = rows.slice(i, i + batchSize)
+              yield* runCypherWrite(session, cypher, { rows: batch })
+              total += batch.length
+            }
+            return total
+          }),
+        ),
     }
   }),
 )
