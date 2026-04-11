@@ -7,6 +7,7 @@ madge(
     ignore: ["packages/sql-sqlite-bun/**"]
   }),
   {
+    excludeRegExp: ["generated-parser"],
     detectiveOptions: {
       ts: {
         skipTypeImports: true
