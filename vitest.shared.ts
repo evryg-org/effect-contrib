@@ -28,6 +28,7 @@ const config: UserConfig = {
       concurrent: true
     },
     include: ["src/**/*.test.{ts,mts,cts,tsx}"],
+    exclude: ["src/**/*.integration.test.{ts,mts,cts,tsx}"],
     alias: {
       ...alias("effect-integresql", "integresql"),
       ...alias("effect-neo4j", "neo4j"),

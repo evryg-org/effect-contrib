@@ -1,6 +1,7 @@
 import { Effect } from "effect"
 import { closeDriver, makeDriver, verifyDriver } from "./Neo4jClient.js"
-import type { Neo4jConnectionError, Neo4jConnectionError } from "./Neo4jClient.js"
+import type { Neo4jConnectionError } from "./Neo4jClient.js"
+import type { Neo4jConnectionConfig } from "./Neo4jConfig.js"
 
 export function verifyNeo4j(
   config: Neo4jConnectionConfig
