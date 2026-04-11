@@ -4,8 +4,8 @@
     "rootDir": "src",
     "outDir": "outputs/tsc/dist",
     "tsBuildInfoFile": "outputs/tsc/src.tsbuildinfo",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext"
+    "module": "preserve",
+    "moduleResolution": "bundler"
   },
   "include": [
     "src"
@@ -16,7 +16,10 @@
   ],
   "references": [
     {
-      "path": "../effect-neo4j/tsconfig.src.json"
+      "path": "../neo4j/tsconfig.src.json"
+    },
+    {
+      "path": "../testcontainers/tsconfig.src.json"
     }
   ]
 }

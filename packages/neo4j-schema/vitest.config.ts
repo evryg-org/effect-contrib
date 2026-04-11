@@ -9,7 +9,7 @@ export default mergeConfig(shared, defineConfig({
         test: {
           name: "node-integration",
           include: ["src/**/*.node.integration.test.{ts,mts,cts,tsx}"],
-          globalSetup: ["../effect-vitest-neo4j/src/neo4j-global-setup.ts"],
+          globalSetup: ["../vitest-neo4j/src/neo4j-global-setup.ts"],
         },
       },
     ],

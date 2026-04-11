@@ -16,13 +16,13 @@
   ],
   "references": [
     {
-      "path": "../effect-neo4j/tsconfig.src.json"
+      "path": "../neo4j/tsconfig.src.json"
     },
     {
       "path": "../effect-pipeline/tsconfig.src.json"
     },
     {
-      "path": "../effect-testcontainers/tsconfig.src.json"
+      "path": "../testcontainers/tsconfig.src.json"
     }
   ]
 }
