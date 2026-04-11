@@ -16,3 +16,4 @@ export {
 } from "./Neo4jClient.js"
 export { verifyNeo4j } from "./VerifyNeo4j.js"
 export { Neo4jInt, Neo4jValue } from "./Neo4jSchemas.js"
+export { ensureSchema, type SchemaFragment } from "./SchemaFragment.js"

@@ -10,7 +10,6 @@
   "dependencies": {
     "@evryg/effect-neo4j": "workspace:*",
     "neo4j-driver-core": "^6.0.1",
-    "@evryg/effect-pipeline": "workspace:*",
     "@evryg/effect-testcontainers": "workspace:*",
     "effect": "^3.21.0"
   },

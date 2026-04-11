@@ -1,6 +1,6 @@
 import { Layer, ManagedRuntime } from "effect"
 import { Neo4jConfig, UnconfiguredNeo4jClient } from "@evryg/effect-neo4j"
-import { ensureSchema } from "@evryg/effect-pipeline"
+import { ensureSchema } from "@evryg/effect-neo4j"
 import { Neo4jTestContainerLive } from "@evryg/effect-testcontainers"
 import { globSync, readFileSync } from "node:fs"
 import type { GlobalSetupContext } from "vitest/node"
