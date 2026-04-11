@@ -15,3 +15,4 @@ export {
   runCypherWrite,
 } from "./Neo4jClient"
 export { verifyNeo4j } from "./VerifyNeo4j"
+export { Neo4jInt, Neo4jValue } from "./Neo4jSchemas"
