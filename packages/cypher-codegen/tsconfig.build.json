@@ -1,6 +1,9 @@
 {
   "extends": "./tsconfig.src.json",
-  "references": [],
+  "references": [
+    { "path": "../neo4j/tsconfig.build.json" },
+    { "path": "../neo4j-schema/tsconfig.build.json" }
+  ],
   "compilerOptions": {
     "tsBuildInfoFile": ".tsbuildinfo/build.tsbuildinfo",
     "outDir": "build/esm",
