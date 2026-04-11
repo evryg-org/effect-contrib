@@ -4,6 +4,11 @@
   "references": [
     //
     { "path": "packages/integresql" },
-    { "path": "packages/demo" }
+    { "path": "packages/demo" },
+    { "path": "packages/neo4j" },
+    { "path": "packages/testcontainers" },
+    { "path": "packages/vitest-neo4j" },
+    { "path": "packages/testcontainers-neo4j" },
+    { "path": "packages/neo4j-schema" }
   ]
 }
