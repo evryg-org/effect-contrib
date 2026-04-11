@@ -3,6 +3,12 @@ import { Neo4jClient, Neo4jConfig, UnconfiguredNeo4jClient } from "@evryg/effect
 import { Effect, Layer } from "effect"
 import { inject } from "vitest"
 
+declare module "vitest" {
+  interface ProvidedContext {
+    neo4j: { uri: string; password: string }
+  }
+}
+
 const Neo4jConfigFromVitest: Layer.Layer<Neo4jConfig> = Layer.succeed(Neo4jConfig, {
   uri: inject("neo4j").uri,
   user: "neo4j",
