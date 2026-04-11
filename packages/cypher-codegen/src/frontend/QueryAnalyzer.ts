@@ -9,11 +9,11 @@ import {
   ListExpressionContext,
   MatchStContext,
   NodePatternContext,
+  ParameterContext,
   PatternElemContext,
   ReadingStatementContext,
+  RelationDetailContext,
   UnwindStContext,
-  UnwindStContext,
-  WithStContext,
   WithStContext
 } from "./generated-parser/CypherParser.js"
 import { inferExpressionType, type TypeEnv } from "./InferType.js"

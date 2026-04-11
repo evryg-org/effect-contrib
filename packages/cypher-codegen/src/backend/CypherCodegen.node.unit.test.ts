@@ -4,7 +4,7 @@ import { type CypherType, ListType, MapType, NeverType, ScalarType, UnknownType 
 
 // ── Barrel generation (typed params) ──
 
-import { type BarrelEntry, generateBarrel } from "./CypherCodegen.js"
+import { type BarrelEntry, extractParams, generateBarrel, generateModule } from "./CypherCodegen.js"
 
 describe("extractParams", () => {
   it.each([

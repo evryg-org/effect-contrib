@@ -25,6 +25,7 @@
     "provenance": true
   },
   "scripts": {
+    "codegen": "antlr-ng -o src/frontend/generated-parser -v -l false src/frontend/grammar/CypherLexer.g4 src/frontend/grammar/CypherParser.g4",
     "build": "pnpm build-esm && pnpm build-annotate && pnpm build-cjs && build-utils pack-v2",
     "build-esm": "tsc -b tsconfig.build.json",
     "build-cjs": "babel build/esm --plugins @babel/transform-export-namespace-from --plugins @babel/transform-modules-commonjs --out-dir build/cjs --source-maps",
@@ -47,6 +48,7 @@
   },
   "devDependencies": {
     "@effect/cli": "^0.75.0",
+    "antlr-ng": "^1.0.10",
     "@effect/platform": "^0.96.0",
     "@effect/platform-node": "^0.106.0",
     "@effect/vitest": "^0.29.0",
