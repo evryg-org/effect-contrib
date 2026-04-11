@@ -7,7 +7,7 @@ import { extractSchema } from "./LiveDbGraphSchemaResolver"
 const seed = Effect.flatMap(Neo4jClient, (neo4j) =>
   Effect.all([
     neo4j.query(`CREATE CONSTRAINT IF NOT EXISTS FOR (c:Class) REQUIRE c.fqcn IS UNIQUE`),
-    neo4j.query(`MERGE (c:Class {fqcn: "App\\\\Seed"}) SET c.name = "Seed", c.source = "codebase", c.file = "seed.php", c.namespace = "App", c.method_count = 0`),
+    neo4j.query(`MERGE (c:Class {fqcn: "App\\\\Seed"}) SET c.name = "Seed", c.source = "codebase", c.file = "seed.php", c.namespace = "App"`),
   ]),
 )
 
