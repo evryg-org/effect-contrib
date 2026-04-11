@@ -1,0 +1,48 @@
+{
+  "name": "@evryg/effect-testcontainers-neo4j",
+  "version": "0.0.1",
+  "type": "module",
+  "license": "MIT",
+  "description": "Neo4j testcontainer layer providing Neo4jConfig from a container",
+  "homepage": "https://www.evryg.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/evryg-org/effect-contrib.git",
+    "directory": "packages/testcontainers-neo4j"
+  },
+  "bugs": {
+    "url": "https://github.com/evryg-org/effect-contrib/issues"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "directory": "dist",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "pnpm build-esm && pnpm build-annotate && pnpm build-cjs && build-utils pack-v2",
+    "build-esm": "tsc -b tsconfig.build.json",
+    "build-cjs": "babel build/esm --plugins @babel/transform-export-namespace-from --plugins @babel/transform-modules-commonjs --out-dir build/cjs --source-maps",
+    "build-annotate": "babel build/esm --plugins annotate-pure-calls --out-dir build/esm --source-maps",
+    "check": "tsc -b tsconfig.json",
+    "test": "vitest",
+    "coverage": "vitest --coverage"
+  },
+  "peerDependencies": {
+    "@evryg/effect-neo4j": "workspace:*",
+    "@evryg/effect-testcontainers": "workspace:*",
+    "@testcontainers/neo4j": "^11.12.0",
+    "effect": "^3.21.0"
+  },
+  "devDependencies": {
+    "@effect/vitest": "^0.29.0",
+    "@evryg/effect-neo4j": "workspace:*",
+    "@evryg/effect-testcontainers": "workspace:*",
+    "@testcontainers/neo4j": "^11.12.0",
+    "effect": "^3.21.0",
+    "vitest": "^3.2.1"
+  }
+}

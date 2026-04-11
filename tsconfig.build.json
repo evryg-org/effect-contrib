@@ -3,6 +3,11 @@
   "include": [],
   "references": [
     { "path": "packages/integresql/tsconfig.build.json" },
-    { "path": "packages/demo/tsconfig.build.json" }
+    { "path": "packages/demo/tsconfig.build.json" },
+    { "path": "packages/neo4j/tsconfig.build.json" },
+    { "path": "packages/testcontainers/tsconfig.build.json" },
+    { "path": "packages/testcontainers-neo4j/tsconfig.build.json" },
+    { "path": "packages/vitest-neo4j/tsconfig.build.json" },
+    { "path": "packages/neo4j-schema/tsconfig.build.json" }
   ]
 }

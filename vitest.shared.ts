@@ -1,12 +1,13 @@
 import * as path from "node:path"
 import type { UserConfig } from "vitest/config"
 
-const alias = (pkg: string) => {
+const alias = (pkg: string, folder?: string) => {
+  const dir = folder ?? pkg
   const name = `@evryg/${pkg}`
   const target = process.env.TEST_DIST !== undefined ? "dist/dist/esm" : "src"
   return ({
-    [`${name}/test`]: path.join(__dirname, "packages", pkg, "test"),
-    [`${name}`]: path.join(__dirname, "packages", pkg, target)
+    [`${name}/test`]: path.join(__dirname, "packages", dir, "test"),
+    [`${name}`]: path.join(__dirname, "packages", dir, target)
   })
 }
 
@@ -26,9 +27,15 @@ const config: UserConfig = {
     sequence: {
       concurrent: true
     },
-    include: ["test/**/*.test.ts"],
+    include: ["src/**/*.test.{ts,mts,cts,tsx}"],
+    exclude: ["src/**/*.integration.test.{ts,mts,cts,tsx}"],
     alias: {
-      ...alias("integresql")
+      ...alias("effect-integresql", "integresql"),
+      ...alias("effect-neo4j", "neo4j"),
+      ...alias("effect-testcontainers", "testcontainers"),
+      ...alias("effect-vitest-neo4j", "vitest-neo4j"),
+      ...alias("effect-testcontainers-neo4j", "testcontainers-neo4j"),
+      ...alias("effect-neo4j-schema", "neo4j-schema")
     }
   }
 }

@@ -12,6 +12,8 @@
     "build": "tsc -b tsconfig.build.json && pnpm --recursive --parallel run build",
     "circular": "node scripts/circular.mjs",
     "test": "vitest",
+    "test-unit": "vitest --run unit",
+    "test-integration": "vitest --run integration",
     "coverage": "vitest --coverage",
     "check": "tsc -b tsconfig.json",
     "check-recursive": "pnpm --recursive exec tsc -b tsconfig.json",

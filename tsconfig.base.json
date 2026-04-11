@@ -38,7 +38,12 @@
     "plugins": [{ "name": "@effect/language-service" }],
     "paths": {
       "@evryg/effect-integresql": ["./packages/integresql/src/index.js"],
-      "@evryg/demo": ["./packages/demo/src/index.js"]
+      "@evryg/demo": ["./packages/demo/src/index.js"],
+      "@evryg/effect-neo4j": ["./packages/neo4j/src/index.js"],
+      "@evryg/effect-testcontainers": ["./packages/testcontainers/src/index.js"],
+      "@evryg/effect-vitest-neo4j": ["./packages/vitest-neo4j/src/index.js"],
+      "@evryg/effect-testcontainers-neo4j": ["./packages/testcontainers-neo4j/src/index.js"],
+      "@evryg/effect-neo4j-schema": ["./packages/neo4j-schema/src/index.js"]
     }
   }
 }
