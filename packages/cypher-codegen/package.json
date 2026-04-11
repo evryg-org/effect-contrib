@@ -1,21 +1,23 @@
 {
-  "name": "@evryg/effect-testcontainers",
+  "name": "@evryg/cypher-codegen",
   "version": "0.0.1",
   "type": "module",
   "license": "MIT",
-  "description": "Effect layers for testcontainers-node: generic TestContainer and ComposeContainer",
+  "description": "Cypher type checker and code generator: parses .cypher files, infers types, and generates typed Effect modules",
   "homepage": "https://www.evryg.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/evryg-org/effect-contrib.git",
-    "directory": "packages/testcontainers"
+    "directory": "packages/cypher-codegen"
   },
   "bugs": {
     "url": "https://github.com/evryg-org/effect-contrib/issues"
   },
   "exports": {
     ".": "./src/index.ts",
-    "./*": "./src/*.ts"
+    "./integration/VitePlugin": "./src/integration/VitePlugin.ts",
+    "./integration/Register": "./src/integration/Register.ts",
+    "./integration/codegen": "./src/integration/codegen.ts"
   },
   "publishConfig": {
     "access": "public",
@@ -24,6 +26,7 @@
     "provenance": true
   },
   "scripts": {
+    "codegen": "antlr-ng -o src/frontend/generated-parser -v -l false -D language=TypeScript -- src/frontend/grammar/CypherLexer.g4 src/frontend/grammar/CypherParser.g4",
     "build": "pnpm build-esm && pnpm build-annotate && pnpm build-cjs && build-utils pack-v2",
     "build-esm": "tsc -b tsconfig.build.json",
     "build-cjs": "babel build/esm --plugins @babel/transform-export-namespace-from --plugins @babel/transform-modules-commonjs --out-dir build/cjs --source-maps",
@@ -32,13 +35,27 @@
     "test": "vitest",
     "coverage": "vitest --coverage"
   },
+  "dependencies": {
+    "@evryg/effect-neo4j": "workspace:*",
+    "@evryg/effect-neo4j-schema": "workspace:*",
+    "antlr4ng": "^3.0.16"
+  },
   "peerDependencies": {
+    "@effect/cli": "^0.75.0",
+    "@effect/platform": "^0.96.0",
+    "@effect/platform-node": "^0.106.0",
     "effect": "^3.21.0",
-    "testcontainers": "^11.12.0"
+    "neo4j-driver": "^6.0.1"
   },
   "devDependencies": {
+    "@effect/cli": "^0.75.0",
+    "antlr-ng": "^1.0.10",
+    "@effect/platform": "^0.96.0",
+    "@effect/platform-node": "^0.106.0",
+    "@effect/vitest": "^0.29.0",
+    "@evryg/effect-vitest-neo4j": "workspace:*",
     "effect": "^3.21.0",
-    "testcontainers": "^11.12.0",
+    "neo4j-driver": "^6.0.1",
     "vitest": "^3.2.1"
   }
 }

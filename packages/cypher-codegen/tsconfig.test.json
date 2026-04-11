@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "include": [
+    "src/**/*.test.ts",
+    "src/**/*.test-d.ts"
+  ],
+  "references": [
+    { "path": "tsconfig.src.json" },
+    { "path": "../neo4j/tsconfig.src.json" },
+    { "path": "../neo4j-schema/tsconfig.src.json" },
+    { "path": "../vitest-neo4j/tsconfig.src.json" }
+  ],
+  "compilerOptions": {
+    "tsBuildInfoFile": ".tsbuildinfo/test.tsbuildinfo",
+    "rootDir": "src",
+    "noEmit": true,
+    "noUnusedLocals": false,
+    "allowArbitraryExtensions": true,
+    "types": ["node"]
+  }
+}

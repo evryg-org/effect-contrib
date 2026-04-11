@@ -18,6 +18,8 @@ jobs:
         uses: ./.github/actions/setup
       - name: Run codemods
         run: pnpm codemod
+      - name: Run codegen
+        run: pnpm codegen
       - name: Build package
         run: pnpm build
       - name: Create snapshot

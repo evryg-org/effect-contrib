@@ -14,7 +14,8 @@
           bun
           corepack
           deno
-          nodejs
+          git
+          nodejs_24
           python3
         ];
       };

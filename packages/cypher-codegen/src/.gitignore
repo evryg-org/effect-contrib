@@ -1,0 +1,5 @@
+# Generated ANTLR TypeScript parser
+frontend/generated-parser/
+
+# ANTLR VS Code extension artifacts
+.antlr/

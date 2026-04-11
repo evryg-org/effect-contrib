@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "outputs/tsc/dist",
+    "tsBuildInfoFile": "outputs/tsc/src.tsbuildinfo",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noUnusedLocals": false,
+    "types": ["node"]
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test-d.ts"
+  ],
+  "references": [
+    { "path": "../neo4j/tsconfig.src.json" },
+    { "path": "../neo4j-schema/tsconfig.src.json" }
+  ]
+}
