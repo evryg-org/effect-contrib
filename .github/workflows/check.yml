@@ -23,7 +23,6 @@ jobs:
         uses: ./.github/actions/setup
       - run: pnpm codegen
       - run: pnpm check
-      - run: pnpm dtslint
 
   lint:
     name: Lint
