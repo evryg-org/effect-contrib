@@ -33,12 +33,13 @@ function cypherTypeToSchema(ct: CypherType): string {
       }
     case "ListType":
       return `Schema.Array(${cypherTypeToSchema(ct.element)})`
-    case "MapType":
+    case "MapType": {
       if (ct.fields.length === 0) return "Neo4jValue"
       const fields = ct.fields
         .map((f) => `${f.name}: ${cypherTypeToSchema(f.value)}`)
         .join(", ")
       return `Schema.Struct({ ${fields} })`
+    }
     case "NullableType":
       return `Schema.NullOr(${cypherTypeToSchema(ct.inner)})`
     case "NeverType":

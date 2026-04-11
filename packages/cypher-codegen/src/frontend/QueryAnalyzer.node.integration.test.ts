@@ -5,7 +5,6 @@ import { CleanNeo4jGraph, Neo4jConfigFromVitest } from "@evryg/effect-vitest-neo
 import { Effect, Layer } from "effect"
 import { globSync, readFileSync } from "node:fs"
 import { basename } from "node:path"
-import { UnknownType } from "../types/CypherType.js"
 import { analyzeQuery } from "./QueryAnalyzer.js"
 
 const TestNeo4j = UnconfiguredNeo4jClient.pipe(Layer.provide(Neo4jConfigFromVitest))

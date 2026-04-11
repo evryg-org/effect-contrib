@@ -9,7 +9,6 @@ import {
   NeverType,
   NullableType,
   ScalarType,
-  UnknownType,
   VertexType,
   VertexUnionType
 } from "../types/CypherType.js"

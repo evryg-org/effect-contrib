@@ -1,14 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
 import { EdgeConnectivity, EdgeProperty, GraphSchema, VertexProperty } from "@evryg/effect-neo4j-schema"
-import {
-  type CypherType,
-  ListType,
-  MapType,
-  NullableType,
-  ScalarType,
-  UnknownType,
-  VertexUnionType
-} from "../types/CypherType.js"
+import { type CypherType, ListType, MapType, NullableType, ScalarType } from "../types/CypherType.js"
 import { analyzeQuery, type ResolvedColumn, type ResolvedParam } from "./QueryAnalyzer.js"
 
 // ── Schema fixture mimicking a typical analysis graph ──
