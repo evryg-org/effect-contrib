@@ -1,5 +1,6 @@
 import { Context, Effect, Layer } from "effect"
 import { DockerComposeEnvironment, type StartedDockerComposeEnvironment } from "testcontainers"
+import type { ComposeExecutableOptions } from "testcontainers/build/container-runtime"
 
 export class ComposeEnvironment extends Context.Tag("ComposeEnvironment")<
   ComposeEnvironment,
@@ -10,7 +11,7 @@ export interface ComposeOptions {
   readonly composeFilePath: string
   readonly composeFile: string
   readonly waitStrategy?: (env: DockerComposeEnvironment) => DockerComposeEnvironment
-  readonly executable?: { executablePath?: string; standalone?: boolean; options?: string[] }
+  readonly executable?: ComposeExecutableOptions
 }
 
 export const makeComposeContainer = (
