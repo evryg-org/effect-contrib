@@ -14,6 +14,8 @@
     "tsBuildInfoFile": ".tsbuildinfo/test.tsbuildinfo",
     "rootDir": "src",
     "noEmit": true,
-    "allowArbitraryExtensions": true
+    "noUnusedLocals": false,
+    "allowArbitraryExtensions": true,
+    "types": ["node"]
   }
 }

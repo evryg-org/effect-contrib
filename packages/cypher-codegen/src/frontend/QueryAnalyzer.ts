@@ -12,7 +12,6 @@ import {
   RelationshipPatternContext,
   RelationDetailContext,
   ParameterContext,
-  type ReturnStContext,
 } from "./generated-parser/CypherParser.js"
 import * as antlr from "antlr4ng"
 import type { GraphSchema } from "@evryg/effect-neo4j-schema"
@@ -268,7 +267,7 @@ function getLabelFromEnv(
 interface ChainNode {
   varName: string | undefined
   label: string | undefined
-  relToNext?: { relType: string | undefined; hasLeftArrow: boolean; hasRightArrow: boolean }
+  relToNext?: { relType: string | undefined; hasLeftArrow: boolean; hasRightArrow: boolean } | undefined
 }
 
 /** Walk all pattern element chains, calling cb with the ordered list of nodes */
@@ -417,7 +416,7 @@ function resolveProjection(
 
 // ── Param extraction ──
 
-interface ParamUsage { paramName: string; label?: string; property?: string; isInClause?: boolean }
+interface ParamUsage { paramName: string; label?: string | undefined; property?: string | undefined; isInClause?: boolean | undefined }
 
 /** Walk an ANTLR parse tree, calling cb for every node of the given context class. */
 function walkTree<T extends antlr.ParserRuleContext>(

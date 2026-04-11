@@ -1,6 +1,5 @@
 import type { ResolvedColumn, ResolvedParam, Neo4jType } from "../frontend/QueryAnalyzer.js"
 import type { CypherType } from "../types/CypherType.js"
-import type { QueryEntry } from "./CypherDeclarationGen.js"
 
 const PARAM_RE = /\$([a-zA-Z_]\w*)/g
 

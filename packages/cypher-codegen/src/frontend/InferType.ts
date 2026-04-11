@@ -5,11 +5,10 @@ import type {
   FunctionInvocationContext,
   CaseExpressionContext,
   AtomicExpressionContext,
-  MapLitContext,
   MapPairContext,
 } from "./generated-parser/CypherParser.js"
 import type { GraphSchema } from "@evryg/effect-neo4j-schema"
-import { ScalarType, ListType, MapType, NullableType, VertexType, VertexUnionType, EdgeType, UnknownType, NeverType, type CypherType } from "../types/CypherType.js"
+import { ScalarType, ListType, MapType, NullableType, UnknownType, NeverType, type CypherType } from "../types/CypherType.js"
 
 export class CypherTypeError extends Error {
   constructor(message: string) {
