@@ -1,7 +1,7 @@
 import { layer, expect } from "@effect/vitest"
 import { Chunk, Effect, Layer, Stream } from "effect"
 import { Neo4jClient, Neo4jClientLive, Neo4jQueryError } from "@/lib/effect-neo4j"
-import { Neo4jConfigFromVitest } from "@/testing"
+import { Neo4jConfigFromVitest } from "@/lib/effect-vitest-testcontainers"
 
 const TestNeo4j = Neo4jClientLive.pipe(Layer.provide(Neo4jConfigFromVitest))
 
