@@ -21,8 +21,8 @@ export const makeComposeContainer = (
     ComposeEnvironment,
     Effect.gen(function* () {
       let env = new DockerComposeEnvironment(opts.composeFilePath, opts.composeFile)
-      if (opts.executable) env = env.withClientOptions({ executable: opts.executable }) as DockerComposeEnvironment
-      if (opts.waitStrategy) env = opts.waitStrategy(env) as DockerComposeEnvironment
+      if (opts.executable) env = env.withClientOptions({ executable: opts.executable })
+      if (opts.waitStrategy) env = opts.waitStrategy(env)
       const started = yield* Effect.acquireRelease(
         Effect.tryPromise({ try: () => env.up(), catch: (e) => new Error(String(e)) }),
         (c) => Effect.promise(() => c.down()).pipe(Effect.orDie),
