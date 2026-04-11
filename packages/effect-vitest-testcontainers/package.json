@@ -1,0 +1,20 @@
+{
+  "name": "@evryg/effect-vitest-testcontainers",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./neo4j-global-setup": "./src/neo4j-global-setup.ts"
+  },
+  "dependencies": {
+    "@evryg/effect-neo4j": "workspace:*",
+    "neo4j-driver-core": "^6.0.1",
+    "@evryg/effect-pipeline": "workspace:*",
+    "@evryg/effect-testcontainers": "workspace:*",
+    "effect": "^3.21.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.1"
+  }
+}

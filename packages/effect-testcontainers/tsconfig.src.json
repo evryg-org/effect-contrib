@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "outputs/tsc/dist",
+    "tsBuildInfoFile": "outputs/tsc/src.tsbuildinfo",
+    // testcontainers is CJS with no exports map — NodeNext cannot resolve the
+    // build/container-runtime subpath import. Use bundler instead.
+    "module": "preserve",
+    "moduleResolution": "bundler"
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test-d.ts"
+  ],
+  "references": [
+    {
+      "path": "../effect-neo4j/tsconfig.src.json"
+    }
+  ]
+}

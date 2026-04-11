@@ -1,0 +1,19 @@
+{
+  "name": "@evryg/effect-neo4j-schema",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@effect/platform": "^0.96.0",
+    "@evryg/effect-neo4j": "workspace:*",
+    "effect": "^3.21.0"
+  },
+  "devDependencies": {
+    "@effect/platform-node": "^0.106.0",
+    "@effect/vitest": "^0.29.0",
+    "fast-check": "^3.23.2",
+    "@evryg/effect-vitest-testcontainers": "workspace:*",
+    "vitest": "^3.2.1"
+  }
+}
