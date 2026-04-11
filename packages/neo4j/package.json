@@ -13,6 +13,10 @@
   "bugs": {
     "url": "https://github.com/evryg-org/effect-contrib/issues"
   },
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
   "publishConfig": {
     "access": "public",
     "directory": "dist",
