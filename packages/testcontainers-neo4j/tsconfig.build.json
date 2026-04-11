@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.src.json",
+  "references": [
+    { "path": "../neo4j/tsconfig.build.json" },
+    { "path": "../testcontainers/tsconfig.build.json" }
+  ],
+  "compilerOptions": {
+    "tsBuildInfoFile": ".tsbuildinfo/build.tsbuildinfo",
+    "outDir": "build/esm",
+    "declarationDir": "build/dts",
+    "stripInternal": true
+  }
+}

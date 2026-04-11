@@ -1,13 +1,38 @@
 {
   "name": "@evryg/effect-testcontainers",
   "version": "0.0.1",
-  "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
-  "dependencies": {
-    "effect": "^3.21.0"
+  "license": "MIT",
+  "description": "Effect layers for testcontainers-node: generic TestContainer and ComposeContainer",
+  "homepage": "https://www.evryg.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/evryg-org/effect-contrib.git",
+    "directory": "packages/testcontainers"
+  },
+  "bugs": {
+    "url": "https://github.com/evryg-org/effect-contrib/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "directory": "dist",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "pnpm build-esm && pnpm build-annotate && pnpm build-cjs && build-utils pack-v2",
+    "build-esm": "tsc -b tsconfig.build.json",
+    "build-cjs": "babel build/esm --plugins @babel/transform-export-namespace-from --plugins @babel/transform-modules-commonjs --out-dir build/cjs --source-maps",
+    "build-annotate": "babel build/esm --plugins annotate-pure-calls --out-dir build/esm --source-maps",
+    "check": "tsc -b tsconfig.json",
+    "test": "vitest",
+    "coverage": "vitest --coverage"
+  },
+  "peerDependencies": {
+    "effect": "^3.21.0",
+    "testcontainers": "^11.12.0"
   },
   "devDependencies": {
+    "effect": "^3.21.0",
     "testcontainers": "^11.12.0",
     "vitest": "^3.2.1"
   }

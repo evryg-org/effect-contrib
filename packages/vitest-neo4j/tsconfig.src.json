@@ -19,10 +19,10 @@
       "path": "../neo4j/tsconfig.src.json"
     },
     {
-      "path": "../effect-pipeline/tsconfig.src.json"
+      "path": "../testcontainers/tsconfig.src.json"
     },
     {
-      "path": "../testcontainers/tsconfig.src.json"
+      "path": "../testcontainers-neo4j/tsconfig.src.json"
     }
   ]
 }
