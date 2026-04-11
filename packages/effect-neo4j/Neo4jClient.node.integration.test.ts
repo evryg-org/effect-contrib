@@ -1,5 +1,5 @@
 import { layer, expect } from "@effect/vitest"
-import { Effect, Layer } from "effect"
+import { Chunk, Effect, Layer, Stream } from "effect"
 import { Neo4jClient, Neo4jClientLive, Neo4jQueryError } from "@/lib/effect-neo4j"
 import { Neo4jTestContainerLive } from "@/lib/effect-testcontainers"
 
@@ -35,6 +35,45 @@ layer(TestNeo4j, { timeout: "120 seconds" })("Neo4jClient (integration)", (it) =
     Effect.gen(function* () {
       const client = yield* Neo4jClient
       const exit = yield* client.query("INVALID CYPHER !!!").pipe(Effect.exit)
+      expect(exit._tag).toBe("Failure")
+      if (exit._tag === "Failure") {
+        const error = exit.cause.toJSON()
+        expect(JSON.stringify(error)).toContain("Neo4jQueryError")
+      }
+    }),
+  )
+
+  it.effect("queryStream emits records", () =>
+    Effect.gen(function* () {
+      const client = yield* Neo4jClient
+      yield* client.runBatch(
+        "UNWIND $rows AS row CREATE (:StreamTest {name: row.name})",
+        Array.from({ length: 5 }, (_, i) => ({ name: `stream-${i}` })),
+      )
+      const chunk = yield* client
+        .queryStream("MATCH (n:StreamTest) RETURN n.name AS name ORDER BY name")
+        .pipe(Stream.runCollect)
+      expect(Chunk.toArray(chunk)).toHaveLength(5)
+      expect(chunk.pipe(Chunk.unsafeGet(0)).get("name")).toBe("stream-0")
+    }),
+  )
+
+  it.effect("queryStream with empty result yields empty stream", () =>
+    Effect.gen(function* () {
+      const client = yield* Neo4jClient
+      const chunk = yield* client
+        .queryStream("MATCH (n:NeverExists) RETURN n")
+        .pipe(Stream.runCollect)
+      expect(Chunk.toArray(chunk)).toHaveLength(0)
+    }),
+  )
+
+  it.effect("queryStream with invalid cypher yields Neo4jQueryError", () =>
+    Effect.gen(function* () {
+      const client = yield* Neo4jClient
+      const exit = yield* client
+        .queryStream("INVALID CYPHER !!!")
+        .pipe(Stream.runCollect, Effect.exit)
       expect(exit._tag).toBe("Failure")
       if (exit._tag === "Failure") {
         const error = exit.cause.toJSON()

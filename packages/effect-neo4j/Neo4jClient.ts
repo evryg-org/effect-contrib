@@ -1,5 +1,5 @@
 import neo4j, { type Driver, type QueryResult, type Record as Neo4jRecord, type Session } from "neo4j-driver"
-import { Context, Effect, Layer, Schema } from "effect"
+import { Context, Effect, Layer, Schema, Stream } from "effect"
 import { Neo4jConfig } from "./Neo4jConfig"
 
 export type { Record as Neo4jRecord } from "neo4j-driver"
@@ -62,6 +62,7 @@ export const runCypherWrite = (
 
 export class Neo4jClient extends Context.Tag("Neo4jClient")<Neo4jClient, {
   readonly query: (cypher: string, params?: Record<string, unknown>) => Effect.Effect<Neo4jRecord[], Neo4jQueryError>
+  readonly queryStream: (cypher: string, params?: Record<string, unknown>) => Stream.Stream<Neo4jRecord, Neo4jQueryError>
   readonly runBatch: (cypher: string, rows: unknown[], batchSize?: number) => Effect.Effect<number, Neo4jQueryError>
 }>() {}
 
@@ -92,6 +93,25 @@ export const Neo4jClientLive: Layer.Layer<Neo4jClient, never, Neo4jConfig> = Lay
         withSession((session) =>
           runCypher(session, cypher, params ?? {}).pipe(
             Effect.map((result) => result.records),
+          ),
+        ),
+
+      queryStream: (cypher: string, params?: Record<string, unknown>) =>
+        Stream.asyncPush<Neo4jRecord, Neo4jQueryError>((emit) =>
+          Effect.acquireRelease(
+            openSession(driver, config.database).pipe(
+              Effect.tap((session) =>
+                Effect.sync(() => {
+                  const result = session.run(cypher, params ?? {})
+                  result.subscribe({
+                    onNext: (record) => emit.single(record),
+                    onCompleted: () => emit.end(),
+                    onError: (err) => emit.fail(new Neo4jQueryError({ cypher, cause: err })),
+                  })
+                }),
+              ),
+            ),
+            closeSession,
           ),
         ),
 
