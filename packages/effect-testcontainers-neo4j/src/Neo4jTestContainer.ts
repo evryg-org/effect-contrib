@@ -1,7 +1,7 @@
 import { Effect, Layer } from "effect"
 import { Neo4jContainer } from "@testcontainers/neo4j"
 import { Neo4jConfig } from "@evryg/effect-neo4j"
-import { acquireContainer } from "./TestContainer.js"
+import { acquireContainer } from "@evryg/effect-testcontainers"
 
 export interface Neo4jTestContainerOptions {
   readonly image?: string

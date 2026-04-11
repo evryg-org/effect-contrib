@@ -1,5 +1,5 @@
 {
-  "name": "@evryg/effect-vitest-testcontainers",
+  "name": "@evryg/effect-vitest-neo4j",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
   "dependencies": {
     "@evryg/effect-neo4j": "workspace:*",
     "neo4j-driver-core": "^6.0.1",
-    "@evryg/effect-testcontainers": "workspace:*",
+    "@evryg/effect-testcontainers-neo4j": "workspace:*",
     "effect": "^3.21.0"
   },
   "devDependencies": {

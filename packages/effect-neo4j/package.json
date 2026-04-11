@@ -10,7 +10,6 @@
   },
   "devDependencies": {
     "@effect/vitest": "^0.29.0",
-    "@evryg/effect-vitest-testcontainers": "workspace:*",
     "vitest": "^3.2.1"
   }
 }

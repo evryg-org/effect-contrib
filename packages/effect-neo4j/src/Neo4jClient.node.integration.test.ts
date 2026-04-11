@@ -1,7 +1,25 @@
 import { layer, expect } from "@effect/vitest"
 import { Chunk, Effect, Layer, Stream } from "effect"
-import { Neo4jClient, UnconfiguredNeo4jClient, Neo4jQueryError } from "@evryg/effect-neo4j"
-import { CleanNeo4jGraph, Neo4jConfigFromVitest } from "@evryg/effect-vitest-testcontainers"
+import { Neo4jClient, Neo4jConfig, UnconfiguredNeo4jClient, Neo4jQueryError } from "@evryg/effect-neo4j"
+import { inject } from "vitest"
+
+declare module "vitest" {
+  interface ProvidedContext {
+    neo4j: { uri: string; password: string }
+  }
+}
+
+const Neo4jConfigFromVitest = Layer.succeed(Neo4jConfig, {
+  uri: inject("neo4j").uri,
+  user: "neo4j",
+  password: inject("neo4j").password,
+  database: "neo4j",
+})
+
+const CleanNeo4jGraph = Effect.acquireRelease(
+  Effect.flatMap(Neo4jClient, (neo4j) => neo4j.query("MATCH (n) DETACH DELETE n")),
+  () => Effect.void,
+)
 
 const TestNeo4j = UnconfiguredNeo4jClient.pipe(Layer.provide(Neo4jConfigFromVitest))
 

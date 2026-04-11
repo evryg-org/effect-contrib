@@ -5,14 +5,10 @@
   "type": "module",
   "exports": { ".": "./src/index.ts" },
   "dependencies": {
-    "@evryg/effect-neo4j": "workspace:*",
     "effect": "^3.21.0"
   },
   "devDependencies": {
-    "@effect/vitest": "^0.29.0",
-    "@testcontainers/neo4j": "^11.12.0",
     "testcontainers": "^11.12.0",
-    "@evryg/effect-vitest-testcontainers": "workspace:*",
     "vitest": "^3.2.1"
   }
 }

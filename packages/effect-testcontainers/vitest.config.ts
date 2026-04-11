@@ -1,17 +1,4 @@
 import { defineConfig, mergeConfig } from "vitest/config"
 import shared from "../vitest.shared"
 
-export default mergeConfig(shared, defineConfig({
-  test: {
-    projects: [
-      {
-        extends: true,
-        test: {
-          name: "node-integration",
-          include: ["src/**/*.node.integration.test.{ts,mts,cts,tsx}"],
-          globalSetup: ["../effect-vitest-testcontainers/src/neo4j-global-setup.ts"],
-        },
-      },
-    ],
-  },
-}))
+export default mergeConfig(shared, defineConfig({}))

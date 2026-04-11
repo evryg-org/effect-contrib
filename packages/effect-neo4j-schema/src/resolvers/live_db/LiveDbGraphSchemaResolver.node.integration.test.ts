@@ -1,7 +1,7 @@
 import { layer, expect } from "@effect/vitest"
 import { Effect, Layer } from "effect"
 import { Neo4jClient, UnconfiguredNeo4jClient } from "@evryg/effect-neo4j"
-import { Neo4jConfigFromVitest } from "@evryg/effect-vitest-testcontainers"
+import { Neo4jConfigFromVitest } from "@evryg/effect-vitest-neo4j"
 import { extractSchema } from "./LiveDbGraphSchemaResolver.js"
 
 const seed = Effect.flatMap(Neo4jClient, (neo4j) =>
