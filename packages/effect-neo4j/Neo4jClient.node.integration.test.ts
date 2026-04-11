@@ -1,9 +1,9 @@
 import { layer, expect } from "@effect/vitest"
 import { Chunk, Effect, Layer, Stream } from "effect"
-import { Neo4jClient, Neo4jClientLive, Neo4jQueryError } from "@/lib/effect-neo4j"
+import { Neo4jClient, UnconfiguredNeo4jClient, Neo4jQueryError } from "@/lib/effect-neo4j"
 import { CleanNeo4jGraph, Neo4jConfigFromVitest } from "@/lib/effect-vitest-testcontainers"
 
-const TestNeo4j = Neo4jClientLive.pipe(Layer.provide(Neo4jConfigFromVitest))
+const TestNeo4j = UnconfiguredNeo4jClient.pipe(Layer.provide(Neo4jConfigFromVitest))
 
 layer(TestNeo4j, { timeout: "120 seconds" })("Neo4jClient (integration)", (it) => {
   it.effect("query returns records", () =>

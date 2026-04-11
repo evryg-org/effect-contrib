@@ -1,7 +1,7 @@
 export { Neo4jConfig, type Neo4jConnectionConfig } from "./Neo4jConfig"
 export {
   Neo4jClient,
-  Neo4jClientLive,
+  UnconfiguredNeo4jClient,
   type Neo4jRecord,
   Neo4jConnectionError,
   Neo4jQueryError,

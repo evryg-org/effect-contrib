@@ -66,7 +66,7 @@ export class Neo4jClient extends Context.Tag("Neo4jClient")<Neo4jClient, {
   readonly runBatch: (cypher: string, rows: unknown[], batchSize?: number) => Effect.Effect<number, Neo4jQueryError>
 }>() {}
 
-export const Neo4jClientLive: Layer.Layer<Neo4jClient, never, Neo4jConfig> = Layer.scoped(
+export const UnconfiguredNeo4jClient: Layer.Layer<Neo4jClient, never, Neo4jConfig> = Layer.scoped(
   Neo4jClient,
   Effect.gen(function* () {
     const config = yield* Neo4jConfig
