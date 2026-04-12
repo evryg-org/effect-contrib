@@ -1,6 +1,8 @@
 import { describe, expect, it } from "@effect/vitest"
 import { EdgeProperty, GraphSchema, VertexProperty } from "@evryg/effect-neo4j-schema"
 import { CharStream, CommonTokenStream } from "antlr4ng"
+import { CypherLexer } from "../internal/generated-parser/CypherLexer.js"
+import { CypherParser } from "../internal/generated-parser/CypherParser.js"
 import {
   type CypherType,
   EdgeType,
@@ -12,8 +14,6 @@ import {
   VertexType,
   VertexUnionType
 } from "../types/CypherType.js"
-import { CypherLexer } from "../internal/generated-parser/CypherLexer.js"
-import { CypherParser } from "../internal/generated-parser/CypherParser.js"
 import { inferExpressionType, type TypeEnv } from "./InferType.js"
 
 // ── Helpers ──
