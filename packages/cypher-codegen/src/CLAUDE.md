@@ -6,7 +6,7 @@ Schema model and annotations live in `@/lib/effect-neo4j-schema`.
 
 ## Architecture
 
-- **Grammar**: `frontend/grammar/CypherParser.g4` (OpenCypher ANTLR4 grammar) generates `frontend/generated-parser/*.ts`
+- **Grammar**: `internal/grammar/CypherParser.g4` (OpenCypher ANTLR4 grammar) generates `internal/generated-parser/*.ts`
 - **QueryAnalyzer**: Walks ANTLR AST to infer column types and extract parameters
 - **CypherCodegen**: Generates typed Effect modules from `.cypher` files (single-file `generateModule` or barrel `generateBarrel`)
 - **Register.ts**: Node `registerHooks` loader for `.cypher` imports at runtime

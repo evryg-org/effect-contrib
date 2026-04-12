@@ -3,9 +3,9 @@ import { Command } from "@effect/cli"
 import { NodeContext, NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
 import type { Schema } from "effect"
-import { makeApplySchemaCommand } from "./cli/commands/ApplySchema.js"
-import { extractSchemaCommand } from "./cli/commands/ExtractSchema.js"
-import { makeGenerateCommand } from "./cli/commands/Generate.js"
+import { makeApplySchemaCommand } from "../internal/cli/commands/ApplySchema.js"
+import { extractSchemaCommand } from "../internal/cli/commands/ExtractSchema.js"
+import { makeGenerateCommand } from "../internal/cli/commands/Generate.js"
 
 /**
  * @since 0.0.1

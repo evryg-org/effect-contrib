@@ -1,5 +1,14 @@
 /** @since 0.0.1 */
 import type { GraphSchema } from "@evryg/effect-neo4j-schema"
+import type {
+  AtomContext,
+  AtomicExpressionContext,
+  CaseExpressionContext,
+  ExpressionContext,
+  FunctionInvocationContext,
+  MapPairContext,
+  PropertyExpressionContext
+} from "../internal/generated-parser/CypherParser.js"
 import {
   type CypherType,
   ListType,
@@ -9,15 +18,6 @@ import {
   ScalarType,
   UnknownType
 } from "../types/CypherType.js"
-import type {
-  AtomContext,
-  AtomicExpressionContext,
-  CaseExpressionContext,
-  ExpressionContext,
-  FunctionInvocationContext,
-  MapPairContext,
-  PropertyExpressionContext
-} from "./generated-parser/CypherParser.js"
 
 /**
  * @since 0.0.1
