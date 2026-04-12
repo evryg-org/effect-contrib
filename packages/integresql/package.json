@@ -34,7 +34,6 @@
     "vitest": "^3.2.4"
   },
   "devDependencies": {
-    "effect": "^3.9.2",
-    "vitest": "^3.2.4"
+    "effect": "^3.9.2"
   }
 }
