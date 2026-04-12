@@ -1,5 +1,5 @@
 {
-  "name": "@evryg/cypher-codegen",
+  "name": "@evryg/effect-cypher-codegen",
   "version": "0.0.1",
   "type": "module",
   "license": "MIT",

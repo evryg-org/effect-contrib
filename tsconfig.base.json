@@ -44,7 +44,7 @@
       "@evryg/effect-vitest-neo4j": ["./packages/vitest-neo4j/src/index.js"],
       "@evryg/effect-testcontainers-neo4j": ["./packages/testcontainers-neo4j/src/index.js"],
       "@evryg/effect-neo4j-schema": ["./packages/neo4j-schema/src/index.js"],
-      "@evryg/cypher-codegen": ["./packages/cypher-codegen/src/index.js"]
+      "@evryg/effect-cypher-codegen": ["./packages/cypher-codegen/src/index.js"]
     }
   }
 }

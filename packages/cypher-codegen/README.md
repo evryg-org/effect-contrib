@@ -1,1 +1,1 @@
-# @evryg/cypher-codegen
+# @evryg/effect-cypher-codegen

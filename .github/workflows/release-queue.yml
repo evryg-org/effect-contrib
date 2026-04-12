@@ -34,7 +34,7 @@ jobs:
           packages: |
             @evryg/effect-neo4j
             @evryg/effect-neo4j-schema
-            @evryg/cypher-codegen
+            @evryg/effect-cypher-codegen
             @evryg/effect-testcontainers
             @evryg/effect-testcontainers-neo4j
             @evryg/effect-vitest-neo4j
