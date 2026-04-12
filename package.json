@@ -6,6 +6,7 @@
     "packages/*"
   ],
   "scripts": {
+    "prepare": "pnpm dlx @effect/language-service patch",
     "clean": "node scripts/clean.mjs",
     "codegen": "pnpm --recursive --parallel run codegen",
     "codemod": "node scripts/codemod.mjs",

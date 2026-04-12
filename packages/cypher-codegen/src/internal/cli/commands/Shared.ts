@@ -109,7 +109,7 @@ export function generateFromSchema(schema: GraphSchema, output: string, cypherGl
     const filenames = files.map((f) => basename(f))
     const duplicates = filenames.filter((name, i) => filenames.indexOf(name) !== i)
     if (duplicates.length > 0) {
-      yield* Effect.fail(new Error(`Duplicate .cypher filenames: ${[...new Set(duplicates)].join(", ")}`))
+      return yield* Effect.fail(new Error(`Duplicate .cypher filenames: ${[...new Set(duplicates)].join(", ")}`))
     }
 
     const eithers = files.map((file) =>
@@ -141,7 +141,7 @@ export function generateFromSchema(schema: GraphSchema, output: string, cypherGl
       for (const f of failures) {
         yield* Console.error(`✗ ${f.filename}: ${f.error}`)
       }
-      yield* Effect.fail(new Error(`${failures.length} Cypher type error(s)`))
+      return yield* Effect.fail(new Error(`${failures.length} Cypher type error(s)`))
     }
 
     const content = generateBarrel(entries)
