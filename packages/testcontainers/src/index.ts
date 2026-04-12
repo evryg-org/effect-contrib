@@ -3,6 +3,10 @@
  */
 export {
   /**
+   * @since 0.0.3
+   */
+  ComposeContainerError,
+  /**
    * @since 0.0.1
    */
   ComposeEnvironment,
@@ -23,5 +27,9 @@ export {
   /**
    * @since 0.0.1
    */
-  acquireContainer
+  acquireContainer,
+  /**
+   * @since 0.0.3
+   */
+  TestContainerError
 } from "./TestContainer.js"

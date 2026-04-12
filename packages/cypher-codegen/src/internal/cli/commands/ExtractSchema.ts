@@ -20,5 +20,5 @@ export const extractSchemaCommand = Command.make(
       yield* Console.log(
         `  ${schema.vertexProperties.length} vertex properties, ${schema.edgeProperties.length} edge properties`
       )
-    }).pipe(Effect.provide(neo4jLayer(opts)), Effect.provide(NodeContext.layer))
+    }).pipe(Effect.provide([neo4jLayer(opts), NodeContext.layer]))
 )

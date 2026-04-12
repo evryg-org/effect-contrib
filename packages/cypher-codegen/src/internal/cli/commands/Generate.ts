@@ -24,7 +24,7 @@ const generateLiveDbCommand = Command.make(
       yield* saveSchema(opts.schemaPath, schema)
       yield* Console.log(`Schema extracted: ${schema.vertexProperties.length} vertex properties`)
       yield* generateFromSchema(schema, opts.output, opts.cypherGlob)
-    }).pipe(Effect.provide(neo4jLayer(opts)), Effect.provide(NodeContext.layer))
+    }).pipe(Effect.provide([neo4jLayer(opts), NodeContext.layer]))
 )
 
 // ── generate annotations ──

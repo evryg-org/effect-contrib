@@ -1,8 +1,16 @@
 /**
  * @since 0.0.1
  */
-import { Context, Effect, Layer } from "effect"
+import { Context, Effect, Layer, Schema } from "effect"
 import { DockerComposeEnvironment, type StartedDockerComposeEnvironment } from "testcontainers"
+
+/**
+ * @since 0.0.3
+ * @category errors
+ */
+export class ComposeContainerError extends Schema.TaggedError<ComposeContainerError>()("ComposeContainerError", {
+  cause: Schema.Defect
+}) {}
 
 /**
  * @since 0.0.1
@@ -44,7 +52,7 @@ export interface ComposeOptions {
  */
 export const makeComposeContainer = (
   opts: ComposeOptions
-): Layer.Layer<ComposeEnvironment, Error> =>
+): Layer.Layer<ComposeEnvironment, ComposeContainerError> =>
   Layer.scoped(
     ComposeEnvironment,
     Effect.gen(function*() {
@@ -52,7 +60,7 @@ export const makeComposeContainer = (
       if (opts.executable) env = env.withClientOptions({ executable: opts.executable })
       if (opts.waitStrategy) env = opts.waitStrategy(env)
       const started = yield* Effect.acquireRelease(
-        Effect.tryPromise({ try: () => env.up(), catch: (e) => new Error(String(e)) }),
+        Effect.tryPromise({ try: () => env.up(), catch: (cause) => new ComposeContainerError({ cause }) }),
         (c) => Effect.promise(() => c.down()).pipe(Effect.orDie)
       )
       yield* Effect.log("[testcontainers] Compose started")
