@@ -1,8 +1,13 @@
+/** @since 0.0.1 */
 import type { Neo4jType, ResolvedColumn, ResolvedParam } from "../frontend/QueryAnalyzer.js"
 import type { CypherType } from "../types/CypherType.js"
 
 const PARAM_RE = /\$([a-zA-Z_]\w*)/g
 
+/**
+ * @since 0.0.1
+ * @category codegen
+ */
 export const extractParams = (cypher: string): ReadonlyArray<string> => {
   const params = new Set<string>()
   for (const match of cypher.matchAll(PARAM_RE)) {
@@ -139,6 +144,10 @@ function tsTypeFor(type: Neo4jType): string {
 
 // ── Module generation ──
 
+/**
+ * @since 0.0.1
+ * @category codegen
+ */
 export function generateModule(cypher: string, columns?: ReadonlyArray<ResolvedColumn>): string {
   if (!columns || columns.length === 0) {
     return generateUntypedModule(cypher)
@@ -246,6 +255,10 @@ function toCamelCase(filename: string): string {
   return base.charAt(0).toLowerCase() + base.slice(1) + "Query"
 }
 
+/**
+ * @since 0.0.1
+ * @category codegen
+ */
 export interface BarrelEntry {
   readonly filename: string
   readonly cypher: string
@@ -253,6 +266,10 @@ export interface BarrelEntry {
   readonly params: ReadonlyArray<ResolvedParam>
 }
 
+/**
+ * @since 0.0.1
+ * @category codegen
+ */
 export function generateBarrel(entries: ReadonlyArray<BarrelEntry>): string {
   const lines: Array<string> = []
 

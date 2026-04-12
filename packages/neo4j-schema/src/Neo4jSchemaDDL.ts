@@ -1,6 +1,13 @@
+/**
+ * @since 0.0.1
+ */
 import type { Schema } from "effect"
 
-/** Compile Effect Schema structs with neo4j annotations into Cypher DDL statements */
+/**
+ * Compile Effect Schema structs with neo4j annotations into Cypher DDL statements
+ * @since 0.0.1
+ * @category ddl
+ */
 export function compileToCypherDDL(schemas: Array<Schema.Schema.Any>): string {
   const lines: Array<string> = []
 

@@ -1,12 +1,23 @@
+/**
+ * @since 0.0.1
+ */
 import { Context, Effect, Layer } from "effect"
 import { DockerComposeEnvironment, type StartedDockerComposeEnvironment } from "testcontainers"
 import type { ComposeExecutableOptions } from "testcontainers/build/container-runtime"
 
+/**
+ * @since 0.0.1
+ * @category containers
+ */
 export class ComposeEnvironment extends Context.Tag("ComposeEnvironment")<
   ComposeEnvironment,
   StartedDockerComposeEnvironment
 >() {}
 
+/**
+ * @since 0.0.1
+ * @category models
+ */
 export interface ComposeOptions {
   readonly composeFilePath: string
   readonly composeFile: string
@@ -14,6 +25,10 @@ export interface ComposeOptions {
   readonly executable?: ComposeExecutableOptions
 }
 
+/**
+ * @since 0.0.1
+ * @category constructors
+ */
 export const makeComposeContainer = (
   opts: ComposeOptions
 ): Layer.Layer<ComposeEnvironment, Error> =>

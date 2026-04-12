@@ -1,3 +1,4 @@
+/** @since 0.0.1 */
 import { Command } from "@effect/cli"
 import { NodeContext } from "@effect/platform-node"
 import { compileToGraphSchema, extractSchema, saveSchema } from "@evryg/effect-neo4j-schema"
@@ -44,6 +45,10 @@ const makeGenerateAnnotationsCommand = (allSchemas: Array<Schema.Schema.Any>) =>
 
 // ── generate (parent) ──
 
+/**
+ * @since 0.0.1
+ * @category cli
+ */
 export const makeGenerateCommand = (allSchemas: Array<Schema.Schema.Any>) =>
   Command.make("generate").pipe(
     Command.withSubcommands([generateLiveDbCommand, makeGenerateAnnotationsCommand(allSchemas)])

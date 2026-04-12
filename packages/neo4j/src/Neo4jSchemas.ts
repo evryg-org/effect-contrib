@@ -1,9 +1,15 @@
+/**
+ * @since 0.0.1
+ */
 import { Schema } from "effect"
 import { isInt } from "neo4j-driver"
 
 /**
  * Schema transform that decodes a Neo4j Integer (or plain JS number) to a JS number.
  * Use for columns typed as Long in the Cypher query analyzer.
+ *
+ * @since 0.0.1
+ * @category schemas
  */
 export const Neo4jInt: Schema.Schema<number, unknown> = Schema.transform(
   Schema.Unknown,
@@ -17,6 +23,7 @@ export const Neo4jInt: Schema.Schema<number, unknown> = Schema.transform(
 /**
  * Recursively coerces Neo4j driver types (Integer objects) to plain JS primitives.
  * Use for columns typed as Unknown in the Cypher query analyzer.
+ * @internal
  */
 function coerce(v: unknown): unknown {
   if (v === null || v === undefined) return v
@@ -30,6 +37,10 @@ function coerce(v: unknown): unknown {
   return v
 }
 
+/**
+ * @since 0.0.1
+ * @category schemas
+ */
 export const Neo4jValue: Schema.Schema<unknown, unknown> = Schema.transform(
   Schema.Unknown,
   Schema.Unknown,

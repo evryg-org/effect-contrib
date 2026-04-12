@@ -1,3 +1,4 @@
+/** @since 0.0.1 */
 import { ensureSchema, Neo4jConfig, UnconfiguredNeo4jClient } from "@evryg/effect-neo4j"
 import { Neo4jTestContainerLive } from "@evryg/effect-testcontainers-neo4j"
 import { Layer, ManagedRuntime } from "effect"
@@ -21,11 +22,19 @@ const TestNeo4jLive = SchemaSetupLive.pipe(
 
 const runtime = ManagedRuntime.make(TestNeo4jLive)
 
+/**
+ * @since 0.0.1
+ * @category setup
+ */
 export async function setup({ provide }: GlobalSetupContext) {
   const config = await runtime.runPromise(Neo4jConfig)
   provide("neo4j", { uri: config.uri, password: config.password })
 }
 
+/**
+ * @since 0.0.1
+ * @category setup
+ */
 export async function teardown() {
   await runtime.dispose()
 }

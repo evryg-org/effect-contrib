@@ -1,6 +1,10 @@
 {
   "$schema": "../../node_modules/@effect/docgen/schema.json",
   "exclude": [
-    "src/**"
+    "src/internal/**/*.ts",
+    "src/frontend/generated-parser/**/*.ts",
+    "src/**/*.test.ts",
+    "src/**/*.test-d.ts",
+    "src/**/*.d.cypher.ts"
   ]
 }

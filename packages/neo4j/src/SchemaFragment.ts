@@ -1,8 +1,19 @@
+/**
+ * @since 0.0.1
+ */
 import { Effect } from "effect"
 import { Neo4jClient } from "./Neo4jClient.js"
 
+/**
+ * @since 0.0.1
+ * @category models
+ */
 export type SchemaFragment = ReadonlyArray<string>
 
+/**
+ * @since 0.0.1
+ * @category combinators
+ */
 export const ensureSchema = (
   fragments: Array<SchemaFragment>
 ): Effect.Effect<void, Error, Neo4jClient> =>

@@ -1,6 +1,11 @@
+/** @since 0.0.1 */
 import type { Neo4jType, ResolvedColumn, ResolvedParam } from "../frontend/QueryAnalyzer.js"
 import type { CypherType } from "../types/CypherType.js"
 
+/**
+ * @since 0.0.1
+ * @category codegen
+ */
 export interface QueryEntry {
   readonly filename: string
   readonly columns: ReadonlyArray<ResolvedColumn>
@@ -75,6 +80,10 @@ function fieldTypeFor(col: ResolvedColumn): string {
 
 // ── Per-file declaration generation (.d.cypher.ts) ──
 
+/**
+ * @since 0.0.1
+ * @category codegen
+ */
 export const generateDeclaration = (entry: QueryEntry): string => {
   const lines: Array<string> = []
 
@@ -106,6 +115,10 @@ export const generateDeclaration = (entry: QueryEntry): string => {
 
 // ── Bulk generation (all entries into single file with declare module) ──
 
+/**
+ * @since 0.0.1
+ * @category codegen
+ */
 export const generateDeclarations = (queries: ReadonlyArray<QueryEntry>): string => {
   const lines: Array<string> = []
 

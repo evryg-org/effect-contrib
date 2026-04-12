@@ -1,3 +1,4 @@
+/** @since 0.0.1 */
 import type { GraphSchema } from "@evryg/effect-neo4j-schema"
 import {
   type CypherType,
@@ -18,6 +19,10 @@ import type {
   PropertyExpressionContext
 } from "./generated-parser/CypherParser.js"
 
+/**
+ * @since 0.0.1
+ * @category errors
+ */
 export class CypherTypeError extends Error {
   constructor(message: string) {
     super(message)
@@ -27,6 +32,10 @@ export class CypherTypeError extends Error {
 
 // ── Type environment ──
 
+/**
+ * @since 0.0.1
+ * @category models
+ */
 export type TypeEnv = ReadonlyMap<string, { readonly type: CypherType; readonly nullable: boolean }>
 
 // ── Schema lookup ──
@@ -150,6 +159,10 @@ const AGGREGATE_RETURN_TYPES: Record<string, CypherType> = {
 
 // ── Recursive expression type inference ──
 
+/**
+ * @since 0.0.1
+ * @category inference
+ */
 export function inferExpressionType(
   expr: ExpressionContext,
   env: TypeEnv,
