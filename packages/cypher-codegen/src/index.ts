@@ -70,7 +70,7 @@ export {
    * @since 0.0.1
    */
   cypherPlugin
-} from "./integration/VitePlugin.js"
+} from "./VitePlugin.js"
 
 /**
  * @since 0.0.1

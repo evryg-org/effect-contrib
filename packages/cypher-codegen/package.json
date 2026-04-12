@@ -15,9 +15,9 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./integration/VitePlugin": "./src/integration/VitePlugin.ts",
-    "./integration/Register": "./src/integration/Register.ts",
-    "./integration/codegen": "./src/integration/codegen.ts",
+    "./Codegen": "./src/Codegen.ts",
+    "./Register": "./src/Register.ts",
+    "./VitePlugin": "./src/VitePlugin.ts",
     "./internal/*": null
   },
   "publishConfig": {
