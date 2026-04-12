@@ -1,6 +1,6 @@
 {
   "name": "@evryg/effect-cypher-codegen",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "license": "MIT",
   "description": "Cypher type checker and code generator: parses .cypher files, infers types, and generates typed Effect modules",
