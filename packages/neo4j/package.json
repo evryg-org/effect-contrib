@@ -41,6 +41,6 @@
     "@effect/vitest": "^0.29.0",
     "effect": "^3.21.0",
     "neo4j-driver": "^6.0.1",
-    "vitest": "^3.2.1"
+    "vitest": "^2.1.9"
   }
 }
