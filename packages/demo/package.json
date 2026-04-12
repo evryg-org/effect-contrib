@@ -1,6 +1,7 @@
 {
   "name": "@evryg/demo",
   "version": "0.0.1-alpha.0",
+  "private": true,
   "type": "module",
   "license": "MIT",
   "description": "Demo package for testing the @evryg publication pipeline",
