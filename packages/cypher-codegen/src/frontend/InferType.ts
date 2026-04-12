@@ -17,7 +17,7 @@ import type {
   FunctionInvocationContext,
   MapPairContext,
   PropertyExpressionContext
-} from "./generated-parser/CypherParser.js"
+} from "../internal/generated-parser/CypherParser.js"
 
 /**
  * @since 0.0.1

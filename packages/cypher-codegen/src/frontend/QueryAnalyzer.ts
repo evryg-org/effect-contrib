@@ -3,8 +3,8 @@ import type { GraphSchema } from "@evryg/effect-neo4j-schema"
 import { CharStream, CommonTokenStream } from "antlr4ng"
 import * as antlr from "antlr4ng"
 import { type CypherType, EdgeType, UnknownType, VertexType, VertexUnionType } from "../types/CypherType.js"
-import { CypherLexer } from "./generated-parser/CypherLexer.js"
-import type { RelationshipPatternContext } from "./generated-parser/CypherParser.js"
+import { CypherLexer } from "../internal/generated-parser/CypherLexer.js"
+import type { RelationshipPatternContext } from "../internal/generated-parser/CypherParser.js"
 import {
   CypherParser,
   ListExpressionContext,
@@ -16,7 +16,7 @@ import {
   RelationDetailContext,
   UnwindStContext,
   WithStContext
-} from "./generated-parser/CypherParser.js"
+} from "../internal/generated-parser/CypherParser.js"
 import { inferExpressionType, type TypeEnv } from "./InferType.js"
 
 // ── Public types ──
