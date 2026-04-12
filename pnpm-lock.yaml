@@ -195,8 +195,8 @@ importers:
         version: 3.2.4(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@3.2.4)(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(terser@5.32.0)(tsx@4.17.0)(yaml@2.8.3)
     devDependencies:
       effect:
-        specifier: ^3.9.2
-        version: 3.9.2
+        specifier: ^3.21.0
+        version: 3.21.0
     publishDirectory: dist
 
   packages/neo4j:
@@ -3065,9 +3065,6 @@ packages:
 
   effect@3.21.0:
     resolution: {integrity: sha512-PPN80qRokCd1f015IANNhrwOnLO7GrrMQfk4/lnZRE/8j7UPWrNNjPV0uBrZutI/nHzernbW+J0hdqQysHiSnQ==}
-
-  effect@3.9.2:
-    resolution: {integrity: sha512-1sx/v1HTWHTodXfzWxAFg+SCF+ACgpJVruaAMIh/NmDVvrUsf0x9PzpXvkgJUbQ1fMdmKYK//FqxeHSQ+Zxv/Q==}
 
   electron-to-chromium@1.5.6:
     resolution: {integrity: sha512-jwXWsM5RPf6j9dPYzaorcBSUg6AiqocPEyMpkchkvntaH9HGfOOMZwxMJjDY/XEs3T5dM7uyH1VhRMkqUU9qVw==}
@@ -8701,8 +8698,6 @@ snapshots:
     dependencies:
       '@standard-schema/spec': 1.1.0
       fast-check: 3.23.2
-
-  effect@3.9.2: {}
 
   electron-to-chromium@1.5.6: {}
 
