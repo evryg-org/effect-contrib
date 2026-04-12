@@ -2,7 +2,7 @@
 import { Options } from "@effect/cli"
 import { Neo4jConfig, UnconfiguredNeo4jClient } from "@evryg/effect-neo4j"
 import type { GraphSchema } from "@evryg/effect-neo4j-schema"
-import { Console, Effect, Either, Layer } from "effect"
+import { Console, Effect, Either, Layer, Schema } from "effect"
 import { globSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { basename, dirname } from "node:path"
 import { type BarrelEntry, extractParams, generateBarrel } from "../../../backend/CypherCodegen.js"
@@ -87,6 +87,40 @@ export function neo4jLayer(
   )
 }
 
+// ── Errors ──
+
+/**
+ * @since 0.1.0
+ * @category errors
+ */
+export class DuplicateCypherFilenamesError extends Schema.TaggedError<DuplicateCypherFilenamesError>(
+  "@evryg/effect-cypher-codegen/DuplicateCypherFilenamesError"
+)("DuplicateCypherFilenamesError", {
+  filenames: Schema.Array(Schema.String)
+}) {
+  override get message() {
+    return `Duplicate .cypher filenames: ${this.filenames.join(", ")}`
+  }
+}
+
+/**
+ * @since 0.1.0
+ * @category errors
+ */
+export class CypherCodegenError extends Schema.TaggedError<CypherCodegenError>(
+  "@evryg/effect-cypher-codegen/CypherCodegenError"
+)("CypherCodegenError", {
+  failures: Schema.Array(Schema.Struct({
+    filename: Schema.String,
+    error: Schema.String
+  }))
+}) {
+  override get message() {
+    const details = this.failures.map((f) => `  ✗ ${f.filename}: ${f.error}`).join("\n")
+    return `${this.failures.length} Cypher type error(s):\n${details}`
+  }
+}
+
 // ── Shared codegen logic ──
 
 function mergeParams(analyzerParams: ReadonlyArray<ResolvedParam>, cypher: string): Array<ResolvedParam> {
@@ -102,14 +136,18 @@ function mergeParams(analyzerParams: ReadonlyArray<ResolvedParam>, cypher: strin
  * @since 0.0.1
  * @category codegen
  */
-export function generateFromSchema(schema: GraphSchema, output: string, cypherGlob: string) {
+export function generateFromSchema(
+  schema: GraphSchema,
+  output: string,
+  cypherGlob: string
+) {
   return Effect.gen(function*() {
     const files = globSync(cypherGlob).filter((f) => !basename(f).endsWith("GraphSchema.cypher"))
 
     const filenames = files.map((f) => basename(f))
     const duplicates = filenames.filter((name, i) => filenames.indexOf(name) !== i)
     if (duplicates.length > 0) {
-      return yield* Effect.fail(new Error(`Duplicate .cypher filenames: ${[...new Set(duplicates)].join(", ")}`))
+      return yield* new DuplicateCypherFilenamesError({ filenames: [...new Set(duplicates)] })
     }
 
     const eithers = files.map((file) =>
@@ -137,12 +175,7 @@ export function generateFromSchema(schema: GraphSchema, output: string, cypherGl
       })
     }
 
-    if (failures.length > 0) {
-      for (const f of failures) {
-        yield* Console.error(`✗ ${f.filename}: ${f.error}`)
-      }
-      return yield* Effect.fail(new Error(`${failures.length} Cypher type error(s)`))
-    }
+    if (failures.length > 0) return yield* new CypherCodegenError({ failures })
 
     const content = generateBarrel(entries)
     mkdirSync(dirname(output), { recursive: true })

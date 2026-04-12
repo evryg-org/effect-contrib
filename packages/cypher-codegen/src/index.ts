@@ -37,6 +37,20 @@ export {
 } from "./frontend/InferType.js"
 
 /**
+ * @since 0.1.0
+ */
+export {
+  /**
+   * @since 0.1.0
+   */
+  CypherCodegenError,
+  /**
+   * @since 0.1.0
+   */
+  DuplicateCypherFilenamesError
+} from "./internal/cli/commands/Shared.js"
+
+/**
  * @since 0.0.1
  */
 export {
