@@ -24,18 +24,6 @@ jobs:
       - run: pnpm codegen
       - run: pnpm check
 
-  changeset:
-    name: Changeset
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Install dependencies
-        uses: ./.github/actions/setup
-      - run: pnpm changeset-status --since=origin/main
-
   lint:
     name: Lint
     runs-on: ubuntu-latest

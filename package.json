@@ -22,7 +22,6 @@
     "docgen": "pnpm --recursive --parallel exec docgen && node scripts/docs.mjs",
     "dtslint": "pnpm --recursive --parallel run dtslint",
     "dtslint-clean": "dtslint --installAll",
-    "changeset-status": "changeset status",
     "changeset-version": "changeset version",
     "changeset-publish": "pnpm codemod && pnpm lint-fix && pnpm codegen && pnpm build && TEST_DIST= pnpm vitest && changeset publish"
   },

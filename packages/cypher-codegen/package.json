@@ -28,7 +28,7 @@
   },
   "scripts": {
     "codegen": "antlr-ng -o src/internal/generated-parser -v -l false -D language=TypeScript -- src/internal/grammar/CypherLexer.g4 src/internal/grammar/CypherParser.g4",
-    "build": "pnpm build-esm && pnpm build-annotate && pnpm build-cjs && build-utils pack-v2",
+    "build": "pnpm build-esm && pnpm build-annotate && pnpm build-cjs && build-utils pack-v2 && cp ../../.npmignore dist/",
     "build-esm": "tsc -b tsconfig.build.json",
     "build-cjs": "babel build/esm --plugins @babel/transform-export-namespace-from --plugins @babel/transform-modules-commonjs --out-dir build/cjs --source-maps",
     "build-annotate": "babel build/esm --plugins annotate-pure-calls --out-dir build/esm --source-maps",
