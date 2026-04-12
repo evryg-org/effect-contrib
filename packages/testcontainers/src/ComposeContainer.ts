@@ -10,7 +10,7 @@ import { DockerComposeEnvironment, type StartedDockerComposeEnvironment } from "
  */
 export type ComposeExecutableOptions = {
   executablePath: string
-  options?: string[] | (string | string[])[]
+  options?: Array<string> | Array<string | Array<string>>
   standalone?: never
 } | {
   executablePath?: string
