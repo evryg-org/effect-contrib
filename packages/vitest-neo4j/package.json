@@ -43,6 +43,6 @@
     "@evryg/effect-neo4j": "workspace:^",
     "@evryg/effect-testcontainers-neo4j": "workspace:^",
     "effect": "^3.21.0",
-    "vitest": "^3.2.1"
+    "vitest": "^2.1.9"
   }
 }
