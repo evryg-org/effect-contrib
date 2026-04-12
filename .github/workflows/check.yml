@@ -34,7 +34,7 @@ jobs:
           fetch-depth: 0
       - name: Install dependencies
         uses: ./.github/actions/setup
-      - run: pnpm changeset-status
+      - run: pnpm changeset-status --since=origin/main
 
   lint:
     name: Lint
