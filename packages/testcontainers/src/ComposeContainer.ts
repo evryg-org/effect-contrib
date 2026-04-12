@@ -5,7 +5,7 @@ import { Context, Effect, Layer, Schema } from "effect"
 import { DockerComposeEnvironment, type StartedDockerComposeEnvironment } from "testcontainers"
 
 /**
- * @since 0.1.0
+ * @since 0.0.3
  * @category errors
  */
 export class ComposeContainerError extends Schema.TaggedError<ComposeContainerError>()("ComposeContainerError", {

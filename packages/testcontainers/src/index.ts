@@ -3,10 +3,7 @@
  */
 export {
   /**
-   * @since 0.0.1
-   */
-  /**
-   * @since 0.1.0
+   * @since 0.0.3
    */
   ComposeContainerError,
   /**
@@ -32,7 +29,7 @@ export {
    */
   acquireContainer,
   /**
-   * @since 0.1.0
+   * @since 0.0.3
    */
   TestContainerError
 } from "./TestContainer.js"

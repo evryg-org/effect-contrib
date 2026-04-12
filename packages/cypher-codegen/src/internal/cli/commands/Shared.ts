@@ -90,7 +90,7 @@ export function neo4jLayer(
 // ── Errors ──
 
 /**
- * @since 0.1.0
+ * @since 0.1.1
  * @category errors
  */
 export class DuplicateCypherFilenamesError extends Schema.TaggedError<DuplicateCypherFilenamesError>(
@@ -104,7 +104,7 @@ export class DuplicateCypherFilenamesError extends Schema.TaggedError<DuplicateC
 }
 
 /**
- * @since 0.1.0
+ * @since 0.1.1
  * @category errors
  */
 export class CypherCodegenError extends Schema.TaggedError<CypherCodegenError>(

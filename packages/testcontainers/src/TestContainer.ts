@@ -6,7 +6,7 @@ import { Effect, Schema } from "effect"
 import type { StartedTestContainer } from "testcontainers"
 
 /**
- * @since 0.1.0
+ * @since 0.0.3
  * @category errors
  */
 export class TestContainerError extends Schema.TaggedError<TestContainerError>()("TestContainerError", {
