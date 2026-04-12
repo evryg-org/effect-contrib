@@ -1,11 +1,19 @@
 # @evryg/effect-cypher-codegen
 
+## 0.1.0
+
+### Minor Changes
+
+- [#18](https://github.com/evryg-org/effect-contrib/pull/18) [`b8d9c8c`](https://github.com/evryg-org/effect-contrib/commit/b8d9c8cc214725e024dd9db423eadc08fc3e96be) Thanks @jbmusso! - Promote integration modules to top-level exports following Effect ecosystem conventions.
+  - `./integration/codegen` → `./Codegen`
+  - `./integration/Register` → `./Register`
+  - `./integration/VitePlugin` → `./VitePlugin`
+
 ## 0.0.2
 
 ### Patch Changes
 
 - [#14](https://github.com/evryg-org/effect-contrib/pull/14) [`b44a11d`](https://github.com/evryg-org/effect-contrib/commit/b44a11d002ed6f5129ef9697a1567ba02d0510e2) Thanks @jbmusso! - Fix package dependency declarations
-
   - Use workspace:^ instead of workspace:\* for internal cross-package references
   - Add missing vitest peer dependency to @evryg/effect-vitest-neo4j
   - Remove unused neo4j-driver-core peer dependency from @evryg/effect-vitest-neo4j
