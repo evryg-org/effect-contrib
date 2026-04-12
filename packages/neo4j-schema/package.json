@@ -46,6 +46,6 @@
     "@evryg/effect-vitest-neo4j": "workspace:^",
     "effect": "^3.21.0",
     "fast-check": "^3.23.2",
-    "vitest": "^2.1.9"
+    "vitest": "^3.2.4"
   }
 }
