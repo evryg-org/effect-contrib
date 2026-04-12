@@ -1,6 +1,6 @@
 {
   "name": "@evryg/effect-testcontainers-neo4j",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "type": "module",
   "license": "MIT",
   "description": "Neo4j testcontainer layer providing Neo4jConfig from a container",

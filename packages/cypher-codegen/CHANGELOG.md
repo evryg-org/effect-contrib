@@ -1,5 +1,16 @@
 # @evryg/effect-cypher-codegen
 
+## 0.1.1
+
+### Patch Changes
+
+- [#17](https://github.com/evryg-org/effect-contrib/pull/17) [`beeab1d`](https://github.com/evryg-org/effect-contrib/commit/beeab1d3c13779333208725fd4bdec35f8eb4fda) Thanks @jbmusso! - Replace global Error with tagged errors and export them as top-level API
+  - cypher-codegen: Add `CypherCodegenError` and `DuplicateCypherFilenamesError` tagged errors, combine multiple `Effect.provide` calls into single array provide
+  - testcontainers: Add `ComposeContainerError` and `TestContainerError` tagged errors
+
+- Updated dependencies []:
+  - @evryg/effect-neo4j-schema@0.0.2
+
 ## 0.1.0
 
 ### Minor Changes
