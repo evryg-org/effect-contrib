@@ -65,7 +65,7 @@
     "ast-types": "^0.14.2",
     "babel-plugin-annotate-pure-calls": "^0.4.0",
     "eslint": "^9.39.4",
-    "eslint-import-resolver-typescript": "^3.6.3",
+    "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-codegen": "^0.30.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^12.1.1",
