@@ -72,10 +72,10 @@ importers:
         version: 0.7.7
       '@effect/docgen':
         specifier: ^0.4.4
-        version: 0.4.4(tsx@4.17.0)(typescript@5.6.2)
+        version: 0.4.4(tsx@4.17.0)(typescript@5.9.3)
       '@effect/dtslint':
         specifier: ^0.1.1
-        version: 0.1.1(typescript@5.6.2)
+        version: 0.1.1(typescript@5.9.3)
       '@effect/eslint-plugin':
         specifier: ^0.2.0
         version: 0.2.0
@@ -102,13 +102,13 @@ importers:
         version: 24.12.2
       '@typescript-eslint/eslint-plugin':
         specifier: ^7.16.0
-        version: 7.16.1(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.6.2))(eslint@9.9.1)(typescript@5.6.2)
+        version: 7.16.1(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.9.3))(eslint@9.9.1)(typescript@5.9.3)
       '@typescript-eslint/parser':
         specifier: ^7.16.0
-        version: 7.16.1(eslint@9.9.1)(typescript@5.6.2)
+        version: 7.16.1(eslint@9.9.1)(typescript@5.9.3)
       '@vitest/browser':
         specifier: ^2.1.9
-        version: 2.1.9(@types/node@24.12.2)(playwright@1.58.2)(typescript@5.6.2)(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))(vitest@2.1.9)
+        version: 2.1.9(@types/node@24.12.2)(playwright@1.58.2)(typescript@5.9.3)(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))(vitest@2.1.9)
       '@vitest/coverage-v8':
         specifier: ^2.1.9
         version: 2.1.9(@vitest/browser@2.1.9)(vitest@2.1.9)
@@ -129,16 +129,16 @@ importers:
         version: 9.9.1
       eslint-import-resolver-typescript:
         specifier: ^3.6.3
-        version: 3.6.3(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.6.2))(eslint-plugin-import@2.30.0)(eslint@9.9.1)
+        version: 3.6.3(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.9.3))(eslint-plugin-import@2.30.0)(eslint@9.9.1)
       eslint-plugin-codegen:
         specifier: ^0.28.0
         version: 0.28.0(eslint@9.9.1)
       eslint-plugin-deprecation:
         specifier: ^3.0.0
-        version: 3.0.0(eslint@9.9.1)(typescript@5.6.2)
+        version: 3.0.0(eslint@9.9.1)(typescript@5.9.3)
       eslint-plugin-import:
         specifier: ^2.30.0
-        version: 2.30.0(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.6.2))(eslint-import-resolver-typescript@3.6.3)(eslint@9.9.1)
+        version: 2.30.0(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.9.3))(eslint-import-resolver-typescript@3.6.3)(eslint@9.9.1)
       eslint-plugin-simple-import-sort:
         specifier: ^12.1.1
         version: 12.1.1(eslint@9.9.1)
@@ -156,7 +156,7 @@ importers:
         version: 0.16.1(@babel/preset-env@7.25.4(@babel/core@7.25.2))
       madge:
         specifier: ^8.0.0
-        version: 8.0.0(typescript@5.6.2)
+        version: 8.0.0(typescript@5.9.3)
       playwright:
         specifier: ^1.55.1
         version: 1.58.2
@@ -170,14 +170,14 @@ importers:
         specifier: ^4.17.0
         version: 4.17.0
       typescript:
-        specifier: ^5.6.2
-        version: 5.6.2
+        specifier: ^5.9.3
+        version: 5.9.3
       vite:
         specifier: ^5.4.21
         version: 5.4.21(@types/node@24.12.2)(terser@5.32.0)
       vitest:
         specifier: ^2.1.9
-        version: 2.1.9(@edge-runtime/vm@4.0.1)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(terser@5.32.0)
+        version: 2.1.9(@edge-runtime/vm@4.0.1)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(terser@5.32.0)
 
   packages/cypher-codegen:
     dependencies:
@@ -217,7 +217,7 @@ importers:
         version: 6.0.1
       vitest:
         specifier: ^2.1.9
-        version: 2.1.9(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(terser@5.32.0)
+        version: 2.1.9(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(terser@5.32.0)
     publishDirectory: dist
 
   packages/demo:
@@ -230,7 +230,7 @@ importers:
         version: 3.9.2
       vitest:
         specifier: ^2.1.9
-        version: 2.1.9(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(terser@5.32.0)
+        version: 2.1.9(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(terser@5.32.0)
     publishDirectory: dist
 
   packages/neo4j:
@@ -246,7 +246,7 @@ importers:
         version: 6.0.1
       vitest:
         specifier: ^2.1.9
-        version: 2.1.9(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(terser@5.32.0)
+        version: 2.1.9(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(terser@5.32.0)
     publishDirectory: dist
 
   packages/neo4j-schema:
@@ -274,7 +274,7 @@ importers:
         version: 3.23.2
       vitest:
         specifier: ^2.1.9
-        version: 2.1.9(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(terser@5.32.0)
+        version: 2.1.9(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(terser@5.32.0)
     publishDirectory: dist
 
   packages/testcontainers:
@@ -287,7 +287,7 @@ importers:
         version: 11.14.0
       vitest:
         specifier: ^2.1.9
-        version: 2.1.9(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(terser@5.32.0)
+        version: 2.1.9(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(terser@5.32.0)
     publishDirectory: dist
 
   packages/testcontainers-neo4j:
@@ -309,7 +309,7 @@ importers:
         version: 3.21.0
       vitest:
         specifier: ^2.1.9
-        version: 2.1.9(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(terser@5.32.0)
+        version: 2.1.9(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(terser@5.32.0)
     publishDirectory: dist
 
   packages/vitest-neo4j:
@@ -325,7 +325,7 @@ importers:
         version: 3.21.0
       vitest:
         specifier: ^2.1.9
-        version: 2.1.9(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(terser@5.32.0)
+        version: 2.1.9(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(terser@5.32.0)
     publishDirectory: dist
 
 packages:
@@ -4907,8 +4907,8 @@ packages:
   typedarray@0.0.6:
     resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
 
-  typescript@5.6.2:
-    resolution: {integrity: sha512-NW8ByodCSNCwZeghjN3o+JX5OFH0Ojg6sadjEKY4huZ52TqbJTJnDo5+Tw98lSy63NZvi4n+ez5m2u5d4PkZyw==}
+  typescript@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -6438,20 +6438,20 @@ snapshots:
       effect: 3.21.0
       kubernetes-types: 1.30.0
 
-  '@effect/docgen@0.4.4(tsx@4.17.0)(typescript@5.6.2)':
+  '@effect/docgen@0.4.4(tsx@4.17.0)(typescript@5.9.3)':
     dependencies:
       '@effect/markdown-toc': 0.1.0
       doctrine: 3.0.0
       glob: 11.1.0
       prettier: 3.3.3
       tsx: 4.17.0
-      typescript: 5.6.2
+      typescript: 5.9.3
 
-  '@effect/dtslint@0.1.1(typescript@5.6.2)':
+  '@effect/dtslint@0.1.1(typescript@5.9.3)':
     dependencies:
       fs-extra: 11.2.0
-      tslint: 6.1.3(typescript@5.6.2)
-      typescript: 5.6.2
+      tslint: 6.1.3(typescript@5.9.3)
+      typescript: 5.9.3
 
   '@effect/eslint-plugin@0.2.0':
     dependencies:
@@ -6549,7 +6549,7 @@ snapshots:
   '@effect/vitest@0.29.0(effect@3.21.0)(vitest@2.1.9)':
     dependencies:
       effect: 3.21.0
-      vitest: 2.1.9(@edge-runtime/vm@4.0.1)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(terser@5.32.0)
+      vitest: 2.1.9(@edge-runtime/vm@4.0.1)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(terser@5.32.0)
 
   '@effect/workflow@0.18.0(@effect/experimental@0.60.0(@effect/platform@0.96.0(effect@3.21.0))(effect@3.21.0))(@effect/platform@0.96.0(effect@3.21.0))(@effect/rpc@0.75.0(@effect/platform@0.96.0(effect@3.21.0))(effect@3.21.0))(effect@3.21.0)':
     dependencies:
@@ -7211,34 +7211,34 @@ snapshots:
     dependencies:
       '@types/yargs-parser': 21.0.3
 
-  '@typescript-eslint/eslint-plugin@7.16.1(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.6.2))(eslint@9.9.1)(typescript@5.6.2)':
+  '@typescript-eslint/eslint-plugin@7.16.1(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.9.3))(eslint@9.9.1)(typescript@5.9.3)':
     dependencies:
       '@eslint-community/regexpp': 4.11.0
-      '@typescript-eslint/parser': 7.16.1(eslint@9.9.1)(typescript@5.6.2)
+      '@typescript-eslint/parser': 7.16.1(eslint@9.9.1)(typescript@5.9.3)
       '@typescript-eslint/scope-manager': 7.16.1
-      '@typescript-eslint/type-utils': 7.16.1(eslint@9.9.1)(typescript@5.6.2)
-      '@typescript-eslint/utils': 7.16.1(eslint@9.9.1)(typescript@5.6.2)
+      '@typescript-eslint/type-utils': 7.16.1(eslint@9.9.1)(typescript@5.9.3)
+      '@typescript-eslint/utils': 7.16.1(eslint@9.9.1)(typescript@5.9.3)
       '@typescript-eslint/visitor-keys': 7.16.1
       eslint: 9.9.1
       graphemer: 1.4.0
       ignore: 5.3.1
       natural-compare: 1.4.0
-      ts-api-utils: 1.3.0(typescript@5.6.2)
+      ts-api-utils: 1.3.0(typescript@5.9.3)
     optionalDependencies:
-      typescript: 5.6.2
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.6.2)':
+  '@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.9.3)':
     dependencies:
       '@typescript-eslint/scope-manager': 7.16.1
       '@typescript-eslint/types': 7.16.1
-      '@typescript-eslint/typescript-estree': 7.16.1(typescript@5.6.2)
+      '@typescript-eslint/typescript-estree': 7.16.1(typescript@5.9.3)
       '@typescript-eslint/visitor-keys': 7.16.1
       debug: 4.3.5
       eslint: 9.9.1
     optionalDependencies:
-      typescript: 5.6.2
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
@@ -7247,15 +7247,15 @@ snapshots:
       '@typescript-eslint/types': 7.16.1
       '@typescript-eslint/visitor-keys': 7.16.1
 
-  '@typescript-eslint/type-utils@7.16.1(eslint@9.9.1)(typescript@5.6.2)':
+  '@typescript-eslint/type-utils@7.16.1(eslint@9.9.1)(typescript@5.9.3)':
     dependencies:
-      '@typescript-eslint/typescript-estree': 7.16.1(typescript@5.6.2)
-      '@typescript-eslint/utils': 7.16.1(eslint@9.9.1)(typescript@5.6.2)
+      '@typescript-eslint/typescript-estree': 7.16.1(typescript@5.9.3)
+      '@typescript-eslint/utils': 7.16.1(eslint@9.9.1)(typescript@5.9.3)
       debug: 4.3.7
       eslint: 9.9.1
-      ts-api-utils: 1.3.0(typescript@5.6.2)
+      ts-api-utils: 1.3.0(typescript@5.9.3)
     optionalDependencies:
-      typescript: 5.6.2
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
@@ -7263,7 +7263,7 @@ snapshots:
 
   '@typescript-eslint/types@7.16.1': {}
 
-  '@typescript-eslint/typescript-estree@5.62.0(typescript@5.6.2)':
+  '@typescript-eslint/typescript-estree@5.62.0(typescript@5.9.3)':
     dependencies:
       '@typescript-eslint/types': 5.62.0
       '@typescript-eslint/visitor-keys': 5.62.0
@@ -7271,13 +7271,13 @@ snapshots:
       globby: 11.1.0
       is-glob: 4.0.3
       semver: 7.6.3
-      tsutils: 3.21.0(typescript@5.6.2)
+      tsutils: 3.21.0(typescript@5.9.3)
     optionalDependencies:
-      typescript: 5.6.2
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/typescript-estree@7.16.1(typescript@5.6.2)':
+  '@typescript-eslint/typescript-estree@7.16.1(typescript@5.9.3)':
     dependencies:
       '@typescript-eslint/types': 7.16.1
       '@typescript-eslint/visitor-keys': 7.16.1
@@ -7286,18 +7286,18 @@ snapshots:
       is-glob: 4.0.3
       minimatch: 9.0.5
       semver: 7.6.3
-      ts-api-utils: 1.3.0(typescript@5.6.2)
+      ts-api-utils: 1.3.0(typescript@5.9.3)
     optionalDependencies:
-      typescript: 5.6.2
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/utils@7.16.1(eslint@9.9.1)(typescript@5.6.2)':
+  '@typescript-eslint/utils@7.16.1(eslint@9.9.1)(typescript@5.9.3)':
     dependencies:
       '@eslint-community/eslint-utils': 4.4.0(eslint@9.9.1)
       '@typescript-eslint/scope-manager': 7.16.1
       '@typescript-eslint/types': 7.16.1
-      '@typescript-eslint/typescript-estree': 7.16.1(typescript@5.6.2)
+      '@typescript-eslint/typescript-estree': 7.16.1(typescript@5.9.3)
       eslint: 9.9.1
     transitivePeerDependencies:
       - supports-color
@@ -7313,17 +7313,17 @@ snapshots:
       '@typescript-eslint/types': 7.16.1
       eslint-visitor-keys: 3.4.3
 
-  '@vitest/browser@2.1.9(@types/node@24.12.2)(playwright@1.58.2)(typescript@5.6.2)(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))(vitest@2.1.9)':
+  '@vitest/browser@2.1.9(@types/node@24.12.2)(playwright@1.58.2)(typescript@5.9.3)(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))(vitest@2.1.9)':
     dependencies:
       '@testing-library/dom': 10.4.0
       '@testing-library/user-event': 14.5.2(@testing-library/dom@10.4.0)
-      '@vitest/mocker': 2.1.9(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))
+      '@vitest/mocker': 2.1.9(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))
       '@vitest/utils': 2.1.9
       magic-string: 0.30.21
-      msw: 2.12.10(@types/node@24.12.2)(typescript@5.6.2)
+      msw: 2.12.10(@types/node@24.12.2)(typescript@5.9.3)
       sirv: 3.0.2
       tinyrainbow: 1.2.0
-      vitest: 2.1.9(@edge-runtime/vm@4.0.1)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(terser@5.32.0)
+      vitest: 2.1.9(@edge-runtime/vm@4.0.1)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(terser@5.32.0)
       ws: 8.18.0
     optionalDependencies:
       playwright: 1.58.2
@@ -7348,9 +7348,9 @@ snapshots:
       std-env: 3.10.0
       test-exclude: 7.0.1
       tinyrainbow: 1.2.0
-      vitest: 2.1.9(@edge-runtime/vm@4.0.1)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(terser@5.32.0)
+      vitest: 2.1.9(@edge-runtime/vm@4.0.1)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(terser@5.32.0)
     optionalDependencies:
-      '@vitest/browser': 2.1.9(@types/node@24.12.2)(playwright@1.58.2)(typescript@5.6.2)(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))(vitest@2.1.9)
+      '@vitest/browser': 2.1.9(@types/node@24.12.2)(playwright@1.58.2)(typescript@5.9.3)(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))(vitest@2.1.9)
     transitivePeerDependencies:
       - supports-color
 
@@ -7361,13 +7361,13 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 1.2.0
 
-  '@vitest/mocker@2.1.9(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))':
+  '@vitest/mocker@2.1.9(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))':
     dependencies:
       '@vitest/spy': 2.1.9
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      msw: 2.12.10(@types/node@24.12.2)(typescript@5.6.2)
+      msw: 2.12.10(@types/node@24.12.2)(typescript@5.9.3)
       vite: 5.4.21(@types/node@24.12.2)(terser@5.32.0)
 
   '@vitest/pretty-format@2.1.9':
@@ -7398,7 +7398,7 @@ snapshots:
   '@vitest/web-worker@2.1.9(vitest@2.1.9)':
     dependencies:
       debug: 4.3.7
-      vitest: 2.1.9(@edge-runtime/vm@4.0.1)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(terser@5.32.0)
+      vitest: 2.1.9(@edge-runtime/vm@4.0.1)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(terser@5.32.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -7927,7 +7927,7 @@ snapshots:
       commander: 10.0.1
       filing-cabinet: 4.2.0
       precinct: 11.0.5
-      typescript: 5.6.2
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
@@ -7973,10 +7973,10 @@ snapshots:
 
   detective-typescript@11.2.0:
     dependencies:
-      '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.6.2)
+      '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.9.3)
       ast-module-types: 5.0.0
       node-source-walk: 6.0.2
-      typescript: 5.6.2
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
@@ -8210,33 +8210,33 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-import-resolver-typescript@3.6.3(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.6.2))(eslint-plugin-import@2.30.0)(eslint@9.9.1):
+  eslint-import-resolver-typescript@3.6.3(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.9.3))(eslint-plugin-import@2.30.0)(eslint@9.9.1):
     dependencies:
       '@nolyfill/is-core-module': 1.0.39
       debug: 4.3.6
       enhanced-resolve: 5.17.1
       eslint: 9.9.1
-      eslint-module-utils: 2.9.0(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.6.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.3)(eslint@9.9.1)
+      eslint-module-utils: 2.9.0(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.3)(eslint@9.9.1)
       fast-glob: 3.3.2
       get-tsconfig: 4.8.0
       is-bun-module: 1.1.0
       is-glob: 4.0.3
     optionalDependencies:
-      eslint-plugin-import: 2.30.0(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.6.2))(eslint-import-resolver-typescript@3.6.3)(eslint@9.9.1)
+      eslint-plugin-import: 2.30.0(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.9.3))(eslint-import-resolver-typescript@3.6.3)(eslint@9.9.1)
     transitivePeerDependencies:
       - '@typescript-eslint/parser'
       - eslint-import-resolver-node
       - eslint-import-resolver-webpack
       - supports-color
 
-  eslint-module-utils@2.9.0(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.6.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.3)(eslint@9.9.1):
+  eslint-module-utils@2.9.0(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.3)(eslint@9.9.1):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
-      '@typescript-eslint/parser': 7.16.1(eslint@9.9.1)(typescript@5.6.2)
+      '@typescript-eslint/parser': 7.16.1(eslint@9.9.1)(typescript@5.9.3)
       eslint: 9.9.1
       eslint-import-resolver-node: 0.3.9
-      eslint-import-resolver-typescript: 3.6.3(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.6.2))(eslint-plugin-import@2.30.0)(eslint@9.9.1)
+      eslint-import-resolver-typescript: 3.6.3(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.9.3))(eslint-plugin-import@2.30.0)(eslint@9.9.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -8268,17 +8268,17 @@ snapshots:
       - eslint
       - supports-color
 
-  eslint-plugin-deprecation@3.0.0(eslint@9.9.1)(typescript@5.6.2):
+  eslint-plugin-deprecation@3.0.0(eslint@9.9.1)(typescript@5.9.3):
     dependencies:
-      '@typescript-eslint/utils': 7.16.1(eslint@9.9.1)(typescript@5.6.2)
+      '@typescript-eslint/utils': 7.16.1(eslint@9.9.1)(typescript@5.9.3)
       eslint: 9.9.1
-      ts-api-utils: 1.3.0(typescript@5.6.2)
+      ts-api-utils: 1.3.0(typescript@5.9.3)
       tslib: 2.6.3
-      typescript: 5.6.2
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-import@2.30.0(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.6.2))(eslint-import-resolver-typescript@3.6.3)(eslint@9.9.1):
+  eslint-plugin-import@2.30.0(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.9.3))(eslint-import-resolver-typescript@3.6.3)(eslint@9.9.1):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.8
@@ -8289,7 +8289,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 9.9.1
       eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.9.0(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.6.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.3)(eslint@9.9.1)
+      eslint-module-utils: 2.9.0(@typescript-eslint/parser@7.16.1(eslint@9.9.1)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.6.3)(eslint@9.9.1)
       hasown: 2.0.2
       is-core-module: 2.15.1
       is-glob: 4.0.3
@@ -8300,7 +8300,7 @@ snapshots:
       semver: 6.3.1
       tsconfig-paths: 3.15.0
     optionalDependencies:
-      '@typescript-eslint/parser': 7.16.1(eslint@9.9.1)(typescript@5.6.2)
+      '@typescript-eslint/parser': 7.16.1(eslint@9.9.1)(typescript@5.9.3)
     transitivePeerDependencies:
       - eslint-import-resolver-typescript
       - eslint-import-resolver-webpack
@@ -8473,7 +8473,7 @@ snapshots:
       sass-lookup: 5.0.1
       stylus-lookup: 5.0.1
       tsconfig-paths: 4.2.0
-      typescript: 5.6.2
+      typescript: 5.9.3
 
   fill-range@2.2.4:
     dependencies:
@@ -9107,7 +9107,7 @@ snapshots:
 
   lz-string@1.5.0: {}
 
-  madge@8.0.0(typescript@5.6.2):
+  madge@8.0.0(typescript@5.9.3):
     dependencies:
       chalk: 4.1.2
       commander: 7.2.0
@@ -9122,7 +9122,7 @@ snapshots:
       ts-graphviz: 2.1.2
       walkdir: 0.4.1
     optionalDependencies:
-      typescript: 5.6.2
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
@@ -9248,7 +9248,7 @@ snapshots:
     optionalDependencies:
       msgpackr-extract: 3.0.3
 
-  msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2):
+  msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3):
     dependencies:
       '@inquirer/confirm': 5.1.21(@types/node@24.12.2)
       '@mswjs/interceptors': 0.41.2
@@ -9269,7 +9269,7 @@ snapshots:
       until-async: 3.0.2
       yargs: 17.7.2
     optionalDependencies:
-      typescript: 5.6.2
+      typescript: 5.9.3
     transitivePeerDependencies:
       - '@types/node'
 
@@ -10204,9 +10204,9 @@ snapshots:
 
   tr46@0.0.3: {}
 
-  ts-api-utils@1.3.0(typescript@5.6.2):
+  ts-api-utils@1.3.0(typescript@5.9.3):
     dependencies:
-      typescript: 5.6.2
+      typescript: 5.9.3
 
   ts-graphviz@2.1.2:
     dependencies:
@@ -10232,7 +10232,7 @@ snapshots:
 
   tslib@2.6.3: {}
 
-  tslint@6.1.3(typescript@5.6.2):
+  tslint@6.1.3(typescript@5.9.3):
     dependencies:
       '@babel/code-frame': 7.24.7
       builtin-modules: 1.1.1
@@ -10246,18 +10246,18 @@ snapshots:
       resolve: 1.22.8
       semver: 5.7.2
       tslib: 1.14.1
-      tsutils: 2.29.0(typescript@5.6.2)
-      typescript: 5.6.2
+      tsutils: 2.29.0(typescript@5.9.3)
+      typescript: 5.9.3
 
-  tsutils@2.29.0(typescript@5.6.2):
+  tsutils@2.29.0(typescript@5.9.3):
     dependencies:
       tslib: 1.14.1
-      typescript: 5.6.2
+      typescript: 5.9.3
 
-  tsutils@3.21.0(typescript@5.6.2):
+  tsutils@3.21.0(typescript@5.9.3):
     dependencies:
       tslib: 1.14.1
-      typescript: 5.6.2
+      typescript: 5.9.3
 
   tsx@4.17.0:
     dependencies:
@@ -10314,7 +10314,7 @@ snapshots:
 
   typedarray@0.0.6: {}
 
-  typescript@5.6.2: {}
+  typescript@5.9.3: {}
 
   unbox-primitive@1.0.2:
     dependencies:
@@ -10411,10 +10411,10 @@ snapshots:
       fsevents: 2.3.3
       terser: 5.32.0
 
-  vitest@2.1.9(@edge-runtime/vm@4.0.1)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(terser@5.32.0):
+  vitest@2.1.9(@edge-runtime/vm@4.0.1)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(terser@5.32.0):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))
+      '@vitest/mocker': 2.1.9(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
@@ -10436,7 +10436,7 @@ snapshots:
     optionalDependencies:
       '@edge-runtime/vm': 4.0.1
       '@types/node': 24.12.2
-      '@vitest/browser': 2.1.9(@types/node@24.12.2)(playwright@1.58.2)(typescript@5.6.2)(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))(vitest@2.1.9)
+      '@vitest/browser': 2.1.9(@types/node@24.12.2)(playwright@1.58.2)(typescript@5.9.3)(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))(vitest@2.1.9)
     transitivePeerDependencies:
       - less
       - lightningcss
@@ -10448,10 +10448,10 @@ snapshots:
       - supports-color
       - terser
 
-  vitest@2.1.9(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(terser@5.32.0):
+  vitest@2.1.9(@edge-runtime/vm@4.0.3)(@types/node@24.12.2)(@vitest/browser@2.1.9)(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(terser@5.32.0):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(msw@2.12.10(@types/node@24.12.2)(typescript@5.6.2))(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))
+      '@vitest/mocker': 2.1.9(msw@2.12.10(@types/node@24.12.2)(typescript@5.9.3))(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
@@ -10473,7 +10473,7 @@ snapshots:
     optionalDependencies:
       '@edge-runtime/vm': 4.0.3
       '@types/node': 24.12.2
-      '@vitest/browser': 2.1.9(@types/node@24.12.2)(playwright@1.58.2)(typescript@5.6.2)(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))(vitest@2.1.9)
+      '@vitest/browser': 2.1.9(@types/node@24.12.2)(playwright@1.58.2)(typescript@5.9.3)(vite@5.4.21(@types/node@24.12.2)(terser@5.32.0))(vitest@2.1.9)
     transitivePeerDependencies:
       - less
       - lightningcss
