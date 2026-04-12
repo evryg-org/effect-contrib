@@ -31,4 +31,10 @@ jobs:
       - uses: tim-smart/next-release-action@main
         with:
           github_token: ${{ secrets.EVRYG_BOT_GH }}
-          packages: "@evryg/demo"
+          packages: |
+            @evryg/effect-neo4j
+            @evryg/effect-neo4j-schema
+            @evryg/effect-cypher-codegen
+            @evryg/effect-testcontainers
+            @evryg/effect-testcontainers-neo4j
+            @evryg/effect-vitest-neo4j
