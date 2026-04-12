@@ -3,7 +3,20 @@
  */
 import { Context, Effect, Layer } from "effect"
 import { DockerComposeEnvironment, type StartedDockerComposeEnvironment } from "testcontainers"
-import type { ComposeExecutableOptions } from "testcontainers/build/container-runtime"
+
+/**
+ * @since 0.0.1
+ * @category models
+ */
+export type ComposeExecutableOptions = {
+  executablePath: string
+  options?: string[] | (string | string[])[]
+  standalone?: never
+} | {
+  executablePath?: string
+  options?: never
+  standalone: true
+}
 
 /**
  * @since 0.0.1
