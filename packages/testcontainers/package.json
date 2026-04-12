@@ -1,6 +1,6 @@
 {
   "name": "@evryg/effect-testcontainers",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "license": "MIT",
   "description": "Effect layers for testcontainers-node: generic TestContainer and ComposeContainer",
