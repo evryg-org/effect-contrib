@@ -85,19 +85,8 @@
   },
   "pnpm": {
     "overrides": {
-      "vitest": "^3.2.4",
-      "happy-dom": ">=20.0.0",
-      "vite": "^6.1.1",
-      "tmp": ">=0.2.4",
-      "diff": ">=4.0.4",
-      "rollup": ">=4.22.4",
-      "micromatch": ">=4.0.8",
-      "@babel/helpers": ">=7.26.10",
-      "@babel/runtime": ">=7.26.10",
-      "nanoid": ">=3.3.8",
-      "lodash": ">=4.17.23",
-      "cross-spawn": ">=7.0.5",
       "glob": ">=10.5.0",
+      "lodash": ">=4.17.23",
       "js-yaml": ">=4.1.1"
     },
     "patchedDependencies": {
