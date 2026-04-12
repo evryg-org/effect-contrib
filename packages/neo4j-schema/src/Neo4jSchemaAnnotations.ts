@@ -1,16 +1,31 @@
+/**
+ * @since 0.0.1
+ */
 import type { Schema } from "effect"
 
 // ── Field-level annotations ──
 
-/** Mark a property as UNIQUE constraint in Neo4j */
+/**
+ * Mark a property as UNIQUE constraint in Neo4j
+ * @since 0.0.1
+ * @category annotations
+ */
 export const neo4jUnique = { neo4jUnique: true as const }
 
-/** Mark a property for index creation in Neo4j */
+/**
+ * Mark a property for index creation in Neo4j
+ * @since 0.0.1
+ * @category annotations
+ */
 export const neo4jIndexed = { neo4jIndex: true as const }
 
 // ── Struct-level annotations ──
 
-/** Annotate an Effect Schema struct as a Neo4j vertex (node) */
+/**
+ * Annotate an Effect Schema struct as a Neo4j vertex (node)
+ * @since 0.0.1
+ * @category annotations
+ */
 export const neo4jVertex = (
   label: string,
   opts?: {
@@ -29,7 +44,11 @@ function extractNeo4jLabel(vertexSchema: Schema.Schema.Any): string {
   return label
 }
 
-/** Annotate an Effect Schema struct as a Neo4j edge (relationship) */
+/**
+ * Annotate an Effect Schema struct as a Neo4j edge (relationship)
+ * @since 0.0.1
+ * @category annotations
+ */
 export const neo4jEdge = (
   edgeType: string,
   connectivity?: ReadonlyArray<{ from: Schema.Schema.Any; to: Schema.Schema.Any }>

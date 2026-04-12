@@ -1,3 +1,4 @@
+/** @since 0.0.1 */
 import type { GraphSchema } from "@evryg/effect-neo4j-schema"
 import { CharStream, CommonTokenStream } from "antlr4ng"
 import * as antlr from "antlr4ng"
@@ -21,6 +22,10 @@ import { inferExpressionType, type TypeEnv } from "./InferType.js"
 // ── Public types ──
 
 // Kept for backward compat with param extraction (params stay flat)
+/**
+ * @since 0.0.1
+ * @category models
+ */
 export type Neo4jType =
   | "String"
   | "Long"
@@ -39,17 +44,29 @@ export type Neo4jType =
   | "BooleanArray"
   | "Unknown"
 
+/**
+ * @since 0.0.1
+ * @category models
+ */
 export interface ResolvedColumn {
   readonly name: string
   readonly type: CypherType
   readonly nullable: boolean
 }
 
+/**
+ * @since 0.0.1
+ * @category models
+ */
 export interface ResolvedParam {
   readonly name: string
   readonly type: Neo4jType
 }
 
+/**
+ * @since 0.0.1
+ * @category models
+ */
 export interface QueryAnalysis {
   readonly columns: ReadonlyArray<ResolvedColumn>
   readonly params: ReadonlyArray<ResolvedParam>
@@ -596,6 +613,10 @@ function extractParams(tree: ReturnType<typeof parse>, schema: GraphSchema): Arr
 
 // ── Public API ──
 
+/**
+ * @since 0.0.1
+ * @category analysis
+ */
 export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis => {
   const tree = parse(cypher)
   const singleQuery = tree.query().regularQuery()!.singleQuery()

@@ -1,6 +1,8 @@
 {
   "$schema": "../../node_modules/@effect/docgen/schema.json",
   "exclude": [
-    "src/**"
+    "src/internal/**/*.ts",
+    "src/**/*.test.ts",
+    "src/**/*.test-d.ts"
   ]
 }

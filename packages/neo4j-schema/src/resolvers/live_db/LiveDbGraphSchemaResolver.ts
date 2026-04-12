@@ -1,16 +1,39 @@
+/**
+ * @since 0.0.1
+ */
 import { Neo4jClient, type Neo4jQueryError } from "@evryg/effect-neo4j"
 import { Effect, Layer, Schema } from "effect"
 import { EdgeConnectivity, EdgeProperty, GraphSchema, VertexProperty } from "../../GraphSchemaModel.js"
 import { GraphSchemaResolver } from "../../GraphSchemaResolver.js"
 
 // Re-export models so existing imports work
-export { EdgeProperty, GraphSchema, VertexProperty } from "../../GraphSchemaModel.js"
+/**
+ * @since 0.0.1
+ */
+export {
+  /**
+   * @since 0.0.1
+   */
+  EdgeProperty,
+  /**
+   * @since 0.0.1
+   */
+  GraphSchema,
+  /**
+   * @since 0.0.1
+   */
+  VertexProperty
+} from "../../GraphSchemaModel.js"
 
 // ── Extraction from Neo4j ──
 
 const decodeVertexProperty = Schema.decodeUnknownSync(VertexProperty)
 const decodeEdgeProperty = Schema.decodeUnknownSync(EdgeProperty)
 
+/**
+ * @since 0.0.1
+ * @category constructors
+ */
 export const extractSchema = (): Effect.Effect<GraphSchema, Neo4jQueryError, Neo4jClient> =>
   Effect.flatMap(Neo4jClient, (neo4j) =>
     Effect.gen(function*() {
@@ -62,6 +85,10 @@ export const extractSchema = (): Effect.Effect<GraphSchema, Neo4jQueryError, Neo
 
 // ── Layer ──
 
+/**
+ * @since 0.0.1
+ * @category resolvers
+ */
 export const LiveDbGraphSchemaResolver: Layer.Layer<GraphSchemaResolver, never, Neo4jClient> = Layer.effect(
   GraphSchemaResolver,
   Effect.map(Neo4jClient, () => ({

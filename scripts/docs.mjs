@@ -61,3 +61,18 @@ packages().forEach((pkg, i) => {
   copyFiles(pkg)
   generateIndex(pkg, i + 2)
 })
+
+// Generate root index
+Fs.writeFileSync(
+  Path.join("docs", "index.md"),
+  `---
+title: Home
+nav_order: 1
+permalink: /
+---
+
+# @evryg/effect-contrib
+
+API documentation for the @evryg/effect-contrib packages.
+`
+)

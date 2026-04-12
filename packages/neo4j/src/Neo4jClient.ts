@@ -1,41 +1,86 @@
+/**
+ * @since 0.0.1
+ */
 import { Context, Effect, Layer, Schema, Stream } from "effect"
-import neo4j, { type Driver, type QueryResult, type Record as Neo4jRecord, type Session } from "neo4j-driver"
+import neo4j, { type Driver, type QueryResult, type Record as Neo4jRecord_, type Session } from "neo4j-driver"
 import { Neo4jConfig } from "./Neo4jConfig.js"
 
-export type { Record as Neo4jRecord } from "neo4j-driver"
+/**
+ * A record returned from a Neo4j query.
+ *
+ * @since 0.0.1
+ * @category models
+ */
+export type Neo4jRecord = Neo4jRecord_
 
 // --- Errors ---
 
+/**
+ * @since 0.0.1
+ * @category errors
+ */
 export class Neo4jConnectionError extends Schema.TaggedError<Neo4jConnectionError>()("Neo4jConnectionError", {
   uri: Schema.String,
   cause: Schema.Defect
 }) {}
 
+/**
+ * @since 0.0.1
+ * @category errors
+ */
 export class Neo4jQueryError extends Schema.TaggedError<Neo4jQueryError>()("Neo4jQueryError", {
   cypher: Schema.String,
   cause: Schema.Defect
 }) {}
 
+/**
+ * @since 0.0.1
+ * @category errors
+ */
 export type Neo4jError = Neo4jConnectionError | Neo4jQueryError
 
 // --- Effectful combinators ---
 
+/**
+ * @since 0.0.1
+ * @category constructors
+ */
 export const makeDriver = (uri: string, user: string, password: string): Effect.Effect<Driver> =>
   Effect.sync(() => neo4j.driver(uri, neo4j.auth.basic(user, password)))
 
+/**
+ * @since 0.0.1
+ * @category combinators
+ */
 export const closeDriver = (driver: Driver): Effect.Effect<void> => Effect.promise(() => driver.close())
 
+/**
+ * @since 0.0.1
+ * @category combinators
+ */
 export const verifyDriver = (driver: Driver, uri: string): Effect.Effect<void, Neo4jConnectionError> =>
   Effect.tryPromise({
     try: () => driver.verifyConnectivity(),
     catch: (e) => new Neo4jConnectionError({ uri, cause: e })
   })
 
+/**
+ * @since 0.0.1
+ * @category combinators
+ */
 export const openSession = (driver: Driver, database: string): Effect.Effect<Session> =>
   Effect.sync(() => driver.session({ database }))
 
+/**
+ * @since 0.0.1
+ * @category combinators
+ */
 export const closeSession = (session: Session): Effect.Effect<void> => Effect.promise(() => session.close())
 
+/**
+ * @since 0.0.1
+ * @category combinators
+ */
 export const runCypher = (
   session: Session,
   cypher: string,
@@ -46,6 +91,10 @@ export const runCypher = (
     catch: (e) => new Neo4jQueryError({ cypher, cause: e })
   })
 
+/**
+ * @since 0.0.1
+ * @category combinators
+ */
 export const runCypherWrite = (
   session: Session,
   cypher: string,
@@ -58,6 +107,10 @@ export const runCypherWrite = (
 
 // --- Service ---
 
+/**
+ * @since 0.0.1
+ * @category models
+ */
 export class Neo4jClient extends Context.Tag("Neo4jClient")<Neo4jClient, {
   readonly query: (
     cypher: string,
@@ -74,6 +127,10 @@ export class Neo4jClient extends Context.Tag("Neo4jClient")<Neo4jClient, {
   ) => Effect.Effect<number, Neo4jQueryError>
 }>() {}
 
+/**
+ * @since 0.0.1
+ * @category constructors
+ */
 export const UnconfiguredNeo4jClient: Layer.Layer<Neo4jClient, never, Neo4jConfig> = Layer.scoped(
   Neo4jClient,
   Effect.gen(function*() {

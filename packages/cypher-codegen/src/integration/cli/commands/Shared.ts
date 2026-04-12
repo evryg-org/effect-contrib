@@ -1,3 +1,4 @@
+/** @since 0.0.1 */
 import { Options } from "@effect/cli"
 import { Neo4jConfig, UnconfiguredNeo4jClient } from "@evryg/effect-neo4j"
 import type { GraphSchema } from "@evryg/effect-neo4j-schema"
@@ -9,23 +10,55 @@ import { analyzeQuery, type ResolvedParam } from "../../../frontend/QueryAnalyze
 
 // ── Options ──
 
+/**
+ * @since 0.0.1
+ * @category options
+ */
 export const neo4jUriOption = Options.withDefault(
   Options.text("neo4j-uri"),
   process.env.NEO4J_URI ?? "bolt://localhost:7687"
 )
+/**
+ * @since 0.0.1
+ * @category options
+ */
 export const neo4jUserOption = Options.withDefault(Options.text("neo4j-user"), process.env.NEO4J_USER ?? "neo4j")
+/**
+ * @since 0.0.1
+ * @category options
+ */
 export const neo4jPasswordOption = Options.withDefault(
   Options.text("neo4j-password"),
   process.env.NEO4J_PASSWORD ?? "changeme"
 )
+/**
+ * @since 0.0.1
+ * @category options
+ */
 export const neo4jDatabaseOption = Options.withDefault(
   Options.text("neo4j-database"),
   process.env.NEO4J_DATABASE ?? "neo4j"
 )
+/**
+ * @since 0.0.1
+ * @category options
+ */
 export const schemaPathOption = Options.withDefault(Options.text("schema-path"), "data/graph-schema.json")
+/**
+ * @since 0.0.1
+ * @category options
+ */
 export const outputOption = Options.withDefault(Options.text("output"), "src/generated/queries.ts")
+/**
+ * @since 0.0.1
+ * @category options
+ */
 export const cypherGlobOption = Options.withDefault(Options.text("cypher-glob"), "src/**/*.cypher")
 
+/**
+ * @since 0.0.1
+ * @category options
+ */
 export const neo4jOptions = {
   neo4jUri: neo4jUriOption,
   neo4jUser: neo4jUserOption,
@@ -35,6 +68,10 @@ export const neo4jOptions = {
 
 // ── Neo4j Layer ──
 
+/**
+ * @since 0.0.1
+ * @category layers
+ */
 export function neo4jLayer(
   opts: { neo4jUri: string; neo4jUser: string; neo4jPassword: string; neo4jDatabase: string }
 ) {
@@ -61,6 +98,10 @@ function mergeParams(analyzerParams: ReadonlyArray<ResolvedParam>, cypher: strin
   return regexNames.filter((n) => byName.has(n)).map((n) => byName.get(n)!)
 }
 
+/**
+ * @since 0.0.1
+ * @category codegen
+ */
 export function generateFromSchema(schema: GraphSchema, output: string, cypherGlob: string) {
   return Effect.gen(function*() {
     const files = globSync(cypherGlob).filter((f) => !basename(f).endsWith("GraphSchema.cypher"))

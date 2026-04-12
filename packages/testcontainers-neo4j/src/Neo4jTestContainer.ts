@@ -1,13 +1,24 @@
+/**
+ * @since 0.0.1
+ */
 import { Neo4jConfig } from "@evryg/effect-neo4j"
 import { acquireContainer } from "@evryg/effect-testcontainers"
 import { Neo4jContainer } from "@testcontainers/neo4j"
 import { Effect, Layer } from "effect"
 
+/**
+ * @since 0.0.1
+ * @category models
+ */
 export interface Neo4jTestContainerOptions {
   readonly image?: string
   readonly password?: string
 }
 
+/**
+ * @since 0.0.1
+ * @category constructors
+ */
 export const makeNeo4jTestContainer = (
   opts?: Neo4jTestContainerOptions
 ): Layer.Layer<Neo4jConfig, Error> => {
@@ -26,4 +37,8 @@ export const makeNeo4jTestContainer = (
   )
 }
 
+/**
+ * @since 0.0.1
+ * @category containers
+ */
 export const Neo4jTestContainerLive: Layer.Layer<Neo4jConfig, Error> = makeNeo4jTestContainer()

@@ -1,7 +1,14 @@
+/**
+ * @since 0.0.1
+ */
 import type { Scope } from "effect"
 import { Effect } from "effect"
 import type { StartedTestContainer } from "testcontainers"
 
+/**
+ * @since 0.0.1
+ * @category constructors
+ */
 export const acquireContainer = <C extends StartedTestContainer>(
   start: () => Promise<C>
 ): Effect.Effect<C, Error, Scope.Scope> =>

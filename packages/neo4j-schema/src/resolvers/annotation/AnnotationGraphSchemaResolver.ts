@@ -1,3 +1,6 @@
+/**
+ * @since 0.0.1
+ */
 import { Effect, Layer } from "effect"
 import type { Schema } from "effect"
 import { EdgeConnectivity, EdgeProperty, GraphSchema, VertexProperty } from "../../GraphSchemaModel.js"
@@ -39,7 +42,11 @@ function unwrapOptional(ast: any): any {
 
 // ── Schema compilation ──
 
-/** Compile Effect Schema structs with neo4j annotations into a GraphSchema for query validation */
+/**
+ * Compile Effect Schema structs with neo4j annotations into a GraphSchema for query validation
+ * @since 0.0.1
+ * @category constructors
+ */
 export function compileToGraphSchema(schemas: Array<Schema.Schema.Any>): GraphSchema {
   const vertexProperties: Array<VertexProperty> = []
   const edgeProperties: Array<EdgeProperty> = []
@@ -99,6 +106,10 @@ export function compileToGraphSchema(schemas: Array<Schema.Schema.Any>): GraphSc
 
 // ── Layer ──
 
+/**
+ * @since 0.0.1
+ * @category resolvers
+ */
 export const AnnotationGraphSchemaResolver = (
   schemas: Array<Schema.Schema.Any>
 ): Layer.Layer<GraphSchemaResolver> =>
