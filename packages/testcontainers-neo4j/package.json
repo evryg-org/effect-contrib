@@ -34,15 +34,15 @@
     "coverage": "vitest --coverage"
   },
   "peerDependencies": {
-    "@evryg/effect-neo4j": "workspace:*",
-    "@evryg/effect-testcontainers": "workspace:*",
+    "@evryg/effect-neo4j": "workspace:^",
+    "@evryg/effect-testcontainers": "workspace:^",
     "@testcontainers/neo4j": "^11.12.0",
     "effect": "^3.21.0"
   },
   "devDependencies": {
     "@effect/vitest": "^0.29.0",
-    "@evryg/effect-neo4j": "workspace:*",
-    "@evryg/effect-testcontainers": "workspace:*",
+    "@evryg/effect-neo4j": "workspace:^",
+    "@evryg/effect-testcontainers": "workspace:^",
     "@testcontainers/neo4j": "^11.12.0",
     "effect": "^3.21.0",
     "vitest": "^3.2.1"

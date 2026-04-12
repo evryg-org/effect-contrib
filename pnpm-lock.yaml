@@ -182,10 +182,10 @@ importers:
   packages/cypher-codegen:
     dependencies:
       '@evryg/effect-neo4j':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../neo4j
       '@evryg/effect-neo4j-schema':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../neo4j-schema
       antlr4ng:
         specifier: ^3.0.16
@@ -204,7 +204,7 @@ importers:
         specifier: ^0.29.0
         version: 0.29.0(effect@3.21.0)(vitest@2.1.9)
       '@evryg/effect-vitest-neo4j':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../vitest-neo4j
       antlr-ng:
         specifier: ^1.0.10
@@ -261,10 +261,10 @@ importers:
         specifier: ^0.29.0
         version: 0.29.0(effect@3.21.0)(vitest@2.1.9)
       '@evryg/effect-neo4j':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../neo4j
       '@evryg/effect-vitest-neo4j':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../vitest-neo4j
       effect:
         specifier: ^3.21.0
@@ -296,10 +296,10 @@ importers:
         specifier: ^0.29.0
         version: 0.29.0(effect@3.21.0)(vitest@2.1.9)
       '@evryg/effect-neo4j':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../neo4j
       '@evryg/effect-testcontainers':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../testcontainers
       '@testcontainers/neo4j':
         specifier: ^11.12.0
@@ -315,10 +315,10 @@ importers:
   packages/vitest-neo4j:
     devDependencies:
       '@evryg/effect-neo4j':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../neo4j
       '@evryg/effect-testcontainers-neo4j':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../testcontainers-neo4j
       effect:
         specifier: ^3.21.0
