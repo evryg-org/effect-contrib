@@ -1,8 +1,8 @@
 /** @since 0.0.1 */
 import type { GraphSchema } from "@evryg/effect-neo4j-schema"
 import { readFileSync } from "node:fs"
-import { generateModule } from "../backend/CypherCodegen.js"
-import { analyzeQuery } from "../frontend/QueryAnalyzer.js"
+import { generateModule } from "./backend/CypherCodegen.js"
+import { analyzeQuery } from "./frontend/QueryAnalyzer.js"
 
 /**
  * @since 0.0.1

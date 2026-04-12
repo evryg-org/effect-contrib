@@ -1,6 +1,6 @@
 import { defineConfig, mergeConfig } from "vitest/config"
 import shared from "../../vitest.shared"
-import { cypherPlugin } from "./src/integration/VitePlugin.ts"
+import { cypherPlugin } from "./src/VitePlugin.ts"
 
 export default mergeConfig(shared, defineConfig({
   plugins: [cypherPlugin()],
