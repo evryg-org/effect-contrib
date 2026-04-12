@@ -24,7 +24,7 @@
     "dtslint-clean": "dtslint --installAll",
     "changeset-status": "changeset status",
     "changeset-version": "changeset version",
-    "changeset-publish": "pnpm codemod && pnpm lint-fix && pnpm build && TEST_DIST= pnpm vitest && changeset publish"
+    "changeset-publish": "pnpm codemod && pnpm lint-fix && pnpm codegen && pnpm build && TEST_DIST= pnpm vitest && changeset publish"
   },
   "resolutions": {
     "dependency-tree": "^10.0.9",
