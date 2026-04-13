@@ -8,7 +8,7 @@ import {
   makeIntegreSqlClient,
   NoSuchTemplate,
   unsafeMakeDatabaseTemplateId
-} from "../src/IntegreSqlClient.js"
+} from "./IntegreSqlClient.js"
 
 describe(`IntegreSqlClient`, () => {
   describe("createTemplate", () => {

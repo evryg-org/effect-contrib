@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "@effect/vitest"
 import { Effect, Exit, pipe, Redacted } from "effect"
 import { randomUUID } from "node:crypto"
 import { inject } from "vitest"
-import { getConnection } from "../src/getConnection.js"
-import type { DatabaseConfiguration } from "../src/IntegreSqlClient.js"
+import { getConnection } from "./getConnection.js"
+import type { DatabaseConfiguration } from "./IntegreSqlClient.js"
 
 describe(`getConnection`, () => {
   it.effect(

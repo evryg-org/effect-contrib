@@ -1,11 +1,13 @@
-import { mergeConfig, type UserConfigExport } from "vitest/config"
-import shared from "../../vitest.shared.js"
+import { defineConfig, mergeConfig } from "vitest/config"
+import shared from "../../vitest.shared"
 
-const config: UserConfigExport = {
-  test: {
-    globalSetup: ["./test/globalSetup.ts"],
-    watch: false
-  }
-}
-
-export default mergeConfig(shared, config)
+export default mergeConfig(
+  shared,
+  defineConfig({
+    test: {
+      name: "integresql-node-integration",
+      include: ["src/**/*.test.{ts,mts,cts,tsx}"],
+      globalSetup: ["src/globalSetup.ts"]
+    }
+  })
+)

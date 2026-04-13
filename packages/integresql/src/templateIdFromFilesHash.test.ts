@@ -2,8 +2,8 @@ import { NodeContext } from "@effect/platform-node"
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Exit, pipe } from "effect"
 import path from "path"
-import { NoMatchingFiles, templateIdFromFiles } from "../src/templateIdFromFilesHash.js"
-import { Sandbox } from "./Sandbox.js"
+import { Sandbox } from "./Sandbox.ts"
+import { NoMatchingFiles, templateIdFromFiles } from "./templateIdFromFilesHash.js"
 
 const dependencies = NodeContext.layer
 

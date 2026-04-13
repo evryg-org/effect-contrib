@@ -41,7 +41,7 @@ export const getConnection = <E1, E2, R1, R2>(config: {
                   () =>
                     Effect.die(
                       new Error(
-                        "[@evryg/integresql]: Unexpected error, could not get a new test database after successfully creating the template"
+                        "[@evryg/effect-integresql]: Unexpected error, could not get a new test database after successfully creating the template"
                       )
                     )
                 )
@@ -55,7 +55,7 @@ export const getConnection = <E1, E2, R1, R2>(config: {
                   () =>
                     Effect.die(
                       new Error(
-                        "[@evryg/integresql]: Unexpected error: Could not get a new test database from an existing template"
+                        "[@evryg/effect-integresql]: Unexpected error: Could not get a new test database from an existing template"
                       )
                     )
                 )

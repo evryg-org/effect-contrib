@@ -17,11 +17,11 @@ export class NoMatchingFiles extends Error {
   /**
    * @since 0.0.1
    */
-  public origin: string = "@evryg/integresql"
+  public origin: string = "@evryg/effect-integresql"
   /**
    * @since 0.0.1
    */
-  public name: string = "No matching files"
+  public override name: string = "No matching files"
 
   constructor(public computedPaths: Array<string>) {
     super("No files matching the provided glob pattern")

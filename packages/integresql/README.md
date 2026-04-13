@@ -1,7 +1,7 @@
-# @evryg/integresql
+# @evryg/effect-integresql
 
-[![npm version](https://img.shields.io/npm/v/%40evryg/integresql)](https://www.npmjs.com/package/@evryg/integresql)
-[![license](https://img.shields.io/npm/l/%40evryg/integresql)](https://github.com/evryg-org/effect-contrib/blob/main/LICENSE)
+[![npm version](https://img.shields.io/npm/v/%40evryg/effect-integresql)](https://www.npmjs.com/package/@evryg/effect-integresql)
+[![license](https://img.shields.io/npm/l/%40evryg/effect-integresql)](https://github.com/evryg-org/effect-contrib/blob/main/LICENSE)
 [![CI](https://github.com/evryg-org/effect-contrib/actions/workflows/check.yml/badge.svg)](https://github.com/evryg-org/effect-contrib/actions/workflows/check.yml)
 
 Effect client for [IntegreSQL](https://github.com/allaboutapps/integresql), used to create isolated PostgreSQL databases for integration tests.
@@ -11,7 +11,7 @@ Effect client for [IntegreSQL](https://github.com/allaboutapps/integresql), used
 ## Installation
 
 ```bash
-npm install --save-dev @evryg/integresql effect
+npm install --save-dev @evryg/effect-integresql effect
 ```
 
 `effect` is the only required peer dependency.
@@ -30,20 +30,35 @@ import {
   getConnection,
   templateIdFromFiles,
   type DatabaseConfiguration
-} from "@evryg/integresql"
+} from "@evryg/effect-integresql"
 
-const runMigrations = (connection: DatabaseConfiguration) =>
-  Effect.promise(() => migrateDatabase(connection))
-
-const program = Effect.gen(function*() {
-  const connection = yield* getConnection({
-    integreSQLAPIUrl: "http://127.0.0.1:5000",
-    templateId: templateIdFromFiles(["src/db/migrations/*.sql"]),
-    initializeTemplate: runMigrations
-  })
-
-  yield* Effect.promise(() => runTestWithDatabase(connection))
+const getSingleUseAdminDatabase = getConnection({
+  templateId: templateIdFromFiles(["**/*.sql"]),
+  initializeTemplate: (connection) => runMigrations(connection),
+  integreSQLAPIUrl: "http://localhost:5000"
 })
+
+test("Create user", () =>
+  pipe(
+    getSingleUseAdminDatabase,
+    Effect.flatMap((connection) =>
+      pipe(
+        Effect.gen(function*() {
+          const params = {email: "batman@caramail.com"}
+
+          const result = yield* UserGateway.create(params)
+
+          expect(user).toStrictEqual<typeof result>({email: "batman@caramail.com"})
+        }),
+        Effect.provide(pipe(
+          LivePostgresUserGateway,
+          Layer.provide(makePgLayer(connection))
+        ))
+      )
+    ),
+    Effect.runPromise
+  ))
+
 ```
 
 `templateIdFromFiles(...)` hashes your migration files so template changes track schema changes.
