@@ -1,0 +1,63 @@
+import { PostgreSqlContainer } from "@testcontainers/postgresql"
+import { GenericContainer, Wait } from "testcontainers"
+
+const containerStartupTimeout = 1000 * 40
+export async function startContainers(): Promise<{
+  config: {
+    integreAPIUrl: string
+  }
+  teardown: () => Promise<void>
+}> {
+  // The postgres container for our integration tests
+  const postgres = await new PostgreSqlContainer("postgres:12.2-alpine")
+    .withCommand([
+      "postgres",
+      "-c",
+      "shared_buffers=128MB",
+      "-c",
+      "fsync=off",
+      "-c",
+      "synchronous_commit=off",
+      "-c",
+      "full_page_writes=off",
+      "-c",
+      "max_connections=100",
+      "-c",
+      "client_min_messages=warning"
+    ])
+    .withStartupTimeout(containerStartupTimeout)
+    .start()
+
+  // The integreSQL REST API container
+  // Configured to work with our postgres container
+  const integreSQL = await new GenericContainer(
+    "ghcr.io/allaboutapps/integresql:v1.1.0"
+  )
+    .withExposedPorts(5000)
+    .withExtraHosts([{
+      host: "host.docker.internal",
+      ipAddress: "host-gateway"
+    }])
+    .withEnvironment({
+      PGDATABASE: postgres.getDatabase(),
+      PGUSER: postgres.getUsername(),
+      PGPASSWORD: postgres.getPassword(),
+      PGHOST: "host.docker.internal",
+      PGPORT: String(postgres.getFirstMappedPort()),
+      PGSSLMODE: "disable"
+    }).withWaitStrategy(Wait.forLogMessage("server started on"))
+    .withStartupTimeout(containerStartupTimeout)
+    .start()
+
+  const integreAPIUrl = `http://${integreSQL.getHost()}:${integreSQL.getFirstMappedPort()}`
+
+  return {
+    config: {
+      integreAPIUrl
+    },
+    teardown: async () => {
+      await integreSQL.stop()
+      await postgres.stop()
+    }
+  }
+}

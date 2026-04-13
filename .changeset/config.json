@@ -9,7 +9,7 @@
   "commit": false,
   "linked": [],
   "access": "public",
-  "ignore": ["@evryg/demo", "@evryg/effect-integresql"],
+  "ignore": ["@evryg/demo"],
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "snapshot": {
