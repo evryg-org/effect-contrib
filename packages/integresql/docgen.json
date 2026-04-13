@@ -1,8 +1,8 @@
 {
   "$schema": "../../node_modules/@effect/docgen/schema.json",
   "exclude": [
-    "src/globalSetup.ts",
-    "src/startContainers.ts",
+    "src/GlobalSetup.ts",
+    "src/StartContainers.ts",
     "src/Sandbox.ts",
     "src/internal/**/*.ts",
     "src/**/*.node.unit.test.ts",

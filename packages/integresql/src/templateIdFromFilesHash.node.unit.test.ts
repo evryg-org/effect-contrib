@@ -3,7 +3,7 @@ import { describe, expect, it } from "@effect/vitest"
 import { Effect, Exit, pipe } from "effect"
 import path from "path"
 import { Sandbox } from "./Sandbox.ts"
-import { NoMatchingFiles, templateIdFromFiles } from "./templateIdFromFilesHash.js"
+import { NoMatchingFiles, templateIdFromFiles } from "./TemplateIdFromFilesHash.js"
 
 const dependencies = NodeContext.layer
 

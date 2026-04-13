@@ -2,7 +2,7 @@
  * @since 0.0.1
  */
 import type { TestProject } from "vitest/node"
-import { startContainers } from "./startContainers.js"
+import { startContainers } from "./StartContainers.js"
 
 /**
  * @since 0.0.1

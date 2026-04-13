@@ -1,8 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
   "include": [
-    "src/globalSetup.ts",
-    "src/startContainers.ts",
+    "src/GlobalSetup.ts",
+    "src/StartContainers.ts",
     "src/Sandbox.ts",
     "src/**/*.node.unit.test.ts",
     "src/**/*.node.integration.test.ts",

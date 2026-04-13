@@ -9,7 +9,7 @@ export default mergeConfig(shared, defineConfig({
         test: {
           name: "node-integration",
           include: ["src/**/*.node.integration.test.{ts,mts,cts,tsx}"],
-          globalSetup: ["src/globalSetup.ts"]
+          globalSetup: ["src/GlobalSetup.ts"]
         }
       }
     ]
