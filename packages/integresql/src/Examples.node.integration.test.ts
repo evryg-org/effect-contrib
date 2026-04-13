@@ -3,9 +3,9 @@ import { PgClient } from "@effect/sql-pg"
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, pipe, Redacted } from "effect"
 import { inject } from "vitest"
+import { Sandbox } from "../test/Sandbox.js"
 import type { DatabaseConfiguration } from "./index.js"
 import { getConnection } from "./index.js"
-import { Sandbox } from "../test/Sandbox.js"
 import { templateIdFromFiles } from "./TemplateIdFromFilesHash.js"
 
 const dependencies = NodeContext.layer

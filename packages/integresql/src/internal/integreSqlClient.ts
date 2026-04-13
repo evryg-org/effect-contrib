@@ -2,7 +2,12 @@
  * @since 0.0.1
  */
 import { Brand, Data, Effect, Either, flow, Option, pipe, Schema } from "effect"
-import { DatabaseConfiguration, type DatabaseTemplateId, type IntegreSqlClient, NoSuchTemplate } from "../IntegreSqlClient.js"
+import {
+  DatabaseConfiguration,
+  type DatabaseTemplateId,
+  type IntegreSqlClient,
+  NoSuchTemplate
+} from "../IntegreSqlClient.js"
 
 /**
  * @since 0.0.1

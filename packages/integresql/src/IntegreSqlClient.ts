@@ -1,7 +1,8 @@
 /**
  * @since 0.0.1
  */
-import { Data, Effect, Option } from "effect"
+import type { Effect, Option } from "effect"
+import { Data } from "effect"
 import type { Branded } from "effect/Brand"
 
 /**
