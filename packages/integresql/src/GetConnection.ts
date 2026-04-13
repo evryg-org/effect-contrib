@@ -3,7 +3,7 @@
  */
 import { Effect, Option, pipe } from "effect"
 import type { DatabaseConfiguration } from "./IntegreSqlClient.js"
-import { makeIntegreSqlClient, unsafeMakeDatabaseTemplateId } from "./IntegreSqlClient.js"
+import { makeIntegreSqlClient, unsafeMakeDatabaseTemplateId } from "./internal/integreSqlClient.js"
 
 /**
  * @since 0.0.1
