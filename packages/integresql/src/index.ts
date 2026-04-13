@@ -11,7 +11,7 @@ export {
    * @since 0.0.1
    */
   type InitializeTemplate
-} from "./getConnection.js"
+} from "./GetConnection.js"
 
 export {
   /**
@@ -37,4 +37,4 @@ export {
    * @since 0.0.1
    */
   templateIdFromFiles
-} from "./templateIdFromFilesHash.js"
+} from "./TemplateIdFromFilesHash.js"

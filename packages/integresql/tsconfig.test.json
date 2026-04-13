@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "include": [
-    "src", 
+    "test",
     "src/**/*.test.ts",
     "src/**/*.test-d.ts"
   ],
@@ -10,7 +10,6 @@
   ],
   "compilerOptions": {
     "tsBuildInfoFile": ".tsbuildinfo/test.tsbuildinfo",
-    "rootDir": "src",
     "noEmit": true
   }
 }

@@ -11,9 +11,6 @@
     "src"
   ],
   "exclude": [
-    "src/globalSetup.ts", 
-    "src/Sandbox.ts",
-    "src/startContainers.ts",
     "src/**/*.test.ts",
     "src/**/*.test-d.ts"
   ]

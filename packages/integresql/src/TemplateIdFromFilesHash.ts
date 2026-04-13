@@ -8,7 +8,8 @@ import glob from "fast-glob"
 import crypto from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
-import { type DatabaseTemplateId, unsafeMakeDatabaseTemplateId } from "./IntegreSqlClient.js"
+import type { DatabaseTemplateId } from "./IntegreSqlClient.js"
+import { unsafeMakeDatabaseTemplateId } from "./internal/integreSqlClient.js"
 
 /**
  * @since 0.0.1

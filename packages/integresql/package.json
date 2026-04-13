@@ -14,6 +14,7 @@
     "url": "https://github.com/evryg-org/effect-contrib/issues"
   },
   "exports": {
+    "./package.json": "./package.json",
     ".": "./src/index.ts",
     "./*": "./src/*.ts",
     "./internal/*": null

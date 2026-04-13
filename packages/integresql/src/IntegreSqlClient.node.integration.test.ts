@@ -2,13 +2,12 @@ import { describe, expect, it } from "@effect/vitest"
 import { Effect, Exit, Option, pipe } from "effect"
 import { randomUUID } from "node:crypto"
 import { inject } from "vitest"
+import { DatabaseConfiguration, NoSuchTemplate } from "./IntegreSqlClient.js"
 import {
-  DatabaseConfiguration,
   IntegreSqlFailedToCreateTemplate,
   makeIntegreSqlClient,
-  NoSuchTemplate,
   unsafeMakeDatabaseTemplateId
-} from "./IntegreSqlClient.js"
+} from "./internal/integreSqlClient.js"
 
 describe(`IntegreSqlClient`, () => {
   describe("createTemplate", () => {
