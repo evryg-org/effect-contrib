@@ -5,7 +5,7 @@
     "src/startContainers.ts",
     "src/Sandbox.ts",
     "src/internal/**/*.ts",
-    "src/**/*.test.ts",
+    "src/**/*.node.integration.test.ts",
     "src/**/*.test-d.ts"
   ]
 }
