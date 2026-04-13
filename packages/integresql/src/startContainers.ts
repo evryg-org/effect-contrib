@@ -1,7 +1,13 @@
+/**
+ * @since 0.0.1
+ */
 import { PostgreSqlContainer } from "@testcontainers/postgresql"
 import { GenericContainer, Wait } from "testcontainers"
 
 const containerStartupTimeout = 1000 * 40
+/**
+ * @since 0.0.1
+ */
 export async function startContainers(): Promise<{
   config: {
     integreAPIUrl: string

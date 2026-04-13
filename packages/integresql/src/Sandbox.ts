@@ -1,7 +1,13 @@
+/**
+ * @since 0.0.1
+ */
 import { FileSystem, Path } from "@effect/platform"
 import { randomUUID } from "crypto"
 import { Effect, pipe } from "effect"
 
+/**
+ * @since 0.0.1
+ */
 export const Sandbox = Effect.gen(function*() {
   const fs = yield* FileSystem.FileSystem
   const path = yield* Path.Path
