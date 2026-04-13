@@ -1,11 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
   "include": [
-    "src/GlobalSetup.ts",
-    "src/StartContainers.ts",
-    "src/Sandbox.ts",
-    "src/**/*.node.unit.test.ts",
-    "src/**/*.node.integration.test.ts",
+    "test",
+    "src/**/*.test.ts",
     "src/**/*.test-d.ts"
   ],
   "references": [
@@ -13,7 +10,6 @@
   ],
   "compilerOptions": {
     "tsBuildInfoFile": ".tsbuildinfo/test.tsbuildinfo",
-    "rootDir": "src",
     "noEmit": true
   }
 }

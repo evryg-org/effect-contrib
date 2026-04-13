@@ -11,11 +11,7 @@
     "src"
   ],
   "exclude": [
-    "src/GlobalSetup.ts", 
-    "src/Sandbox.ts",
-    "src/StartContainers.ts",
-    "src/**/*.node.unit.test.ts",
-    "src/**/*.node.integration.test.ts",
+    "src/**/*.test.ts",
     "src/**/*.test-d.ts"
   ]
 }
