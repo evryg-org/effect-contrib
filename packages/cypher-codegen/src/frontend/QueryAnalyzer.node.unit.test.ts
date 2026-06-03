@@ -730,3 +730,40 @@ describe("analyzeQuery — edge connectivity inference", () => {
     expect(result.columns[0]).toEqual(col("name", S("String"), false))
   })
 })
+
+describe("analyzeQuery — CREATE/MERGE-bound variables in RETURN", () => {
+  it("resolves a property of a CREATE-bound variable from the schema", () => {
+    const cypher = "CREATE (m:Method {id: $id, name: $name}) RETURN m.id AS id, m.name AS name"
+    const result = analyzeQuery(cypher, schema)
+    // Method.id and Method.name are mandatory String → non-nullable, resolved from schema
+    expect(result.columns).toEqual([
+      col("id", S("String"), false),
+      col("name", S("String"), false)
+    ])
+  })
+
+  it("makes an optional property of a CREATE-bound variable nullable", () => {
+    const cypher = "CREATE (m:Method {id: $id}) RETURN m.visibility AS visibility"
+    const result = analyzeQuery(cypher, schema)
+    // Method.visibility is optional → nullable, but the created node itself is never null
+    expect(result.columns).toEqual([col("visibility", S("String"), true)])
+  })
+
+  it("resolves a property of a MERGE-bound variable from the schema", () => {
+    const cypher = "MERGE (m:Method {id: $id}) RETURN m.name AS name"
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([col("name", S("String"), false)])
+  })
+
+  it("resolves CREATE-bound variables introduced after a WITH in a multi-part query", () => {
+    const cypher = `MATCH (c:Class)
+                    WITH c
+                    CREATE (m:Method {id: $id})
+                    RETURN m.id AS id, c.fqcn AS fqcn`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([
+      col("id", S("String"), false),
+      col("fqcn", S("String"), false)
+    ])
+  })
+})

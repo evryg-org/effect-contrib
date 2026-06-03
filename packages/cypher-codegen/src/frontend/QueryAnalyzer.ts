@@ -14,6 +14,7 @@ import {
   ReadingStatementContext,
   RelationDetailContext,
   UnwindStContext,
+  UpdatingStatementContext,
   WithStContext
 } from "../internal/generated-parser/CypherParser.js"
 import { type CypherType, EdgeType, UnknownType, VertexType, VertexUnionType } from "../types/CypherType.js"
@@ -203,6 +204,31 @@ function extendEnvFromMatch(env: TypeEnv, matchSt: MatchStContext, schema: Graph
     }
   }
 
+  return newEnv
+}
+
+// Bind variables introduced by CREATE/MERGE patterns. Unlike OPTIONAL MATCH, a
+// created/merged node always exists, so its binding is never nullable. Other
+// updating clauses (DELETE/SET/REMOVE) introduce no new variables.
+function extendEnvFromCreate(env: TypeEnv, updatingSt: UpdatingStatementContext): TypeEnv {
+  const createSt = updatingSt.createSt()
+  const mergeSt = updatingSt.mergeSt()
+
+  const parts = createSt
+    ? createSt.pattern().patternPart()
+    : mergeSt
+    ? [mergeSt.patternPart()]
+    : []
+  if (parts.length === 0) return env
+
+  const newEnv = new Map(env)
+  for (const part of parts) {
+    visitNodePatterns(part, (varName, label) => {
+      if (label) {
+        newEnv.set(varName, { type: new VertexType({ label }), nullable: false })
+      }
+    })
+  }
   return newEnv
 }
 
@@ -640,6 +666,8 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
         env = extendEnvFromMatch(env, child, schema)
       } else if (child instanceof WithStContext) {
         env = computeEnvFromProjection(child.projectionBody(), env, schema)
+      } else if (child instanceof UpdatingStatementContext) {
+        env = extendEnvFromCreate(env, child)
       }
     }
   }
@@ -652,6 +680,11 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
       if (matchSt) env = extendEnvFromMatch(env, matchSt, schema)
       const unwindSt = reading.unwindSt()
       if (unwindSt) env = extendEnvFromUnwind(env, unwindSt, schema)
+    }
+    // Updating statements (CREATE/MERGE) follow reading statements in a singlePartQ;
+    // bind their pattern variables so a trailing RETURN can resolve them.
+    for (const updatingSt of single.updatingStatement() ?? []) {
+      env = extendEnvFromCreate(env, updatingSt)
     }
   }
 
