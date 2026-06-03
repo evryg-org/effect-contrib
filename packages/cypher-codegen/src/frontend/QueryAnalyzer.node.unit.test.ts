@@ -200,6 +200,45 @@ describe("analyzeQuery — param nullability", () => {
   })
 })
 
+describe("analyzeQuery — SET-clause param nullability", () => {
+  it("marks a SET param bound to an optional vertex property as nullable", () => {
+    // Method.visibility is optional in the schema fixture
+    const cypher = "MATCH (m:Method {id: $id}) SET m.visibility = $vis RETURN m.id AS id"
+    const result = analyzeQuery(cypher, schema)
+    expect(result.params).toEqual([
+      { name: "id", type: "String", nullable: false },
+      { name: "vis", type: "String", nullable: true }
+    ])
+  })
+
+  it("marks a SET param bound to a mandatory vertex property as non-nullable", () => {
+    // Method.name is mandatory in the schema fixture
+    const cypher = "MATCH (m:Method {id: $id}) SET m.name = $nm RETURN m.id AS id"
+    const result = analyzeQuery(cypher, schema)
+    expect(result.params).toEqual([
+      { name: "id", type: "String", nullable: false },
+      { name: "nm", type: "String", nullable: false }
+    ])
+  })
+
+  it("types each item of a multi-property SET independently", () => {
+    const cypher = "MATCH (m:Method {id: $id}) SET m.visibility = $vis, m.name = $nm RETURN m.id AS id"
+    const result = analyzeQuery(cypher, schema)
+    expect(result.params).toEqual([
+      { name: "id", type: "String", nullable: false },
+      { name: "vis", type: "String", nullable: true },
+      { name: "nm", type: "String", nullable: false }
+    ])
+  })
+
+  it("does not double-count a param constrained in both a MATCH pattern and a SET", () => {
+    // Method.visibility is optional → nullable, and appears once despite two usages
+    const cypher = "MATCH (m:Method {visibility: $v}) SET m.visibility = $v RETURN m.id AS id"
+    const result = analyzeQuery(cypher, schema)
+    expect(result.params).toEqual([{ name: "v", type: "String", nullable: true }])
+  })
+})
+
 describe("analyzeQuery — WITH rebinding", () => {
   it("tracks variables through WITH clause", () => {
     const cypher = `MATCH (c:Class)

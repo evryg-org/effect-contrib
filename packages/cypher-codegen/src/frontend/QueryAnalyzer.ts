@@ -13,6 +13,7 @@ import {
   PatternElemContext,
   ReadingStatementContext,
   RelationDetailContext,
+  SetItemContext,
   UnwindStContext,
   UpdatingStatementContext,
   WithStContext
@@ -631,6 +632,34 @@ function extractParams(tree: ReturnType<typeof parse>, schema: GraphSchema): Arr
     const property = lhsText.slice(dotIdx + 1)
     const label = varLabels.get(varName)
     paramUsages.push({ paramName, label, property, isInClause: true })
+  })
+
+  // Pass 3: Walk SET items of the form `<var>.<prop> = $param`, mirroring Pass 1.
+  // Only the `propertyExpression ASSIGN expression` alternative is handled; `SET r += $map`
+  // (map-merge) uses the `symbol ADD_ASSIGN expression` alternative, whose propertyExpression()
+  // is null, so it is naturally excluded — that map param is a separate feature.
+  walkTree(tree, SetItemContext, (item) => {
+    const propExpr = item.propertyExpression()
+    if (!propExpr) return
+
+    // LHS must be a simple `var.prop` (single property segment).
+    const names = propExpr.name()
+    if (names.length !== 1) return
+    const varName = propExpr.atom().getText()
+    const property = names[0]!.getText()
+
+    const expr = item.expression()
+    if (!expr) return
+    const paramCtx = findParameter(expr)
+    if (!paramCtx) return
+    const paramSym = paramCtx.symbol()
+    if (!paramSym) return
+    const paramName = paramSym.getText()
+    if (seenParams.has(paramName)) return
+    seenParams.add(paramName)
+
+    const label = varLabels.get(varName)
+    paramUsages.push({ paramName, label, property })
   })
 
   return paramUsages.map((usage) => {
