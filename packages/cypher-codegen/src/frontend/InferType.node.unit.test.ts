@@ -101,6 +101,13 @@ describe("inferExpressionType — variable lookup", () => {
   })
 })
 
+describe("inferExpressionType — parameter atoms", () => {
+  it("infers a bare parameter as a scalar instead of throwing", () => {
+    const result = inferExpressionType(parseExpression("$id"), emptyEnv, schema)
+    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
+  })
+})
+
 describe("inferExpressionType — property access", () => {
   it("resolves node property from schema", () => {
     const env = envWith({ c: { type: new VertexType({ label: "Class" }), nullable: false } })
