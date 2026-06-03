@@ -236,6 +236,17 @@ describe("generateBarrel — typed params", () => {
     expect(source).toContain("{ val }: { val: unknown }")
   })
 
+  it("appends | null for a nullable param", () => {
+    const entry: BarrelEntry = {
+      filename: "Note.cypher",
+      cypher: "MERGE (m:Method {id: $id}) SET m.note = $note RETURN m.id AS id",
+      columns: [col("id", S("String"), false)],
+      params: [{ name: "note", type: "String", nullable: true } as ResolvedParam]
+    }
+    const source = generateBarrel([entry])
+    expect(source).toContain("{ note }: { note: string | null }")
+  })
+
   it("emits shared Neo4jRecordToObject transform once", () => {
     const entry: BarrelEntry = {
       filename: "Foo.cypher",

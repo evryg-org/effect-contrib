@@ -102,6 +102,15 @@ describe("generateDeclarations", () => {
     expect(output).toContain("fqcn: string")
   })
 
+  it("appends | null for a nullable param", () => {
+    const output = generateDeclarations([
+      entry("Foo.cypher", [col("name", S("String"), false)], [
+        { name: "note", type: "String", nullable: true } as ResolvedParam
+      ])
+    ])
+    expect(output).toContain("note: string | null")
+  })
+
   it("generates parameterless function when no params", () => {
     const output = generateDeclarations([
       entry("Foo.cypher", [col("id", S("String"), false)])

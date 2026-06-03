@@ -103,7 +103,8 @@ export const generateDeclaration = (entry: QueryEntry): string => {
   if (entry.params.length === 0) {
     lines.push(`export declare const query: () => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`)
   } else {
-    const paramFields = entry.params.map((p) => `${p.name}: ${tsTypeForParam(p.type)}`).join(", ")
+    const paramFields = entry.params.map((p) => `${p.name}: ${tsTypeForParam(p.type)}${p.nullable ? " | null" : ""}`)
+      .join(", ")
     lines.push(
       `export declare const query: (params: { ${paramFields} }) => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`
     )
@@ -137,7 +138,8 @@ export const generateDeclarations = (queries: ReadonlyArray<QueryEntry>): string
     if (entry.params.length === 0) {
       lines.push(`  export const query: () => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`)
     } else {
-      const paramFields = entry.params.map((p) => `${p.name}: ${tsTypeForParam(p.type)}`).join(", ")
+      const paramFields = entry.params.map((p) => `${p.name}: ${tsTypeForParam(p.type)}${p.nullable ? " | null" : ""}`)
+        .join(", ")
       lines.push(
         `  export const query: (params: { ${paramFields} }) => Effect.Effect<Row[], Neo4jQueryError, Neo4jClient>`
       )

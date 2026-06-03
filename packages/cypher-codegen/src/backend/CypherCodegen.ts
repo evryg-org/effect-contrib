@@ -346,7 +346,8 @@ export function generateBarrel(entries: ReadonlyArray<BarrelEntry>): string {
         lines.push(`    Effect.map(neo4j.query(${name}Cypher), ${decodeName}))`)
       } else {
         const destructure = `{ ${entry.params.map((p) => p.name).join(", ")} }`
-        const typeAnnotation = entry.params.map((p) => `${p.name}: ${tsTypeFor(p.type)}`).join("; ")
+        const typeAnnotation = entry.params.map((p) => `${p.name}: ${tsTypeFor(p.type)}${p.nullable ? " | null" : ""}`)
+          .join("; ")
         lines.push(`export const ${name} = (${destructure}: { ${typeAnnotation} }) =>`)
         lines.push(`  Effect.flatMap(Neo4jClient, (neo4j) =>`)
         lines.push(`    Effect.map(neo4j.query(${name}Cypher, ${destructure}), ${decodeName}))`)
@@ -357,7 +358,8 @@ export function generateBarrel(entries: ReadonlyArray<BarrelEntry>): string {
         lines.push(`  Effect.flatMap(Neo4jClient, (neo4j) => neo4j.query(${name}Cypher))`)
       } else {
         const destructure = `{ ${entry.params.map((p) => p.name).join(", ")} }`
-        const typeAnnotation = entry.params.map((p) => `${p.name}: ${tsTypeFor(p.type)}`).join("; ")
+        const typeAnnotation = entry.params.map((p) => `${p.name}: ${tsTypeFor(p.type)}${p.nullable ? " | null" : ""}`)
+          .join("; ")
         lines.push(`export const ${name} = (${destructure}: { ${typeAnnotation} }) =>`)
         lines.push(`  Effect.flatMap(Neo4jClient, (neo4j) => neo4j.query(${name}Cypher, ${destructure}))`)
       }

@@ -482,6 +482,12 @@ function inferAtomType(
     throw new CypherTypeError(`Unbound variable '${name}'`)
   }
 
+  // Parameter atom ($id): the param's value type isn't threaded into expression
+  // inference, so fall back to a String scalar rather than failing the projection.
+  if (atom.parameter()) {
+    return new ScalarType({ scalarType: "String" })
+  }
+
   throw new CypherTypeError("Unhandled atom expression")
 }
 
