@@ -78,7 +78,8 @@ const S = (t: "String" | "Long" | "Double" | "Boolean") => new ScalarType({ scal
 
 const col = (name: string, type: CypherType, nullable: boolean): ResolvedColumn => ({ name, type, nullable })
 
-const param = (name: string, type: string): ResolvedParam => ({ name, type }) as ResolvedParam
+const param = (name: string, type: string, nullable = false): ResolvedParam =>
+  ({ name, type, nullable }) as ResolvedParam
 
 // ── Tests ──
 
@@ -180,6 +181,22 @@ describe("analyzeQuery — parameter extraction", () => {
   ])("$label", ({ cypher, expectedParams }) => {
     const result = analyzeQuery(cypher, schema)
     expect(result.params).toEqual(expectedParams)
+  })
+})
+
+describe("analyzeQuery — param nullability", () => {
+  it("marks a param bound to an optional vertex property as nullable", () => {
+    // Method.visibility is optional in the schema fixture
+    const cypher = "MATCH (m:Method {visibility: $vis}) RETURN m.id AS id"
+    const result = analyzeQuery(cypher, schema)
+    expect(result.params).toEqual([{ name: "vis", type: "String", nullable: true }])
+  })
+
+  it("marks a param bound to a mandatory vertex property as non-nullable", () => {
+    // Method.name is mandatory in the schema fixture
+    const cypher = "MATCH (m:Method {name: $nm}) RETURN m.id AS id"
+    const result = analyzeQuery(cypher, schema)
+    expect(result.params).toEqual([{ name: "nm", type: "String", nullable: false }])
   })
 })
 

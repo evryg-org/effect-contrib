@@ -127,7 +127,7 @@ function mergeParams(analyzerParams: ReadonlyArray<ResolvedParam>, cypher: strin
   const regexNames = extractParams(cypher)
   const byName = new Map(analyzerParams.map((p) => [p.name, p]))
   for (const name of regexNames) {
-    if (!byName.has(name)) byName.set(name, { name, type: "String" })
+    if (!byName.has(name)) byName.set(name, { name, type: "String", nullable: false })
   }
   return regexNames.filter((n) => byName.has(n)).map((n) => byName.get(n)!)
 }

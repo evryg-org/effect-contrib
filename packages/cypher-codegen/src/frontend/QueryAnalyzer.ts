@@ -62,6 +62,7 @@ export interface ResolvedColumn {
 export interface ResolvedParam {
   readonly name: string
   readonly type: Neo4jType
+  readonly nullable: boolean
 }
 
 /**
@@ -142,14 +143,20 @@ function normalizeNeo4jType(raw: string): Neo4jType {
   }
 }
 
-function lookupParamType(schema: GraphSchema, label: string, propertyName: string): Neo4jType | undefined {
+function lookupParamType(
+  schema: GraphSchema,
+  label: string,
+  propertyName: string
+): { type: Neo4jType; nullable: boolean } | undefined {
   const prop = schema.vertexProperties.find(
     (p) => p.labels.includes(label) && p.propertyName === propertyName
   )
   if (!prop) return undefined
   const rawType = prop.propertyTypes[0]
   if (!rawType) return undefined
-  return normalizeNeo4jType(rawType)
+  // An optional vertex property accepts null (e.g. to clear it), so a param
+  // bound to it must allow null too — matching the RETURN-row NullOr treatment.
+  return { type: normalizeNeo4jType(rawType), nullable: !prop.mandatory }
 }
 
 function scalarToArrayType(scalar: Neo4jType): Neo4jType {
@@ -628,12 +635,20 @@ function extractParams(tree: ReturnType<typeof parse>, schema: GraphSchema): Arr
 
   return paramUsages.map((usage) => {
     if (usage.label && usage.property) {
-      const type = lookupParamType(schema, usage.label, usage.property)
-      if (type) {
-        return { name: usage.paramName, type: usage.isInClause ? scalarToArrayType(type) : type }
+      const resolved = lookupParamType(schema, usage.label, usage.property)
+      if (resolved) {
+        // IN-clause params are arrays of values, not the property itself, so they
+        // are never nullable regardless of the property's optionality.
+        return usage.isInClause
+          ? { name: usage.paramName, type: scalarToArrayType(resolved.type), nullable: false }
+          : { name: usage.paramName, type: resolved.type, nullable: resolved.nullable }
       }
     }
-    return { name: usage.paramName, type: (usage.isInClause ? "StringArray" : "String") as Neo4jType }
+    return {
+      name: usage.paramName,
+      type: (usage.isInClause ? "StringArray" : "String") as Neo4jType,
+      nullable: false
+    }
   })
 }
 
