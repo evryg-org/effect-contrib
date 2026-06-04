@@ -8,7 +8,7 @@ describe("Neo4jInt", () => {
   })
 
   it("accepts unknown input (Neo4j driver values)", () => {
-    expectTypeOf<Schema.Schema.Encoded<typeof Neo4jInt>>().toEqualTypeOf<unknown>()
+    expectTypeOf<Schema.Codec.Encoded<typeof Neo4jInt>>().toEqualTypeOf<unknown>()
   })
 })
 
@@ -18,6 +18,6 @@ describe("Neo4jValue", () => {
   })
 
   it("accepts unknown input", () => {
-    expectTypeOf<Schema.Schema.Encoded<typeof Neo4jValue>>().toEqualTypeOf<unknown>()
+    expectTypeOf<Schema.Codec.Encoded<typeof Neo4jValue>>().toEqualTypeOf<unknown>()
   })
 })

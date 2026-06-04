@@ -37,12 +37,12 @@
     "@evryg/effect-neo4j": "workspace:^",
     "@evryg/effect-testcontainers": "workspace:^",
     "@testcontainers/neo4j": "^11.12.0",
-    "effect": "^3.21.0"
+    "effect": "^4.0.0-beta.78"
   },
   "devDependencies": {
     "@evryg/effect-neo4j": "workspace:^",
     "@evryg/effect-testcontainers": "workspace:^",
     "@testcontainers/neo4j": "^11.12.0",
-    "effect": "^3.21.0"
+    "effect": "4.0.0-beta.78"
   }
 }

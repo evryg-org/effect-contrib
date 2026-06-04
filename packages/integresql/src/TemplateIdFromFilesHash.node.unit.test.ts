@@ -1,14 +1,14 @@
-import { NodeContext } from "@effect/platform-node"
+import { NodeServices } from "@effect/platform-node"
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Exit, pipe } from "effect"
 import path from "path"
 import { Sandbox } from "../test/Sandbox.js"
 import { NoMatchingFiles, templateIdFromFiles } from "./TemplateIdFromFilesHash.js"
 
-const dependencies = NodeContext.layer
+const dependencies = NodeServices.layer
 
 describe(`templateIdFromFilesHash`, () => {
-  it.scoped(`Zero matching files fails`, () =>
+  it.effect(`Zero matching files fails`, () =>
     pipe(
       Effect.gen(function*() {
         const sandbox = yield* Sandbox
@@ -27,7 +27,7 @@ describe(`templateIdFromFilesHash`, () => {
       Effect.provide(dependencies)
     ))
 
-  it.scoped(`Different file, different id`, () =>
+  it.effect(`Different file, different id`, () =>
     pipe(
       Effect.gen(function*() {
         const sandbox = yield* Sandbox
@@ -44,7 +44,7 @@ describe(`templateIdFromFilesHash`, () => {
       Effect.provide(dependencies)
     ))
 
-  it.scoped(`Same file, same template id`, () =>
+  it.effect(`Same file, same template id`, () =>
     pipe(
       Effect.gen(function*() {
         const sandbox = yield* Sandbox
@@ -60,7 +60,7 @@ describe(`templateIdFromFilesHash`, () => {
       Effect.provide(dependencies)
     ))
 
-  it.scoped(`Same file, different content, different id`, () =>
+  it.effect(`Same file, different content, different id`, () =>
     pipe(
       Effect.gen(function*() {
         const sandbox = yield* Sandbox

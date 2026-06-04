@@ -38,21 +38,19 @@
     "fast-glob": "^3.3.2"
   },
   "peerDependencies": {
-    "effect": "^3.21.0"
+    "effect": "^4.0.0-beta.78"
   },
   "devDependencies": {
-    "effect": "^3.21.0",
+    "@effect/platform-node": "4.0.0-beta.78",
+    "@effect/sql-pg": "4.0.0-beta.78",
+    "@effect/vitest": "4.0.0-beta.78",
     "@testcontainers/postgresql": "^10.13.2",
-    "testcontainers": "^10.13.2",
-    "@effect/platform": "^0.94.4",
-    "@effect/platform-node": "^0.104.1",
-    "@effect/vitest": "^0.27.0",
-    "@effect/sql-pg": "^0.50.3",
-    "@effect/sql": "^0.49.0",
-    "@types/pg": "^8.11.10",
-    "vitest": "^3.2.4",
     "@types/node": "^22.7.5",
+    "@types/pg": "^8.11.10",
+    "effect": "4.0.0-beta.78",
     "pg": "^8.13.0",
-    "typescript": "^5.9.3"
+    "testcontainers": "^10.13.2",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
   }
 }

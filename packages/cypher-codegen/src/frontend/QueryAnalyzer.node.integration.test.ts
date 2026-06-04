@@ -108,7 +108,7 @@ CREATE (prop)-[:BELONGS_TO {role: "class"}]->(c2)
 `
 
 layer(TestNeo4j, { timeout: "120 seconds" })("QueryAnalyzer — schema extraction + inference (integration)", (it) => {
-  it.scoped("extracts schema with all expected labels and rel types", () =>
+  it.effect("extracts schema with all expected labels and rel types", () =>
     Effect.gen(function*() {
       yield* CleanNeo4jGraph
       const client = yield* Neo4jClient
@@ -143,7 +143,7 @@ layer(TestNeo4j, { timeout: "120 seconds" })("QueryAnalyzer — schema extractio
       }
     }))
 
-  it.scoped("analyzeQuery produces no UnknownType for representative .cypher files", () =>
+  it.effect("analyzeQuery produces no UnknownType for representative .cypher files", () =>
     Effect.gen(function*() {
       yield* CleanNeo4jGraph
       const client = yield* Neo4jClient

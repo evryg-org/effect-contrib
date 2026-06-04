@@ -1,9 +1,9 @@
 /** @since 0.0.1 */
-import { Command } from "@effect/cli"
-import { NodeContext } from "@effect/platform-node"
+import { NodeServices } from "@effect/platform-node"
 import { compileToGraphSchema, extractSchema, saveSchema } from "@evryg/effect-neo4j-schema"
 import { Console, Effect } from "effect"
 import type { Schema } from "effect"
+import { Command } from "effect/unstable/cli"
 import {
   cypherGlobOption,
   generateFromSchema,
@@ -24,12 +24,12 @@ const generateLiveDbCommand = Command.make(
       yield* saveSchema(opts.schemaPath, schema)
       yield* Console.log(`Schema extracted: ${schema.vertexProperties.length} vertex properties`)
       yield* generateFromSchema(schema, opts.output, opts.cypherGlob)
-    }).pipe(Effect.provide([neo4jLayer(opts), NodeContext.layer]))
+    }).pipe(Effect.provide([neo4jLayer(opts), NodeServices.layer]))
 )
 
 // ── generate annotations ──
 
-const makeGenerateAnnotationsCommand = (allSchemas: Array<Schema.Schema.Any>) =>
+const makeGenerateAnnotationsCommand = (allSchemas: Array<Schema.Top>) =>
   Command.make(
     "annotations",
     { output: outputOption, cypherGlob: cypherGlobOption },
@@ -49,7 +49,7 @@ const makeGenerateAnnotationsCommand = (allSchemas: Array<Schema.Schema.Any>) =>
  * @since 0.0.1
  * @category cli
  */
-export const makeGenerateCommand = (allSchemas: Array<Schema.Schema.Any>) =>
+export const makeGenerateCommand = (allSchemas: Array<Schema.Top>) =>
   Command.make("generate").pipe(
     Command.withSubcommands([generateLiveDbCommand, makeGenerateAnnotationsCommand(allSchemas)])
   )

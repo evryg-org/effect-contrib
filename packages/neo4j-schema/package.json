@@ -34,16 +34,14 @@
     "coverage": "vitest --coverage"
   },
   "peerDependencies": {
-    "@effect/platform": "^0.96.0",
     "@evryg/effect-neo4j": "workspace:^",
-    "effect": "^3.21.0"
+    "effect": "^4.0.0-beta.78"
   },
   "devDependencies": {
-    "@effect/platform": "^0.96.0",
-    "@effect/platform-node": "^0.106.0",
+    "@effect/platform-node": "4.0.0-beta.78",
     "@evryg/effect-neo4j": "workspace:^",
     "@evryg/effect-vitest-neo4j": "workspace:^",
-    "effect": "^3.21.0",
+    "effect": "4.0.0-beta.78",
     "fast-check": "^3.23.2"
   }
 }

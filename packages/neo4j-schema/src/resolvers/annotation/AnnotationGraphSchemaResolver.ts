@@ -10,17 +10,17 @@ import { GraphSchemaResolver } from "../../GraphSchemaResolver.js"
 
 function astTypeToNeo4j(ast: any): string | undefined {
   switch (ast._tag) {
-    case "StringKeyword":
+    case "String":
       return "STRING NOT NULL"
-    case "NumberKeyword":
+    case "Number":
       return "FLOAT NOT NULL"
-    case "BooleanKeyword":
+    case "Boolean":
       return "BOOLEAN NOT NULL"
-    case "TupleType": {
-      // Schema.Array(T) becomes TupleType with rest element
+    case "Arrays": {
+      // Schema.Array(T) becomes an Arrays node with a rest element (an AST)
       const rest = ast.rest?.[0]
       if (rest) {
-        const inner = astTypeToNeo4j(rest.type)
+        const inner = astTypeToNeo4j(rest)
         if (inner) return `LIST<${inner}> NOT NULL`
       }
       return "LIST<STRING NOT NULL> NOT NULL"
@@ -34,7 +34,7 @@ function astTypeToNeo4j(ast: any): string | undefined {
 
 function unwrapOptional(ast: any): any {
   if (ast._tag === "Union" && Array.isArray(ast.types)) {
-    const nonUndef = ast.types.filter((t: any) => t._tag !== "UndefinedKeyword")
+    const nonUndef = ast.types.filter((t: any) => t._tag !== "Undefined")
     if (nonUndef.length === 1) return nonUndef[0]
   }
   return ast
@@ -47,14 +47,14 @@ function unwrapOptional(ast: any): any {
  * @since 0.0.1
  * @category constructors
  */
-export function compileToGraphSchema(schemas: Array<Schema.Schema.Any>): GraphSchema {
+export function compileToGraphSchema(schemas: Array<Schema.Top>): GraphSchema {
   const vertexProperties: Array<VertexProperty> = []
   const edgeProperties: Array<EdgeProperty> = []
   const edgeConnectivity: Array<EdgeConnectivity> = []
 
   for (const schema of schemas) {
     const ast = schema.ast
-    if (ast._tag !== "TypeLiteral") continue
+    if (ast._tag !== "Objects") continue
 
     const annotations = ast.annotations ?? {}
     const label = annotations.neo4jLabel as string | undefined
@@ -74,7 +74,7 @@ export function compileToGraphSchema(schemas: Array<Schema.Schema.Any>): GraphSc
 
     for (const ps of ast.propertySignatures) {
       const name = String(ps.name)
-      const isOptional = ps.isOptional === true
+      const isOptional = ps.type.context?.isOptional === true
       const typeAst = isOptional ? unwrapOptional(ps.type) : ps.type
       const neo4jType = astTypeToNeo4j(typeAst)
       if (!neo4jType) continue
@@ -111,7 +111,7 @@ export function compileToGraphSchema(schemas: Array<Schema.Schema.Any>): GraphSc
  * @category resolvers
  */
 export const AnnotationGraphSchemaResolver = (
-  schemas: Array<Schema.Schema.Any>
+  schemas: Array<Schema.Top>
 ): Layer.Layer<GraphSchemaResolver> =>
   Layer.succeed(GraphSchemaResolver, {
     resolve: Effect.sync(() => compileToGraphSchema(schemas))

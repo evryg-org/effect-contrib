@@ -3,7 +3,7 @@ import { Neo4jClient } from "@evryg/effect-neo4j"
 import { Effect } from "effect"
 
 /**
- * Scoped resource: clears all nodes/edges on acquire. Use with `it.scoped`.
+ * Scoped resource: clears all nodes/edges on acquire. Use with `it.effect`.
  *
  * @since 0.0.1
  * @category utils

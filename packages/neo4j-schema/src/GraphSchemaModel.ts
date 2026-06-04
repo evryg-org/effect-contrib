@@ -1,8 +1,7 @@
 /**
  * @since 0.0.1
  */
-import { FileSystem } from "@effect/platform"
-import { Effect, Schema } from "effect"
+import { Effect, FileSystem, Schema } from "effect"
 
 // ── DDD Subdomain models --
 
@@ -45,7 +44,10 @@ export class EdgeConnectivity extends Schema.Class<EdgeConnectivity>("EdgeConnec
 export class GraphSchema extends Schema.Class<GraphSchema>("GraphSchema")({
   vertexProperties: Schema.Array(VertexProperty),
   edgeProperties: Schema.Array(EdgeProperty),
-  edgeConnectivity: Schema.optionalWith(Schema.Array(EdgeConnectivity), { default: () => [] })
+  edgeConnectivity: Schema.Array(EdgeConnectivity).pipe(
+    Schema.withDecodingDefaultType(Effect.succeed([])),
+    Schema.withConstructorDefault(Effect.succeed([]))
+  )
 }) {}
 
 // ── File-based cache ──

@@ -1,8 +1,8 @@
 /** @since 0.0.1 */
-import { Command } from "@effect/cli"
-import { NodeContext } from "@effect/platform-node"
+import { NodeServices } from "@effect/platform-node"
 import { extractSchema, saveSchema } from "@evryg/effect-neo4j-schema"
 import { Console, Effect } from "effect"
+import { Command } from "effect/unstable/cli"
 import { neo4jLayer, neo4jOptions, schemaPathOption } from "./Shared.js"
 
 /**
@@ -20,5 +20,5 @@ export const extractSchemaCommand = Command.make(
       yield* Console.log(
         `  ${schema.vertexProperties.length} vertex properties, ${schema.edgeProperties.length} edge properties`
       )
-    }).pipe(Effect.provide([neo4jLayer(opts), NodeContext.layer]))
+    }).pipe(Effect.provide([neo4jLayer(opts), NodeServices.layer]))
 )

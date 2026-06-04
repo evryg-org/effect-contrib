@@ -1,4 +1,4 @@
-import { NodeContext } from "@effect/platform-node"
+import { NodeServices } from "@effect/platform-node"
 import { PgClient } from "@effect/sql-pg"
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, pipe, Redacted } from "effect"
@@ -8,10 +8,10 @@ import type { DatabaseConfiguration } from "./index.js"
 import { getConnection } from "./index.js"
 import { templateIdFromFiles } from "./TemplateIdFromFilesHash.js"
 
-const dependencies = NodeContext.layer
+const dependencies = NodeServices.layer
 
 describe(`examples`, () => {
-  it.scoped(
+  it.effect(
     `getConnection with initializeTemplate and PgClient.layer`,
     () =>
       pipe(

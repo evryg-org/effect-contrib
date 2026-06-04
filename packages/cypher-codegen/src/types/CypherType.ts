@@ -3,7 +3,7 @@ import { Schema } from "effect"
 
 // ── Scalar types (no recursion — use Schema.TaggedClass directly) ──
 
-const ScalarTypeLiteral = Schema.Literal(
+const ScalarTypeLiteral = Schema.Literals([
   "String",
   "Long",
   "Double",
@@ -15,7 +15,7 @@ const ScalarTypeLiteral = Schema.Literal(
   "Time",
   "Duration",
   "Point"
-)
+])
 
 /**
  * @since 0.0.1
@@ -149,7 +149,7 @@ export const NullableType = (inner: CypherType): NullableType => ({
  * @since 0.0.1
  * @category schema
  */
-export const CypherTypeSchema: Schema.Schema<CypherType> = Schema.Union(
+export const CypherTypeSchema: Schema.Schema<CypherType> = Schema.Union([
   ScalarType,
   Schema.Struct({
     _tag: Schema.Literal("ListType"),
@@ -171,4 +171,4 @@ export const CypherTypeSchema: Schema.Schema<CypherType> = Schema.Union(
   EdgeType,
   UnknownType,
   NeverType
-)
+])

@@ -1,5 +1,5 @@
 /** @since 0.0.1 */
-import { NodeContext } from "@effect/platform-node"
+import { NodeServices } from "@effect/platform-node"
 import { type GraphSchema, loadSchema } from "@evryg/effect-neo4j-schema"
 import { Effect } from "effect"
 import { readFileSync } from "node:fs"
@@ -10,7 +10,7 @@ import { analyzeQuery } from "./frontend/QueryAnalyzer.js"
 
 let schema: GraphSchema | undefined
 try {
-  schema = Effect.runSync(loadSchema("data/graph-schema.json").pipe(Effect.provide(NodeContext.layer)))
+  schema = Effect.runSync(loadSchema("data/graph-schema.json").pipe(Effect.provide(NodeServices.layer)))
 } catch {
   // Schema not available — fall back to untyped codegen
 }

@@ -34,11 +34,11 @@
     "coverage": "vitest --coverage"
   },
   "peerDependencies": {
-    "effect": "^3.21.0",
+    "effect": "^4.0.0-beta.78",
     "testcontainers": "^11.12.0"
   },
   "devDependencies": {
-    "effect": "^3.21.0",
+    "effect": "4.0.0-beta.78",
     "testcontainers": "^11.12.0"
   }
 }

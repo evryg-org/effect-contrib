@@ -1,6 +1,6 @@
 import { expect, layer } from "@effect/vitest"
 import { Neo4jClient, Neo4jConfig, UnconfiguredNeo4jClient } from "@evryg/effect-neo4j"
-import { Chunk, Effect, Layer, Stream } from "effect"
+import { Effect, Layer, Stream } from "effect"
 import { inject } from "vitest"
 
 declare module "vitest" {
@@ -32,7 +32,7 @@ layer(TestNeo4j, { timeout: "120 seconds" })("Neo4jClient (integration)", (it) =
       expect(records[0].get("n").toNumber()).toBe(1)
     }))
 
-  it.scoped("runBatch writes and reads back", () =>
+  it.effect("runBatch writes and reads back", () =>
     Effect.gen(function*() {
       yield* CleanNeo4jGraph
       const client = yield* Neo4jClient
@@ -59,7 +59,7 @@ layer(TestNeo4j, { timeout: "120 seconds" })("Neo4jClient (integration)", (it) =
       }
     }))
 
-  it.scoped("queryStream emits records", () =>
+  it.effect("queryStream emits records", () =>
     Effect.gen(function*() {
       yield* CleanNeo4jGraph
       const client = yield* Neo4jClient
@@ -67,20 +67,20 @@ layer(TestNeo4j, { timeout: "120 seconds" })("Neo4jClient (integration)", (it) =
         "UNWIND $rows AS row CREATE (:StreamTest {name: row.name})",
         Array.from({ length: 5 }, (_, i) => ({ name: `stream-${i}` }))
       )
-      const chunk = yield* client
+      const records = yield* client
         .queryStream("MATCH (n:StreamTest) RETURN n.name AS name ORDER BY name")
         .pipe(Stream.runCollect)
-      expect(Chunk.toArray(chunk)).toHaveLength(5)
-      expect(chunk.pipe(Chunk.unsafeGet(0)).get("name")).toBe("stream-0")
+      expect(records).toHaveLength(5)
+      expect(records[0].get("name")).toBe("stream-0")
     }))
 
   it.effect("queryStream with empty result yields empty stream", () =>
     Effect.gen(function*() {
       const client = yield* Neo4jClient
-      const chunk = yield* client
+      const records = yield* client
         .queryStream("MATCH (n:NeverExists) RETURN n")
         .pipe(Stream.runCollect)
-      expect(Chunk.toArray(chunk)).toHaveLength(0)
+      expect(records).toHaveLength(0)
     }))
 
   it.effect("queryStream with invalid cypher yields Neo4jQueryError", () =>

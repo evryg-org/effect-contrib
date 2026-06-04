@@ -1,9 +1,8 @@
 /**
  * @since 0.0.1
  */
-import { FileSystem, Path } from "@effect/platform"
 import { randomUUID } from "crypto"
-import { Effect, pipe } from "effect"
+import { Effect, FileSystem, Path, pipe } from "effect"
 
 /**
  * @since 0.0.1

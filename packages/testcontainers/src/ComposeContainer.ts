@@ -8,8 +8,8 @@ import { DockerComposeEnvironment, type StartedDockerComposeEnvironment } from "
  * @since 0.0.3
  * @category errors
  */
-export class ComposeContainerError extends Schema.TaggedError<ComposeContainerError>()("ComposeContainerError", {
-  cause: Schema.Defect
+export class ComposeContainerError extends Schema.TaggedErrorClass<ComposeContainerError>()("ComposeContainerError", {
+  cause: Schema.Defect()
 }) {}
 
 /**
@@ -30,10 +30,10 @@ export type ComposeExecutableOptions = {
  * @since 0.0.1
  * @category containers
  */
-export class ComposeEnvironment extends Context.Tag("ComposeEnvironment")<
+export class ComposeEnvironment extends Context.Service<
   ComposeEnvironment,
   StartedDockerComposeEnvironment
->() {}
+>()("ComposeEnvironment") {}
 
 /**
  * @since 0.0.1
@@ -53,7 +53,7 @@ export interface ComposeOptions {
 export const makeComposeContainer = (
   opts: ComposeOptions
 ): Layer.Layer<ComposeEnvironment, ComposeContainerError> =>
-  Layer.scoped(
+  Layer.effect(
     ComposeEnvironment,
     Effect.gen(function*() {
       let env = new DockerComposeEnvironment(opts.composeFilePath, opts.composeFile)
