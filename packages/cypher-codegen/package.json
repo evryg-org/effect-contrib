@@ -51,6 +51,7 @@
     "@evryg/effect-vitest-neo4j": "workspace:^",
     "antlr-ng": "^1.0.10",
     "effect": "4.0.0-beta.78",
-    "neo4j-driver": "^6.0.1"
+    "neo4j-driver": "^6.0.1",
+    "typescript": "5.9.3"
   }
 }
