@@ -1,8 +1,8 @@
 /** @since 0.0.1 */
-import { Options } from "@effect/cli"
 import { Neo4jConfig, UnconfiguredNeo4jClient } from "@evryg/effect-neo4j"
 import type { GraphSchema } from "@evryg/effect-neo4j-schema"
-import { Console, Effect, Either, Layer, Schema } from "effect"
+import { Console, Effect, Layer, Result, Schema } from "effect"
+import { Flag } from "effect/unstable/cli"
 import { globSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { basename, dirname } from "node:path"
 import { type BarrelEntry, extractParams, generateBarrel } from "../../../backend/CypherCodegen.js"
@@ -14,46 +14,46 @@ import { analyzeQuery, type ResolvedParam } from "../../../frontend/QueryAnalyze
  * @since 0.0.1
  * @category options
  */
-export const neo4jUriOption = Options.withDefault(
-  Options.text("neo4j-uri"),
+export const neo4jUriOption = Flag.withDefault(
+  Flag.string("neo4j-uri"),
   process.env.NEO4J_URI ?? "bolt://localhost:7687"
 )
 /**
  * @since 0.0.1
  * @category options
  */
-export const neo4jUserOption = Options.withDefault(Options.text("neo4j-user"), process.env.NEO4J_USER ?? "neo4j")
+export const neo4jUserOption = Flag.withDefault(Flag.string("neo4j-user"), process.env.NEO4J_USER ?? "neo4j")
 /**
  * @since 0.0.1
  * @category options
  */
-export const neo4jPasswordOption = Options.withDefault(
-  Options.text("neo4j-password"),
+export const neo4jPasswordOption = Flag.withDefault(
+  Flag.string("neo4j-password"),
   process.env.NEO4J_PASSWORD ?? "changeme"
 )
 /**
  * @since 0.0.1
  * @category options
  */
-export const neo4jDatabaseOption = Options.withDefault(
-  Options.text("neo4j-database"),
+export const neo4jDatabaseOption = Flag.withDefault(
+  Flag.string("neo4j-database"),
   process.env.NEO4J_DATABASE ?? "neo4j"
 )
 /**
  * @since 0.0.1
  * @category options
  */
-export const schemaPathOption = Options.withDefault(Options.text("schema-path"), "data/graph-schema.json")
+export const schemaPathOption = Flag.withDefault(Flag.string("schema-path"), "data/graph-schema.json")
 /**
  * @since 0.0.1
  * @category options
  */
-export const outputOption = Options.withDefault(Options.text("output"), "src/generated/queries.ts")
+export const outputOption = Flag.withDefault(Flag.string("output"), "src/generated/queries.ts")
 /**
  * @since 0.0.1
  * @category options
  */
-export const cypherGlobOption = Options.withDefault(Options.text("cypher-glob"), "src/**/*.cypher")
+export const cypherGlobOption = Flag.withDefault(Flag.string("cypher-glob"), "src/**/*.cypher")
 
 /**
  * @since 0.0.1
@@ -93,7 +93,7 @@ export function neo4jLayer(
  * @since 0.1.1
  * @category errors
  */
-export class DuplicateCypherFilenamesError extends Schema.TaggedError<DuplicateCypherFilenamesError>(
+export class DuplicateCypherFilenamesError extends Schema.TaggedErrorClass<DuplicateCypherFilenamesError>(
   "@evryg/effect-cypher-codegen/DuplicateCypherFilenamesError"
 )("DuplicateCypherFilenamesError", {
   filenames: Schema.Array(Schema.String)
@@ -107,7 +107,7 @@ export class DuplicateCypherFilenamesError extends Schema.TaggedError<DuplicateC
  * @since 0.1.1
  * @category errors
  */
-export class CypherCodegenError extends Schema.TaggedError<CypherCodegenError>(
+export class CypherCodegenError extends Schema.TaggedErrorClass<CypherCodegenError>(
   "@evryg/effect-cypher-codegen/CypherCodegenError"
 )("CypherCodegenError", {
   failures: Schema.Array(Schema.Struct({
@@ -150,28 +150,31 @@ export function generateFromSchema(
       return yield* new DuplicateCypherFilenamesError({ filenames: [...new Set(duplicates)] })
     }
 
-    const eithers = files.map((file) =>
-      Either.try({
-        try: () => {
+    const results = files.map(
+      (file): Result.Result<BarrelEntry, { filename: string; error: string }> => {
+        try {
           const cypher = readFileSync(file, "utf-8").trim()
           const analysis = analyzeQuery(cypher, schema)
-          return {
-            filename: basename(file),
-            cypher,
-            columns: analysis.columns,
-            params: mergeParams(analysis.params, cypher)
-          } satisfies BarrelEntry
-        },
-        catch: (e) => ({ filename: basename(file), error: e instanceof Error ? e.message : String(e) })
-      })
+          return Result.succeed(
+            {
+              filename: basename(file),
+              cypher,
+              columns: analysis.columns,
+              params: mergeParams(analysis.params, cypher)
+            } satisfies BarrelEntry
+          )
+        } catch (e) {
+          return Result.fail({ filename: basename(file), error: e instanceof Error ? e.message : String(e) })
+        }
+      }
     )
 
     const failures: Array<{ filename: string; error: string }> = []
     const entries: Array<BarrelEntry> = []
-    for (const either of eithers) {
-      Either.match(either, {
-        onLeft: (f) => failures.push(f),
-        onRight: (e) => entries.push(e)
+    for (const result of results) {
+      Result.match(result, {
+        onFailure: (f) => failures.push(f),
+        onSuccess: (e) => entries.push(e)
       })
     }
 

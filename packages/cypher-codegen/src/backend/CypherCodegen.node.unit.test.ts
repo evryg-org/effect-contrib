@@ -89,11 +89,11 @@ describe("generateModule with columns (typed codegen)", () => {
     expect(source).toContain(".toObject()")
   })
 
-  it("composes Neo4jRecordToObject with Row via Schema.compose", () => {
+  it("composes Neo4jRecordToObject with Row via decodeTo", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.fqcn AS fqcn", [
       col("fqcn", S("String"), false)
     ])
-    expect(source).toContain("Schema.Array(Schema.compose(Neo4jRecordToObject, Row, { strict: false }))")
+    expect(source).toContain("Schema.Array(Neo4jRecordToObject.pipe(Schema.decodeTo(Row)))")
   })
 
   it("passes decoder directly to Effect.map (no lambda)", () => {
@@ -139,7 +139,7 @@ describe("generateModule with columns (typed codegen)", () => {
     ])
     expect(source).toContain("{ fqcn }")
     expect(source).toContain("Schema.Struct")
-    expect(source).toContain("Schema.compose(Neo4jRecordToObject, Row")
+    expect(source).toContain("Neo4jRecordToObject.pipe(Schema.decodeTo(Row")
   })
 
   it("emits Neo4jValue for UnknownType columns (escape hatch)", () => {
@@ -260,7 +260,7 @@ describe("generateBarrel — typed params", () => {
     expect(source).toContain(".toObject()")
   })
 
-  it("composes Neo4jRecordToObject with row schema via Schema.compose", () => {
+  it("composes Neo4jRecordToObject with row schema via decodeTo", () => {
     const entry: BarrelEntry = {
       filename: "Foo.cypher",
       cypher: "MATCH (c:Class) RETURN c.fqcn AS fqcn",
@@ -268,7 +268,7 @@ describe("generateBarrel — typed params", () => {
       params: []
     }
     const source = generateBarrel([entry])
-    expect(source).toContain("Schema.Array(Schema.compose(Neo4jRecordToObject, fooQueryRow, { strict: false }))")
+    expect(source).toContain("Schema.Array(Neo4jRecordToObject.pipe(Schema.decodeTo(fooQueryRow)))")
   })
 
   it("passes decoder directly to Effect.map (no lambda)", () => {
