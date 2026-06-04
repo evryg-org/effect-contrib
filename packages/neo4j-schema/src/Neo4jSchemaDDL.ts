@@ -8,12 +8,12 @@ import type { Schema } from "effect"
  * @since 0.0.1
  * @category ddl
  */
-export function compileToCypherDDL(schemas: Array<Schema.Schema.Any>): string {
+export function compileToCypherDDL(schemas: Array<Schema.Top>): string {
   const lines: Array<string> = []
 
   for (const schema of schemas) {
     const ast = schema.ast
-    if (ast._tag !== "TypeLiteral") continue
+    if (ast._tag !== "Objects") continue
 
     const annotations = ast.annotations ?? {}
     const label = annotations.neo4jLabel as string | undefined
@@ -22,14 +22,14 @@ export function compileToCypherDDL(schemas: Array<Schema.Schema.Any>): string {
     // Field-level constraints
     for (const ps of ast.propertySignatures) {
       const name = String(ps.name)
-      // Annotations can be on the type (Schema.String.annotations(...)) or on the property signature (Schema.optional(...).annotations(...))
+      // In v4 field annotations live on the field schema's AST (set via `.annotate(...)`),
+      // whether the field is required (e.g. Schema.String) or optional (the UndefinedOr union).
       const typeAnnotations = ps.type.annotations ?? {}
-      const psAnnotations = ps.annotations ?? {}
 
-      if (typeAnnotations.neo4jUnique || psAnnotations.neo4jUnique) {
+      if (typeAnnotations.neo4jUnique) {
         lines.push(`CREATE CONSTRAINT IF NOT EXISTS FOR (n:${label}) REQUIRE n.${name} IS UNIQUE;`)
       }
-      if (typeAnnotations.neo4jIndex || psAnnotations.neo4jIndex) {
+      if (typeAnnotations.neo4jIndex) {
         lines.push(`CREATE INDEX IF NOT EXISTS FOR (n:${label}) ON (n.${name});`)
       }
     }

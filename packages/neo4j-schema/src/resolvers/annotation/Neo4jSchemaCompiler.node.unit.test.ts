@@ -7,25 +7,25 @@ import { compileToGraphSchema } from "./AnnotationGraphSchemaResolver.js"
 // ── Test schemas ──
 
 const PersonVertex = Schema.Struct({
-  id: Schema.String.annotations(neo4jUnique),
+  id: Schema.String.annotate(neo4jUnique),
   name: Schema.String,
   age: Schema.optional(Schema.Number),
   active: Schema.optional(Schema.Boolean),
   tags: Schema.Array(Schema.String),
-  file: Schema.optional(Schema.String).annotations(neo4jIndexed)
-}).annotations(neo4jVertex("Person"))
+  file: Schema.optional(Schema.String).annotate(neo4jIndexed)
+}).annotate(neo4jVertex("Person"))
 
 const ServerVertex = Schema.Struct({
   listenPort: Schema.Number,
   serverName: Schema.String
-}).annotations(neo4jVertex("Server", {
+}).annotate(neo4jVertex("Server", {
   compositeKey: ["listenPort", "serverName"]
 }))
 
 const IndexedVertex = Schema.Struct({
-  id: Schema.String.annotations(neo4jUnique),
+  id: Schema.String.annotate(neo4jUnique),
   name: Schema.String
-}).annotations(neo4jVertex("Indexed", {
+}).annotate(neo4jVertex("Indexed", {
   compositeIndexes: [["id", "name"]],
   fullTextIndex: { name: "indexed_search", fields: ["id", "name"] }
 }))
@@ -33,9 +33,9 @@ const IndexedVertex = Schema.Struct({
 const KnowsEdge = Schema.Struct({
   since: Schema.Number,
   weight: Schema.optional(Schema.Number)
-}).annotations(neo4jEdge("KNOWS"))
+}).annotate(neo4jEdge("KNOWS"))
 
-const EmptyEdge = Schema.Struct({}).annotations(neo4jEdge("FOLLOWS"))
+const EmptyEdge = Schema.Struct({}).annotate(neo4jEdge("FOLLOWS"))
 
 const UnannotatedSchema = Schema.Struct({ foo: Schema.String })
 
@@ -144,11 +144,11 @@ describe("compileToGraphSchema", () => {
     it("merges multiple schemas with same label", () => {
       const PartA = Schema.Struct({
         id: Schema.String
-      }).annotations(neo4jVertex("Merged"))
+      }).annotate(neo4jVertex("Merged"))
 
       const PartB = Schema.Struct({
         extra: Schema.optional(Schema.Number)
-      }).annotations(neo4jVertex("Merged"))
+      }).annotate(neo4jVertex("Merged"))
 
       const schema = compileToGraphSchema([PartA, PartB])
       const mergedProps = schema.vertexProperties.filter((p) => p.labels.includes("Merged"))

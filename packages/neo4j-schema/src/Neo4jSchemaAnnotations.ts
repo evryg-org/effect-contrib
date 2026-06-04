@@ -36,7 +36,7 @@ export const neo4jVertex = (
 ) => ({ neo4jLabel: label, ...opts })
 
 /** Extract the neo4jLabel from a vertex schema's annotations */
-function extractNeo4jLabel(vertexSchema: Schema.Schema.Any): string {
+function extractNeo4jLabel(vertexSchema: Schema.Top): string {
   const label = (vertexSchema.ast.annotations as Record<string, unknown>)?.neo4jLabel
   if (typeof label !== "string") {
     throw new Error("Connectivity endpoint must be annotated with neo4jVertex")
@@ -51,7 +51,7 @@ function extractNeo4jLabel(vertexSchema: Schema.Schema.Any): string {
  */
 export const neo4jEdge = (
   edgeType: string,
-  connectivity?: ReadonlyArray<{ from: Schema.Schema.Any; to: Schema.Schema.Any }>
+  connectivity?: ReadonlyArray<{ from: Schema.Top; to: Schema.Top }>
 ) => ({
   neo4jEdgeType: edgeType,
   ...(connectivity && {

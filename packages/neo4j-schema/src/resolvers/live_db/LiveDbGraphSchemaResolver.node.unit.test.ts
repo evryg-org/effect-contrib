@@ -1,4 +1,4 @@
-import { NodeContext } from "@effect/platform-node"
+import { NodeServices } from "@effect/platform-node"
 import { describe, expect, it } from "@effect/vitest"
 import { Effect } from "effect"
 import { mkdtempSync, rmSync } from "node:fs"
@@ -36,7 +36,7 @@ describe("GraphSchema save/load roundtrip", () => {
       const result = yield* loadSchema(path)
       rmSync(dir, { recursive: true })
       expect(result).toEqual(schema)
-    }).pipe(Effect.provide(NodeContext.layer)))
+    }).pipe(Effect.provide(NodeServices.layer)))
 })
 
 // ── unit tests ──
@@ -44,7 +44,7 @@ describe("GraphSchema save/load roundtrip", () => {
 describe("loadSchema", () => {
   it.effect("fails on missing file", () =>
     Effect.gen(function*() {
-      const result = yield* Effect.either(loadSchema("/nonexistent/path/schema.json"))
-      expect(result._tag).toBe("Left")
-    }).pipe(Effect.provide(NodeContext.layer)))
+      const result = yield* Effect.result(loadSchema("/nonexistent/path/schema.json"))
+      expect(result._tag).toBe("Failure")
+    }).pipe(Effect.provide(NodeServices.layer)))
 })
