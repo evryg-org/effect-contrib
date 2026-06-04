@@ -25,7 +25,7 @@ export const makeNeo4jTestContainer = (
   const image = opts?.image ?? "neo4j:5"
   const password = opts?.password ?? "changeme"
 
-  return Layer.scoped(
+  return Layer.effect(
     Neo4jConfig,
     Effect.gen(function*() {
       const container = yield* acquireContainer(() =>
