@@ -1,6 +1,6 @@
 {
   "name": "@evryg/effect-neo4j",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "type": "module",
   "license": "MIT",
   "description": "An Effect-based Neo4j client with scoped driver lifecycle, streaming queries, and type coercion schemas",

@@ -1,6 +1,6 @@
 {
   "name": "@evryg/effect-integresql",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "type": "module",
   "license": "MIT",
   "description": "An Effect based client of the integresql tool used for creating isolated postgresql databases used in integration tests",
