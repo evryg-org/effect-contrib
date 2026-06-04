@@ -255,7 +255,7 @@ describe("generateBarrel — typed params", () => {
       params: []
     }
     const source = generateBarrel([entry])
-    const matches = source.match(/Neo4jRecordToObject = Schema\.transform/g)
+    const matches = source.match(/Neo4jRecordToObject = Schema\.Unknown\.pipe\(Schema\.decodeTo/g)
     expect(matches).toHaveLength(1)
     expect(source).toContain(".toObject()")
   })
