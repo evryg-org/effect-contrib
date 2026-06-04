@@ -1,7 +1,7 @@
 /**
  * @since 0.0.1
  */
-import { Schema } from "effect"
+import { Schema, SchemaTransformation } from "effect"
 import { isInt } from "neo4j-driver"
 
 /**
@@ -11,13 +11,14 @@ import { isInt } from "neo4j-driver"
  * @since 0.0.1
  * @category schemas
  */
-export const Neo4jInt: Schema.Schema<number, unknown> = Schema.transform(
-  Schema.Unknown,
-  Schema.Number,
-  {
-    decode: (v) => (typeof v === "number" ? v : isInt(v) ? (v as { toNumber(): number }).toNumber() : Number(v)),
-    encode: (n) => n
-  }
+export const Neo4jInt: Schema.Codec<number, unknown> = Schema.Unknown.pipe(
+  Schema.decodeTo(
+    Schema.Number,
+    SchemaTransformation.transform({
+      decode: (v) => (typeof v === "number" ? v : isInt(v) ? (v as { toNumber(): number }).toNumber() : Number(v)),
+      encode: (n) => n
+    })
+  )
 )
 
 /**
@@ -41,8 +42,9 @@ function coerce(v: unknown): unknown {
  * @since 0.0.1
  * @category schemas
  */
-export const Neo4jValue: Schema.Schema<unknown, unknown> = Schema.transform(
-  Schema.Unknown,
-  Schema.Unknown,
-  { decode: coerce, encode: (v) => v }
+export const Neo4jValue: Schema.Codec<unknown, unknown> = Schema.Unknown.pipe(
+  Schema.decodeTo(
+    Schema.Unknown,
+    SchemaTransformation.transform({ decode: coerce, encode: (v) => v })
+  )
 )

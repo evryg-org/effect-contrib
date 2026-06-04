@@ -1,7 +1,7 @@
 /**
  * @since 0.0.1
  */
-import { Context, Effect, Layer, Schema, Stream } from "effect"
+import { Cause, Context, Effect, Layer, Queue, Schema, Stream } from "effect"
 import neo4j, { type Driver, type QueryResult, type Record as Neo4jRecord_, type Session } from "neo4j-driver"
 import { Neo4jConfig } from "./Neo4jConfig.js"
 
@@ -19,18 +19,18 @@ export type Neo4jRecord = Neo4jRecord_
  * @since 0.0.1
  * @category errors
  */
-export class Neo4jConnectionError extends Schema.TaggedError<Neo4jConnectionError>()("Neo4jConnectionError", {
+export class Neo4jConnectionError extends Schema.TaggedErrorClass<Neo4jConnectionError>()("Neo4jConnectionError", {
   uri: Schema.String,
-  cause: Schema.Defect
+  cause: Schema.Defect()
 }) {}
 
 /**
  * @since 0.0.1
  * @category errors
  */
-export class Neo4jQueryError extends Schema.TaggedError<Neo4jQueryError>()("Neo4jQueryError", {
+export class Neo4jQueryError extends Schema.TaggedErrorClass<Neo4jQueryError>()("Neo4jQueryError", {
   cypher: Schema.String,
-  cause: Schema.Defect
+  cause: Schema.Defect()
 }) {}
 
 /**
@@ -111,7 +111,7 @@ export const runCypherWrite = (
  * @since 0.0.1
  * @category models
  */
-export class Neo4jClient extends Context.Tag("Neo4jClient")<Neo4jClient, {
+export class Neo4jClient extends Context.Service<Neo4jClient, {
   readonly query: (
     cypher: string,
     params?: Record<string, unknown>
@@ -125,13 +125,13 @@ export class Neo4jClient extends Context.Tag("Neo4jClient")<Neo4jClient, {
     rows: Array<unknown>,
     batchSize?: number
   ) => Effect.Effect<number, Neo4jQueryError>
-}>() {}
+}>()("Neo4jClient") {}
 
 /**
  * @since 0.0.1
  * @category constructors
  */
-export const UnconfiguredNeo4jClient: Layer.Layer<Neo4jClient, never, Neo4jConfig> = Layer.scoped(
+export const UnconfiguredNeo4jClient: Layer.Layer<Neo4jClient, never, Neo4jConfig> = Layer.effect(
   Neo4jClient,
   Effect.gen(function*() {
     const config = yield* Neo4jConfig
@@ -165,21 +165,22 @@ export const UnconfiguredNeo4jClient: Layer.Layer<Neo4jClient, never, Neo4jConfi
         ),
 
       queryStream: (cypher: string, params?: Record<string, unknown>) =>
-        Stream.asyncPush<Neo4jRecord, Neo4jQueryError>((emit) =>
+        Stream.callback<Neo4jRecord, Neo4jQueryError>((queue) =>
           Effect.acquireRelease(
-            openSession(driver, config.database).pipe(
-              Effect.tap((session) =>
-                Effect.sync(() => {
-                  const result = session.run(cypher, params ?? {})
-                  result.subscribe({
-                    onNext: (record) => emit.single(record),
-                    onCompleted: () => emit.end(),
-                    onError: (err) => emit.fail(new Neo4jQueryError({ cypher, cause: err }))
-                  })
-                })
-              )
-            ),
+            openSession(driver, config.database),
             closeSession
+          ).pipe(
+            Effect.tap((session) =>
+              Effect.sync(() => {
+                const result = session.run(cypher, params ?? {})
+                result.subscribe({
+                  onNext: (record) => Queue.offerUnsafe(queue, record),
+                  onCompleted: () => Queue.endUnsafe(queue),
+                  onError: (err) =>
+                    Queue.failCauseUnsafe(queue, Cause.fail(new Neo4jQueryError({ cypher, cause: err })))
+                })
+              })
+            )
           )
         ),
 
