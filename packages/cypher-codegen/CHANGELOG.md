@@ -1,5 +1,20 @@
 # @evryg/effect-cypher-codegen
 
+## 0.4.1
+
+### Patch Changes
+
+- [#83](https://github.com/evryg-org/effect-contrib/pull/83) [`6b43ff8`](https://github.com/evryg-org/effect-contrib/commit/6b43ff8d2be40b029971aeda5e4eaae93bdaf678) Thanks @jbmusso! - Make generated query code type-check under Effect v4.
+  - Row decoding no longer emits an untyped `Neo4jRecordToObject` schema transform.
+    `record.toObject()` is called in the Effect pipeline and each row is validated
+    directly with `Schema.Array(Row)`, so the row struct fully type-checks the
+    decoded shape.
+  - The generated `TemporalString` transform now carries explicit
+    `SchemaTransformation.transform<string, unknown>` type parameters, matching its
+    `Schema.Unknown` source so it satisfies `decodeTo`'s getter signature.
+  - Single-file modules now annotate query parameters with their types instead of
+    relying on an implicit `any`, the same way the barrel output already did.
+
 ## 0.4.0
 
 ### Minor Changes
