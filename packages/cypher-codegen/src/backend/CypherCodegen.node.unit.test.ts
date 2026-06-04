@@ -81,26 +81,28 @@ describe("generateModule with columns (typed codegen)", () => {
     expect(source).toContain("Schema.String")
   })
 
-  it("emits Neo4jRecordToObject transform with toObject()", () => {
+  it("maps records through .toObject() in the query pipeline (no record-level schema transform)", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.fqcn AS fqcn", [
       col("fqcn", S("String"), false)
     ])
-    expect(source).toContain("Neo4jRecordToObject")
-    expect(source).toContain(".toObject()")
+    expect(source).not.toContain("Neo4jRecordToObject")
+    expect(source).toContain("records.map((r) => r.toObject())")
   })
 
-  it("composes Neo4jRecordToObject with Row via decodeTo", () => {
+  it("decodes rows directly against the struct via Schema.Array(Row)", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.fqcn AS fqcn", [
       col("fqcn", S("String"), false)
     ])
-    expect(source).toContain("Schema.Array(Neo4jRecordToObject.pipe(Schema.decodeTo(Row)))")
+    expect(source).toContain("Schema.decodeUnknownSync(Schema.Array(Row))")
   })
 
-  it("passes decoder directly to Effect.map (no lambda)", () => {
+  it("maps records through .toObject() before decoding", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.fqcn AS fqcn", [
       col("fqcn", S("String"), false)
     ])
-    expect(source).toContain("Effect.map(neo4j.query(cypher), decodeRows)")
+    expect(source).toContain(
+      "Effect.map(neo4j.query(cypher), (records) => decodeRows(records.map((r) => r.toObject())))"
+    )
   })
 
   it("imports Neo4jInt from effect-neo4j for Long columns", () => {
@@ -134,12 +136,23 @@ describe("generateModule with columns (typed codegen)", () => {
   })
 
   it("handles params AND columns together", () => {
-    const source = generateModule("MATCH (c:Class {fqcn: $fqcn}) RETURN c.name AS name", [
-      col("name", S("String"), false)
-    ])
+    const source = generateModule(
+      "MATCH (c:Class {fqcn: $fqcn}) RETURN c.name AS name",
+      [col("name", S("String"), false)],
+      [{ name: "fqcn", type: "String", nullable: false }]
+    )
     expect(source).toContain("{ fqcn }")
     expect(source).toContain("Schema.Struct")
-    expect(source).toContain("Neo4jRecordToObject.pipe(Schema.decodeTo(Row")
+    expect(source).toContain("Schema.decodeUnknownSync(Schema.Array(Row))")
+  })
+
+  it("annotates module params with their types (no implicit any)", () => {
+    const source = generateModule(
+      "MATCH (c:Class {fqcn: $fqcn}) RETURN c.name AS name",
+      [col("name", S("String"), false)],
+      [{ name: "fqcn", type: "String", nullable: false }]
+    )
+    expect(source).toContain("export const query = ({ fqcn }: { fqcn: string }) =>")
   })
 
   it("emits Neo4jValue for UnknownType columns (escape hatch)", () => {
@@ -247,7 +260,7 @@ describe("generateBarrel — typed params", () => {
     expect(source).toContain("{ note }: { note: string | null }")
   })
 
-  it("emits shared Neo4jRecordToObject transform once", () => {
+  it("does not emit a record-level schema transform (toObject() happens in the pipeline)", () => {
     const entry: BarrelEntry = {
       filename: "Foo.cypher",
       cypher: "MATCH (c:Class) RETURN c.fqcn AS fqcn",
@@ -255,12 +268,11 @@ describe("generateBarrel — typed params", () => {
       params: []
     }
     const source = generateBarrel([entry])
-    const matches = source.match(/Neo4jRecordToObject = Schema\.Unknown\.pipe\(Schema\.decodeTo/g)
-    expect(matches).toHaveLength(1)
-    expect(source).toContain(".toObject()")
+    expect(source).not.toContain("Neo4jRecordToObject")
+    expect(source).toContain("records.map((r) => r.toObject())")
   })
 
-  it("composes Neo4jRecordToObject with row schema via decodeTo", () => {
+  it("decodes rows directly against the row struct via Schema.Array(Row)", () => {
     const entry: BarrelEntry = {
       filename: "Foo.cypher",
       cypher: "MATCH (c:Class) RETURN c.fqcn AS fqcn",
@@ -268,10 +280,10 @@ describe("generateBarrel — typed params", () => {
       params: []
     }
     const source = generateBarrel([entry])
-    expect(source).toContain("Schema.Array(Neo4jRecordToObject.pipe(Schema.decodeTo(fooQueryRow)))")
+    expect(source).toContain("Schema.decodeUnknownSync(Schema.Array(fooQueryRow))")
   })
 
-  it("passes decoder directly to Effect.map (no lambda)", () => {
+  it("maps records through .toObject() before decoding", () => {
     const entry: BarrelEntry = {
       filename: "Foo.cypher",
       cypher: "MATCH (c:Class) RETURN c.fqcn AS fqcn",
@@ -279,7 +291,9 @@ describe("generateBarrel — typed params", () => {
       params: []
     }
     const source = generateBarrel([entry])
-    expect(source).toContain("Effect.map(neo4j.query(fooQueryCypher), decodeFooQuery)")
+    expect(source).toContain(
+      "Effect.map(neo4j.query(fooQueryCypher), (records) => decodeFooQuery(records.map((r) => r.toObject())))"
+    )
   })
 
   it("emits Neo4jValue for UnknownType columns in barrel", () => {
@@ -319,7 +333,7 @@ describe("generateBarrel — no any in generated code", () => {
 })
 
 describe("generateModule — no any in generated code", () => {
-  it("Neo4jRecordToObject decode param is not typed as any", () => {
+  it("typed row decoder does not emit an any-typed param", () => {
     const source = generateModule("MATCH (c:Class) RETURN c.fqcn AS fqcn", [
       col("fqcn", S("String"), false)
     ])

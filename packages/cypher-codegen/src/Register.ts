@@ -26,11 +26,11 @@ registerHooks({
   load(url, context, nextLoad) {
     if (context.format === "cypher" || url.endsWith(".cypher")) {
       const source = readFileSync(fileURLToPath(url), "utf-8").trim()
-      const columns = schema ? analyzeQuery(source, schema).columns : undefined
+      const analysis = schema ? analyzeQuery(source, schema) : undefined
       return {
         format: "module",
         shortCircuit: true,
-        source: generateModule(source, columns)
+        source: generateModule(source, analysis?.columns, analysis?.params)
       }
     }
     return nextLoad(url, context)

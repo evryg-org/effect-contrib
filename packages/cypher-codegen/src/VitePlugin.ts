@@ -13,8 +13,8 @@ export const cypherPlugin = (opts?: { schema?: GraphSchema }) => ({
   transform(_code: string, id: string) {
     if (id.endsWith(".cypher")) {
       const content = readFileSync(id, "utf-8").trim()
-      const columns = opts?.schema ? analyzeQuery(content, opts.schema).columns : undefined
-      return { code: generateModule(content, columns), map: null }
+      const analysis = opts?.schema ? analyzeQuery(content, opts.schema) : undefined
+      return { code: generateModule(content, analysis?.columns, analysis?.params), map: null }
     }
   }
 })
