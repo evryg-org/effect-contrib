@@ -1,7 +1,7 @@
 /**
  * @since 0.0.1
  */
-import { Brand, Data, Effect, Either, flow, Option, pipe, Schema } from "effect"
+import { Brand, Data, Effect, Option, pipe, Schema } from "effect"
 import {
   DatabaseConfiguration,
   type DatabaseTemplateId,
@@ -57,27 +57,25 @@ export const makeIntegreSqlClient = (config: { url: string }): IntegreSqlClient 
               .then((data) => ({ status: res.status, data }))
           )
         ),
-        Effect.catchAll((error) => Effect.die(new IntegreSqlFailedToCreateTemplate({ error: error.cause }))),
+        Effect.catch((error) => Effect.die(new IntegreSqlFailedToCreateTemplate({ error: error.cause }))),
         Effect.flatMap(
-          Schema.decodeUnknown(
-            Schema.EitherFromUnion({
-              left: Schema.Struct({
+          Schema.decodeUnknownEffect(
+            Schema.Union([
+              Schema.Struct({
                 status: Schema.Literal(423),
                 data: Schema.Struct({ message: Schema.String })
               }),
-              right: Schema.Struct({
+              Schema.Struct({
                 status: Schema.Literal(200),
                 data: DatabaseConnectionSchema
               })
-            }).annotations({ identifier: "create-template" })
+            ]).annotate({ identifier: "create-template" })
           )
         ),
-        Effect.map(
-          flow(
-            Either.map((a) => new DatabaseConfiguration(a.data.database.config)),
-            Either.getOrUndefined,
-            Option.fromNullable
-          )
+        Effect.map((response) =>
+          response.status === 200
+            ? Option.some(new DatabaseConfiguration(response.data.database.config))
+            : Option.none()
         ),
         Effect.orDie
       ),
@@ -91,20 +89,19 @@ export const makeIntegreSqlClient = (config: { url: string }): IntegreSqlClient 
           }).then((res) => ({ status: res.status }))
         ),
         Effect.flatMap(
-          Schema.decodeUnknown(
-            Schema.EitherFromUnion({
-              left: Schema.Struct({ status: Schema.Literal(404) }),
-              right: Schema.Struct({ status: Schema.Literal(204) })
-            }).annotations({ identifier: "finalize-template" })
+          Schema.decodeUnknownEffect(
+            Schema.Union([
+              Schema.Struct({ status: Schema.Literal(404) }),
+              Schema.Struct({ status: Schema.Literal(204) })
+            ]).annotate({ identifier: "finalize-template" })
           )
         ),
-        Effect.flatMap(
-          Either.match({
-            onLeft: () => Effect.fail(new NoSuchTemplate({ id: templateId })),
-            onRight: () => Effect.void
-          })
+        Effect.flatMap((response) =>
+          response.status === 404
+            ? Effect.fail(new NoSuchTemplate({ id: templateId }))
+            : Effect.void
         ),
-        Effect.catchTag("ParseError", (e) => Effect.die(e))
+        Effect.catchTag("SchemaError", (e) => Effect.die(e))
       ),
 
     getNewTestDatabase: (
@@ -122,22 +119,20 @@ export const makeIntegreSqlClient = (config: { url: string }): IntegreSqlClient 
           )
         ),
         Effect.flatMap(
-          Schema.decodeUnknown(
-            Schema.EitherFromUnion({
-              left: Schema.Struct({ status: Schema.Literal(404) }),
-              right: Schema.Struct({
+          Schema.decodeUnknownEffect(
+            Schema.Union([
+              Schema.Struct({ status: Schema.Literal(404) }),
+              Schema.Struct({
                 status: Schema.Literal(200),
                 data: DatabaseConnectionSchema
-              }).annotations({ identifier: "get-test-db" })
-            })
+              })
+            ]).annotate({ identifier: "get-test-db" })
           )
         ),
-        Effect.map(
-          flow(
-            Either.getOrUndefined,
-            Option.fromNullable,
-            Option.map((a) => new DatabaseConfiguration(a.data.database.config))
-          )
+        Effect.map((response) =>
+          response.status === 200
+            ? Option.some(new DatabaseConfiguration(response.data.database.config))
+            : Option.none()
         ),
         Effect.orDie
       )

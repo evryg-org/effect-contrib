@@ -33,11 +33,11 @@ export const getConnection = <E1, E2, R1, R2>(config: {
             onSome: (a) =>
               pipe(
                 config.initializeTemplate(a),
-                Effect.zipRight(pipe(client.finalizeTemplate(templateId), Effect.orDie)),
-                Effect.zipRight(client.getNewTestDatabase(templateId)),
-                Effect.flatten,
+                Effect.andThen(pipe(client.finalizeTemplate(templateId), Effect.orDie)),
+                Effect.andThen(client.getNewTestDatabase(templateId)),
+                Effect.flatMap(Effect.fromOption),
                 Effect.catchTag(
-                  "NoSuchElementException",
+                  "NoSuchElementError",
                   () =>
                     Effect.die(
                       new Error(
@@ -49,9 +49,9 @@ export const getConnection = <E1, E2, R1, R2>(config: {
             onNone: () =>
               pipe(
                 client.getNewTestDatabase(templateId),
-                Effect.flatten,
+                Effect.flatMap(Effect.fromOption),
                 Effect.catchTag(
-                  "NoSuchElementException",
+                  "NoSuchElementError",
                   () =>
                     Effect.die(
                       new Error(
