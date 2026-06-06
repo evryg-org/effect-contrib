@@ -1,5 +1,11 @@
 # @evryg/effect-cypher-codegen
 
+## 0.4.2
+
+### Patch Changes
+
+- [#86](https://github.com/evryg-org/effect-contrib/pull/86) [`5c1c286`](https://github.com/evryg-org/effect-contrib/commit/5c1c2864d01f6f4c975c4cd1b2cd917bd207adae) Thanks @jbmusso! - coalesce now accounts for fallback argument types when the leading argument is nullable. Previously the result type was the leading argument's type stripped of nullable, ignoring the fallbacks. When a nullable Double property is coalesced with an integer literal (`coalesce(n.score, 0)`), the runtime yields that integer literal as a database Integer when the property is null — which the Double decoder rejects. The result now widens to Long (the integer-tolerant numeric superset, which also passes floats through), so the emitted column decodes correctly. Same-type and non-nullable leading arguments are unaffected.
+
 ## 0.4.1
 
 ### Patch Changes
