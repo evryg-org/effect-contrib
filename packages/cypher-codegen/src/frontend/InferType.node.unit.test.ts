@@ -41,7 +41,23 @@ const schema = new GraphSchema({
       mandatory: false
     }),
     new VertexProperty({ labels: ["Method"], propertyName: "returnType", propertyTypes: ["String"], mandatory: false }),
-    new VertexProperty({ labels: ["Method"], propertyName: "ccn", propertyTypes: ["Long"], mandatory: false })
+    new VertexProperty({ labels: ["Method"], propertyName: "ccn", propertyTypes: ["Long"], mandatory: false }),
+    // Sample is a synthetic fixture for type-inference tests: its properties are named by their type
+    // and nullability role, not by any domain concept.
+    new VertexProperty({
+      labels: ["Sample"],
+      propertyName: "nullableDouble",
+      propertyTypes: ["Double"],
+      mandatory: false
+    }),
+    new VertexProperty({ labels: ["Sample"], propertyName: "nullableLong", propertyTypes: ["Long"], mandatory: false }),
+    new VertexProperty({ labels: ["Sample"], propertyName: "requiredLong", propertyTypes: ["Long"], mandatory: true }),
+    new VertexProperty({
+      labels: ["Sample"],
+      propertyName: "requiredString",
+      propertyTypes: ["String"],
+      mandatory: true
+    })
   ],
   edgeProperties: [
     new EdgeProperty({ edgeType: "CALLS", propertyName: "confidence", propertyTypes: ["String"], mandatory: true }),
@@ -179,6 +195,33 @@ describe("inferExpressionType — coalesce", () => {
     const env = envWith({ f: { type: new VertexType({ label: "File" }), nullable: false } })
     const result = inferExpressionType(parseExpression("coalesce(f.lineCount, 0)"), env, schema)
     expect(result).toEqual(new ScalarType({ scalarType: "Long" }))
+  })
+
+  it("nullable Double coalesced with an integer literal infers Long", () => {
+    // coalesce(<nullable Double>, 0): when the property is null the runtime returns the integer
+    // literal as a database Integer object, which only the integer-tolerant decoder accepts. The
+    // fallback's integer type must widen the result to Long, not stay Double.
+    const env = envWith({ s: { type: new VertexType({ label: "Sample" }), nullable: false } })
+    const result = inferExpressionType(parseExpression("coalesce(s.nullableDouble, 0)"), env, schema)
+    expect(result).toEqual(new ScalarType({ scalarType: "Long" }))
+  })
+
+  it("nullable Long coalesced with an integer literal stays Long", () => {
+    const env = envWith({ s: { type: new VertexType({ label: "Sample" }), nullable: false } })
+    const result = inferExpressionType(parseExpression("coalesce(s.nullableLong, 0)"), env, schema)
+    expect(result).toEqual(new ScalarType({ scalarType: "Long" }))
+  })
+
+  it("non-null Long coalesced with an integer literal stays Long", () => {
+    const env = envWith({ s: { type: new VertexType({ label: "Sample" }), nullable: false } })
+    const result = inferExpressionType(parseExpression("coalesce(s.requiredLong, 0)"), env, schema)
+    expect(result).toEqual(new ScalarType({ scalarType: "Long" }))
+  })
+
+  it("non-null String coalesced with a string literal stays String", () => {
+    const env = envWith({ s: { type: new VertexType({ label: "Sample" }), nullable: false } })
+    const result = inferExpressionType(parseExpression("coalesce(s.requiredString, \"x\")"), env, schema)
+    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
   })
 })
 
