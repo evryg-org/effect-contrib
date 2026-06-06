@@ -589,6 +589,21 @@ function extractIsNotNullVar(expr: ExpressionContext): string | undefined {
   return symbol.getText()
 }
 
+/**
+ * Unify two coalesce candidate types (already stripped of nullable). Equal scalars collapse to that
+ * scalar; two numeric scalars (Long/Double in any mix) collapse to Long — the integer-tolerant
+ * decoder is the numeric superset, accepting both database integers and floats. Anything else keeps
+ * the leading argument's type (no regression for heterogeneous or non-scalar candidates).
+ */
+function unifyCoalesce(a: CypherType, b: CypherType): CypherType {
+  if (a._tag === "ScalarType" && b._tag === "ScalarType") {
+    if (a.scalarType === b.scalarType) return a
+    const isNumeric = (s: string) => s === "Long" || s === "Double"
+    if (isNumeric(a.scalarType) && isNumeric(b.scalarType)) return new ScalarType({ scalarType: "Long" })
+  }
+  return a
+}
+
 function inferFunctionType(
   func: FunctionInvocationContext,
   env: TypeEnv,
@@ -608,13 +623,21 @@ function inferFunctionType(
     throw new CypherTypeError("collect() requires an argument")
   }
 
-  // coalesce(x, ...) → type of first arg, stripped of nullable (coalesce provides fallback)
+  // coalesce(x, ...) → coalesce returns the first non-null argument, so the result type unifies the
+  // candidates left→right, each stripped of nullable. Walk arguments until the first non-nullable one
+  // (later arguments are unreachable). An integer-literal fallback for a nullable Double widens the
+  // result to Long: when the property is null the runtime yields that integer literal, and only the
+  // integer-tolerant decoder accepts it (it also passes floats through unchanged).
   if (funcName === "coalesce") {
-    if (args.length > 0) {
-      const argType = inferExpressionType(args[0], env, schema)
-      return argType._tag === "NullableType" ? argType.inner : argType
+    if (args.length === 0) throw new CypherTypeError("coalesce() requires arguments")
+    let result: CypherType | undefined
+    for (const arg of args) {
+      const argType = inferExpressionType(arg, env, schema)
+      const stripped = argType._tag === "NullableType" ? argType.inner : argType
+      result = result === undefined ? stripped : unifyCoalesce(result, stripped)
+      if (argType._tag !== "NullableType") break
     }
-    throw new CypherTypeError("coalesce() requires arguments")
+    return result!
   }
 
   // properties(x) → Map with unknown fields
