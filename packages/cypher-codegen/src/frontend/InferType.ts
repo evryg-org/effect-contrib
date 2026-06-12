@@ -1,13 +1,17 @@
 /** @since 0.0.1 */
 import type { GraphSchema } from "@evryg/effect-neo4j-schema"
 import type {
+  AddSubExpressionContext,
   AtomContext,
   AtomicExpressionContext,
   CaseExpressionContext,
   ExpressionContext,
   FunctionInvocationContext,
   MapPairContext,
-  PropertyExpressionContext
+  MultDivExpressionContext,
+  PowerExpressionContext,
+  PropertyExpressionContext,
+  UnaryAddSubExpressionContext
 } from "../internal/generated-parser/CypherParser.js"
 import {
   type CypherType,
@@ -216,46 +220,85 @@ export function inferExpressionType(
   if (addSubs.length > 1) return new ScalarType({ scalarType: "Boolean" })
 
   // addSubExpression: multDivExpression ((PLUS | SUB) multDivExpression)*
-  const addSub = addSubs[0]
+  return inferAddSubType(addSubs[0], env, schema)
+}
+
+// ── Arithmetic operand typing ──
+
+const isNumericScalar = (t: CypherType): boolean =>
+  t._tag === "ScalarType" && (t.scalarType === "Long" || t.scalarType === "Double")
+
+/** Numeric join over arithmetic operands: `Long ⊔ Double = Double`. Returns `undefined` when any
+ *  operand is not a numeric scalar (e.g. dates/durations), so callers fall back to their leading
+ *  operand and don't regress non-numeric arithmetic. */
+function numericJoin(types: ReadonlyArray<CypherType>): CypherType | undefined {
+  if (types.length === 0 || !types.every(isNumericScalar)) return undefined
+  const anyDouble = types.some((t) => t._tag === "ScalarType" && t.scalarType === "Double")
+  return new ScalarType({ scalarType: anyDouble ? "Double" : "Long" })
+}
+
+/** addSubExpression: multDivExpression ((PLUS | SUB) multDivExpression)* */
+function inferAddSubType(
+  addSub: AddSubExpressionContext,
+  env: TypeEnv,
+  schema: GraphSchema
+): CypherType {
   const multDivs = addSub.multDivExpression()
+  if (multDivs.length === 1) return inferMultDivType(multDivs[0], env, schema)
 
-  // String concatenation or list concatenation: multiple addSub operands
-  if (multDivs.length > 1) {
-    const inferSingle = (md: typeof multDivs[0]): CypherType => {
-      const p = md.powerExpression()[0]
-      const u = p.unaryAddSubExpression()[0]
-      return inferAtomicType(u.atomicExpression(), env, schema)
-    }
-    const types = multDivs.map(inferSingle)
+  const types = multDivs.map((md) => inferMultDivType(md, env, schema))
 
-    // List concatenation: List<A> + List<B> = List<A V B>
-    // NeverType is the identity for join (bottom element)
-    if (types.every(isListType)) {
-      const elements = types.map(extractListElementType)
-      const nonNever = elements.filter((e) => e._tag !== "NeverType")
-      const joined = nonNever.length > 0 ? nonNever[0] : elements[0]
-      return ListType(joined)
-    }
-
-    if (types.some((t) => t._tag === "ScalarType" && t.scalarType === "String")) {
-      return new ScalarType({ scalarType: "String" })
-    }
-    // Numeric: return first operand type
-    return types[0]
+  // List concatenation: List<A> + List<B> = List<A V B>. NeverType is the join identity.
+  if (types.every(isListType)) {
+    const elements = types.map(extractListElementType)
+    const nonNever = elements.filter((e) => e._tag !== "NeverType")
+    const joined = nonNever.length > 0 ? nonNever[0] : elements[0]
+    return ListType(joined)
   }
 
-  // multDivExpression: powerExpression ((MULT | DIV | MOD) powerExpression)*
-  const multDiv = multDivs[0]
+  // String concatenation: a String operand anywhere makes the whole expression a String.
+  if (types.some((t) => t._tag === "ScalarType" && t.scalarType === "String")) {
+    return new ScalarType({ scalarType: "String" })
+  }
+
+  // Numeric: unify operands (Long + Double = Double). Non-numeric (dates/durations) keep the
+  // leading operand's type, preserving prior behavior.
+  return numericJoin(types) ?? types[0]
+}
+
+/** multDivExpression: powerExpression ((MULT | DIV | MOD) powerExpression)* */
+function inferMultDivType(
+  multDiv: MultDivExpressionContext,
+  env: TypeEnv,
+  schema: GraphSchema
+): CypherType {
   const powers = multDiv.powerExpression()
+  if (powers.length === 1) return inferPowerType(powers[0], env, schema)
+  const types = powers.map((p) => inferPowerType(p, env, schema))
+  // Long * Long → Long and Long / Long → Long match Cypher integer arithmetic; any Double widens.
+  return numericJoin(types) ?? types[0]
+}
 
-  // powerExpression: unaryAddSubExpression (CARET unaryAddSubExpression)*
-  const power = powers[0]
-  const unary = power.unaryAddSubExpression()[0]
+/** powerExpression: unaryAddSubExpression (CARET unaryAddSubExpression)* */
+function inferPowerType(
+  power: PowerExpressionContext,
+  env: TypeEnv,
+  schema: GraphSchema
+): CypherType {
+  const unaries = power.unaryAddSubExpression()
+  if (unaries.length === 1) return inferUnaryType(unaries[0], env, schema)
+  const types = unaries.map((u) => inferUnaryType(u, env, schema))
+  // Cypher exponentiation (^) returns Float for numeric operands.
+  return numericJoin(types) ? new ScalarType({ scalarType: "Double" }) : types[0]
+}
 
-  // unaryAddSubExpression: (PLUS | SUB)? atomicExpression
-  const atomic = unary.atomicExpression()
-
-  return inferAtomicType(atomic, env, schema)
+/** unaryAddSubExpression: (PLUS | SUB)? atomicExpression — sign does not change the type. */
+function inferUnaryType(
+  unary: UnaryAddSubExpressionContext,
+  env: TypeEnv,
+  schema: GraphSchema
+): CypherType {
+  return inferAtomicType(unary.atomicExpression(), env, schema)
 }
 
 function inferAtomicType(
@@ -395,6 +438,17 @@ function inferPropertyExpressionType(
   return current
 }
 
+/** Classify a numeric literal by its text: a decimal point, an exponent, or a float/double suffix
+ *  means Double; everything else (plain integers, hex) is Long. The lexer's `DIGIT` token covers
+ *  both integers and floats, so the int/float distinction lives here rather than in the grammar. */
+function inferNumLitType(text: string): ScalarType {
+  const t = text.replace(/^[+-]/, "")
+  if (/[.]/.test(t) || /[eE]/.test(t) || /[fd]$/i.test(t)) {
+    return new ScalarType({ scalarType: "Double" })
+  }
+  return new ScalarType({ scalarType: "Long" })
+}
+
 function inferAtomType(
   atom: AtomContext,
   env: TypeEnv,
@@ -407,7 +461,8 @@ function inferAtomType(
   // Literal
   const literal = atom.literal()
   if (literal) {
-    if (literal.numLit()) return new ScalarType({ scalarType: "Long" })
+    const numLit = literal.numLit()
+    if (numLit) return inferNumLitType(numLit.getText())
     if (literal.stringLit() || literal.charLit()) return new ScalarType({ scalarType: "String" })
     if (literal.boolLit()) return new ScalarType({ scalarType: "Boolean" })
     if (literal.NULL_W()) return new NeverType({})
