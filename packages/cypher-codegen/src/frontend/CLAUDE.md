@@ -44,6 +44,9 @@ If `env(x).nullable = true`, the entire result is wrapped in `NullableType` rega
 | `type(r)`                           | `String`                                          |
 | `keys(x)`, `labels(x)`              | `List<String>`                                    |
 | `properties(x)`                     | `Map<[]>` (empty map — fields unknown statically) |
+| `log`, `log10`, `exp`, `sqrt`, `ceil`, `floor`, `round`, `sin`, `cos`, `tan`, `cot`, `asin`, `acos`, `atan`, `atan2`, `degrees`, `radians`, `haversine`, `e()`, `pi()`, `rand()` | `Double` (Neo4j math functions return Float regardless of argument type) |
+| `sign(x)`                           | `Long`                                            |
+| `abs(x)`                            | `strip_nullable(infer(x))` — input-preserving (`abs(Long)=Long`, `abs(Double)=Double`) |
 
 ### CASE expression
 

@@ -154,7 +154,31 @@ const AGGREGATE_RETURN_TYPES: Record<string, CypherType> = {
   left: new ScalarType({ scalarType: "String" }),
   right: new ScalarType({ scalarType: "String" }),
   reverse: new ScalarType({ scalarType: "String" }),
-  split: ListType(new ScalarType({ scalarType: "String" }))
+  split: ListType(new ScalarType({ scalarType: "String" })),
+  // Scalar math functions. In Neo4j these return Float regardless of argument type,
+  // except sign (Integer) and abs (input-preserving — handled in inferFunctionType).
+  e: new ScalarType({ scalarType: "Double" }),
+  pi: new ScalarType({ scalarType: "Double" }),
+  rand: new ScalarType({ scalarType: "Double" }),
+  exp: new ScalarType({ scalarType: "Double" }),
+  log: new ScalarType({ scalarType: "Double" }),
+  log10: new ScalarType({ scalarType: "Double" }),
+  sqrt: new ScalarType({ scalarType: "Double" }),
+  ceil: new ScalarType({ scalarType: "Double" }),
+  floor: new ScalarType({ scalarType: "Double" }),
+  round: new ScalarType({ scalarType: "Double" }),
+  sin: new ScalarType({ scalarType: "Double" }),
+  cos: new ScalarType({ scalarType: "Double" }),
+  tan: new ScalarType({ scalarType: "Double" }),
+  cot: new ScalarType({ scalarType: "Double" }),
+  asin: new ScalarType({ scalarType: "Double" }),
+  acos: new ScalarType({ scalarType: "Double" }),
+  atan: new ScalarType({ scalarType: "Double" }),
+  atan2: new ScalarType({ scalarType: "Double" }),
+  degrees: new ScalarType({ scalarType: "Double" }),
+  radians: new ScalarType({ scalarType: "Double" }),
+  haversine: new ScalarType({ scalarType: "Double" }),
+  sign: new ScalarType({ scalarType: "Long" })
 }
 
 // ── Recursive expression type inference ──
@@ -649,6 +673,14 @@ function inferFunctionType(
   // keys(x), labels(x) → List<String>
   if (funcName === "keys" || funcName === "labels") {
     return ListType(new ScalarType({ scalarType: "String" }))
+  }
+
+  // abs(x) preserves the numeric type of its argument (abs(Long) → Long, abs(Double) → Double),
+  // unlike the fixed-return math functions in AGGREGATE_RETURN_TYPES.
+  if (funcName === "abs") {
+    if (args.length === 0) throw new CypherTypeError("abs() requires an argument")
+    const argType = inferExpressionType(args[0], env, schema)
+    return argType._tag === "NullableType" ? argType.inner : argType
   }
 
   // Known aggregates / conversion functions
