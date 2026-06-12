@@ -203,6 +203,53 @@ describe("inferExpressionType — scalar math functions", () => {
   })
 })
 
+describe("inferExpressionType — arithmetic operand typing", () => {
+  const env = envWith({
+    l: { type: new ScalarType({ scalarType: "Long" }), nullable: false },
+    d: { type: new ScalarType({ scalarType: "Double" }), nullable: false },
+    s: { type: new ScalarType({ scalarType: "String" }), nullable: false },
+    xs: { type: ListType(new ScalarType({ scalarType: "String" })), nullable: false }
+  })
+
+  // Numeric arithmetic unifies operand types: Long ⊔ Double = Double, and a Double anywhere in
+  // the expression (any operand, any operator level) widens the result. Power (^) returns Float.
+  // Float literals (1.5) must type as Double, not Long.
+  it.each([
+    "l + d",
+    "d + l",
+    "l * d",
+    "l / d",
+    "l ^ l",
+    "d * d",
+    "l * 1.5",
+    "1.5"
+  ])("%s infers Double", (expr) => {
+    const result = inferExpressionType(parseExpression(expr), env, schema)
+    expect(result).toEqual(new ScalarType({ scalarType: "Double" }))
+  })
+
+  it.each([
+    "l + l",
+    "l * l",
+    "l % l",
+    "l + 2",
+    "2"
+  ])("%s infers Long", (expr) => {
+    const result = inferExpressionType(parseExpression(expr), env, schema)
+    expect(result).toEqual(new ScalarType({ scalarType: "Long" }))
+  })
+
+  it("string concatenation stays String", () => {
+    const result = inferExpressionType(parseExpression("s + s"), env, schema)
+    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
+  })
+
+  it("list concatenation stays List", () => {
+    const result = inferExpressionType(parseExpression("xs + xs"), env, schema)
+    expect(result).toEqual(ListType(new ScalarType({ scalarType: "String" })))
+  })
+})
+
 describe("inferExpressionType — collect", () => {
   it("collect(scalar) returns ListType(scalar)", () => {
     const env = envWith({ c: { type: new VertexType({ label: "Class" }), nullable: false } })
