@@ -164,6 +164,45 @@ describe("inferExpressionType — aggregate functions", () => {
   })
 })
 
+describe("inferExpressionType — scalar math functions", () => {
+  const env = envWith({
+    l: { type: new ScalarType({ scalarType: "Long" }), nullable: false },
+    d: { type: new ScalarType({ scalarType: "Double" }), nullable: false }
+  })
+
+  // All of these return Float in Neo4j regardless of argument type.
+  it.each([
+    "log(l)",
+    "log10(l)",
+    "exp(l)",
+    "sqrt(l)",
+    "sin(l)",
+    "cos(l)",
+    "tan(l)",
+    "ceil(l)",
+    "floor(l)",
+    "round(d)",
+    "e()",
+    "pi()",
+    "rand()"
+  ])("%s infers Double", (expr) => {
+    const result = inferExpressionType(parseExpression(expr), env, schema)
+    expect(result).toEqual(new ScalarType({ scalarType: "Double" }))
+  })
+
+  it("sign(l) infers Long", () => {
+    const result = inferExpressionType(parseExpression("sign(l)"), env, schema)
+    expect(result).toEqual(new ScalarType({ scalarType: "Long" }))
+  })
+
+  it("abs preserves the argument's numeric type", () => {
+    expect(inferExpressionType(parseExpression("abs(l)"), env, schema))
+      .toEqual(new ScalarType({ scalarType: "Long" }))
+    expect(inferExpressionType(parseExpression("abs(d)"), env, schema))
+      .toEqual(new ScalarType({ scalarType: "Double" }))
+  })
+})
+
 describe("inferExpressionType — collect", () => {
   it("collect(scalar) returns ListType(scalar)", () => {
     const env = envWith({ c: { type: new VertexType({ label: "Class" }), nullable: false } })
