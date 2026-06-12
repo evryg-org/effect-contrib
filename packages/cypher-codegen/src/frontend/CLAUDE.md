@@ -44,6 +44,9 @@ If `env(x).nullable = true`, the entire result is wrapped in `NullableType` rega
 | `type(r)`                           | `String`                                          |
 | `keys(x)`, `labels(x)`              | `List<String>`                                    |
 | `properties(x)`                     | `Map<[]>` (empty map — fields unknown statically) |
+| `log`, `log10`, `exp`, `sqrt`, `ceil`, `floor`, `round`, `sin`, `cos`, `tan`, `cot`, `asin`, `acos`, `atan`, `atan2`, `degrees`, `radians`, `haversine`, `e()`, `pi()`, `rand()` | `Double` (Neo4j math functions return Float regardless of argument type) |
+| `sign(x)`                           | `Long`                                            |
+| `abs(x)`                            | `strip_nullable(infer(x))` — input-preserving (`abs(Long)=Long`, `abs(Double)=Double`) |
 
 ### CASE expression
 
@@ -93,6 +96,27 @@ List<NeverType> + List<T> = List<NeverType V T> = List<T>
 ```
 
 This is why `[] + someList` correctly infers the element type of `someList`.
+
+### Numeric arithmetic operators (`+ - * / % ^`)
+
+Numeric operands unify by the join on the numeric scalars, where `Double` is the upper bound:
+
+```
+Long ⊔ Long   = Long
+Long ⊔ Double = Double
+```
+
+A `Double` operand anywhere in an expression — at any operator level — widens the whole result to
+`Double` (`l * d`, `l / d`, `d + l` all infer `Double`). With only `Long` operands the result stays
+`Long`, matching Cypher integer arithmetic (`Long / Long → Long`, `Long % Long → Long`).
+Exponentiation `^` always yields `Double` for numeric operands (Cypher power returns Float).
+
+Non-numeric arithmetic (dates, durations) is left unchanged: when operands aren't all numeric
+scalars the result keeps the leading operand's type. String operands make `+` a String
+concatenation (see above), and list operands make `+` a list concatenation.
+
+Numeric **literals** carry their int/float distinction: `1.5`, `1e3`, and float-suffixed literals
+infer `Double`; plain integers infer `Long`. So `priceLong * 1.5` correctly infers `Double`.
 
 ### filterWith (ANY/ALL/NONE/SINGLE)
 
