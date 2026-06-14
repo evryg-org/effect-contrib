@@ -1,0 +1,16 @@
+{
+  "name": "@evryg/effect-op-graph",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "effect": "4.0.0-beta.78"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.0.0-beta.78",
+    "vitest": "^3.2.1"
+  }
+}
