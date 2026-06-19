@@ -12,6 +12,8 @@ export {
   PropertyMap,
 } from "./GraphOp.js"
 export { enrichVertexKeys } from "./GraphOpScope.js"
+export { enrichVertexKeysBy } from "./Partition.js"
+export type { PartitionKey, PartitionKeyFor } from "./Partition.js"
 export type {
   GraphOp as GraphOpType,
   GraphOpArray as GraphOpArrayType,
