@@ -12,7 +12,9 @@ import { GraphOp, GraphOpArray } from "./GraphOp.js"
 export const graphOpAdapter = <A>(
   toOps: (a: A) => ReadonlyArray<GraphOp>,
 ): Schema.Codec<ReadonlyArray<GraphOp>, A> =>
-  Schema.Any.pipe(
+  // The source carries `A` opaquely (decode-only adapter), so the resulting codec's Encoded side
+  // is exactly `A` — no outer cast needed. The predicate is never exercised: only `decode` runs.
+  Schema.declare<A>((_): _ is A => true).pipe(
     Schema.decodeTo(
       GraphOpArray,
       SchemaTransformation.transform<typeof GraphOpArray.Encoded, A>({
@@ -22,4 +24,4 @@ export const graphOpAdapter = <A>(
         },
       }),
     ),
-  ) as unknown as Schema.Codec<ReadonlyArray<GraphOp>, A>
+  )

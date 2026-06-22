@@ -54,8 +54,7 @@ describe("GraphOp Schema types", () => {
       }),
     ]
 
-    const encoded = Schema.encodeSync(GraphOpArray)(ops)
-    const json = JSON.stringify(encoded)
+    const json = Schema.encodeSync(Schema.fromJsonString(GraphOpArray))(ops)
     const decoded = Schema.decodeSync(Schema.fromJsonString(GraphOpArray))(json)
 
     expect(decoded).toHaveLength(3)
