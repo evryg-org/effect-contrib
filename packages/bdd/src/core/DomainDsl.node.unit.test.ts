@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect } from "effect"
-import type { Assertion, Given, When } from "./index.js"
-import { assertion, given, run, scenario, ScenarioError, when } from "./index.js"
+import type { Assertion, Given, When } from "../index.js"
+import { assertion, given, run, scenario, ScenarioError, when } from "../index.js"
 
 // A compact domain vocabulary built from the framework combinators, exercised
 // end-to-end through `run`.

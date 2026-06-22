@@ -1,7 +1,7 @@
 import { Effect } from "effect"
 import { describe, expectTypeOf, it } from "vitest"
-import type { When } from "./index.js"
-import { given, scenario, when } from "./index.js"
+import type { When } from "../index.js"
+import { given, scenario, when } from "../index.js"
 
 interface HasCart {
   readonly cart: { readonly items: ReadonlyArray<string> }

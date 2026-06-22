@@ -26,7 +26,7 @@ export {
    * @since 0.0.1
    */
   when
-} from "./Step.js"
+} from "./core/Step.js"
 /**
  * @since 0.0.1
  */
@@ -67,7 +67,7 @@ export {
    * @since 0.0.1
    */
   type WhenBuilder
-} from "./Scenario.js"
+} from "./core/Scenario.js"
 /**
  * @since 0.0.1
  */
@@ -80,7 +80,7 @@ export {
    * @since 0.0.1
    */
   ScenarioError
-} from "./Run.js"
+} from "./core/Run.js"
 /**
  * @since 0.0.1
  */
@@ -113,7 +113,7 @@ export {
    * @since 0.0.1
    */
   toGherkin
-} from "./Gherkin.js"
+} from "./core/Gherkin.js"
 /**
  * @since 0.0.1
  */
@@ -138,4 +138,4 @@ export {
    * @since 0.0.1
    */
   selectByTags
-} from "./Feature.js"
+} from "./core/Feature.js"
