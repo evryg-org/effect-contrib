@@ -1,12 +1,13 @@
 /**
- * Example: a second domain vocabulary, showing a failure outcome and grouping a
- * suite into a `Feature` that can be filtered by tag.
+ * Core-mode example: a second domain vocabulary, showing a failure outcome and
+ * grouping a suite into a `Feature` that can be filtered by tag (compare with
+ * `../harness/Counter.ts`, the same domain via the preset harness).
  *
- * As in `CartDsl.ts`, the `when` combinators declare they need a counter in
+ * As in `./Cart.ts`, the `when` combinators declare they need a counter in
  * context, and the failure channel is part of the combinator's type — so
  * `.thenFails` receives the precise `"below-zero"` error.
  *
- * Run with: `npx tsx packages/bdd/examples/CounterDsl.ts`
+ * Run with: `npx tsx packages/bdd/examples/core/Counter.ts`
  */
 import { assertion, feature, filterByTags, given, run, scenario, toGherkin, when } from "@evryg/effect-bdd"
 import type { Assertion, Given, When } from "@evryg/effect-bdd"

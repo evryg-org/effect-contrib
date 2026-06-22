@@ -97,12 +97,12 @@ const smoke = selectByTags(storefront, ["smoke"])
 const cartScenarios = filterByTags(storefront.scenarios, ["cart"])
 ```
 
-## Domain vocabularies
+## Domain vocabularies (core mode)
 
 The real power is building higher-level, constrained combinators on top of
 `given` / `when` / `assertion`, so scenarios read as ubiquitous language and
-misuse is a compile-time error. See [`examples/CartDsl.ts`](./examples/CartDsl.ts)
-and [`examples/CounterDsl.ts`](./examples/CounterDsl.ts).
+misuse is a compile-time error. See [`examples/core/Cart.ts`](./examples/core/Cart.ts)
+and [`examples/core/Counter.ts`](./examples/core/Counter.ts).
 
 ```ts
 scenario("adding an item to an empty cart")
@@ -114,3 +114,38 @@ scenario("adding an item to an empty cart")
 
 Because `user.adds` declares it *needs* a cart in its context, chaining it before
 `aCart()` does not type-check.
+
+## Harness mode — reified actions, probes & a preset
+
+The `harness` layer adds what a per-domain Algebra + Interpreter buys, without
+giving up the runner-agnostic, inspectable core:
+
+- **`dispatcher`** turns a *reified command* (a tagged value) into a `When` via a
+  per-tag handler map. The command is data, so the same command type can be
+  driven by multiple dispatchers (run vs. dry-run vs. model).
+- **`probe`** wraps a service in a `Layer.mock` with a call-log, capturing which
+  methods the action invoked (indirect outputs).
+- **`makeHarness`** bundles initial preconditions + probes + a dispatcher into a
+  domain-specialized builder: `when` takes a **bare command**, `then` receives
+  the recorded calls as an **injected observation object**, and `run`
+  **auto-provides** the probe layers.
+
+See [`examples/harness/Cart.ts`](./examples/harness/Cart.ts) and
+[`examples/harness/Counter.ts`](./examples/harness/Counter.ts) — the same two
+domains as the core examples, expressed via the preset.
+
+```ts
+const cart = makeHarness({ initial, probes: { ledger }, dispatch })
+
+const adding = cart.scenario("adding an item")
+  .when(addItem("book"))                       // a bare, reified command
+  .then("the addition is recorded", ({ ledger }) => {
+    if (ledger[0] !== "+book") throw new Error("not recorded")
+  })
+
+cart.run(adding) // probe layers auto-provided; still `toGherkin`-able
+```
+
+The harness is a thin composition over the core, so a harness scenario is still a
+plain `Scenario` you can `toGherkin`, and assertion failures still surface as a
+typed `ScenarioError` under any runner.

@@ -1,6 +1,7 @@
 /**
- * Example: building a higher-level, domain-specific BDD vocabulary on top of
- * `@evryg/effect-bdd`.
+ * Core-mode example: building a higher-level, domain-specific BDD vocabulary on
+ * top of the core combinators (compare with `../harness/Cart.ts`, the same
+ * domain via the preset harness).
  *
  * The framework ships the meta-combinators (`scenario`, `given`, `when`,
  * `assertion`). A domain builds *constrained* combinators on top — `aCart()`,
@@ -10,7 +11,7 @@
  * `aCart()` is given, and `theCart.holds` only accepts the cart the action
  * produced. Scenarios then read as ubiquitous language.
  *
- * Run with: `npx tsx packages/bdd/examples/CartDsl.ts`
+ * Run with: `npx tsx packages/bdd/examples/core/Cart.ts`
  */
 import { assertion, given, run, scenario, toGherkin, when } from "@evryg/effect-bdd"
 import type { Assertion, Given, When } from "@evryg/effect-bdd"
