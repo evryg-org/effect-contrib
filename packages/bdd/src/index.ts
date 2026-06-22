@@ -139,3 +139,20 @@ export {
    */
   selectByTags
 } from "./core/Feature.js"
+/**
+ * @since 0.0.1
+ */
+export {
+  /**
+   * @since 0.0.1
+   */
+  type CommandOf,
+  /**
+   * @since 0.0.1
+   */
+  dispatcher,
+  /**
+   * @since 0.0.1
+   */
+  type Handlers
+} from "./harness/Command.js"
