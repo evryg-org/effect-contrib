@@ -39,4 +39,17 @@ describe("Probe", () => {
       const error = yield* Effect.flip(run(ponging).pipe(Effect.provide(beacon.layer)))
       expect(error).toBeInstanceOf(ScenarioError)
     }))
+
+  it.effect("reset clears the recorded calls", () =>
+    Effect.gen(function*() {
+      const beacon = probe<string>()("beacon", Beacon, (record) => ({ ping: (label) => record(label) }))
+
+      yield* Effect.flatMap(Beacon, (service) => service.ping("a")).pipe(Effect.provide(beacon.layer))
+      const before = yield* beacon.calls
+      expect(before).toEqual(["a"])
+
+      yield* beacon.reset
+      const after = yield* beacon.calls
+      expect(after).toEqual([])
+    }))
 })

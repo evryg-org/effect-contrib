@@ -7,8 +7,10 @@
  * (typically inside an assertion, after the action has run). Provide `layer` to
  * the run to satisfy the action's requirement on the service.
  *
- * Construct a fresh probe per scenario: the call-log is created eagerly, so a
- * reused probe would accumulate calls across scenarios.
+ * The call-log is created eagerly; `reset` clears it. The {@link makeHarness}
+ * preset resets its probes before each run, so reusing a harness across
+ * scenarios is safe. When using a probe directly, reset it (or build a fresh
+ * one) per scenario.
  *
  * @since 0.0.1
  */
@@ -27,6 +29,7 @@ export interface Probe<Name extends string, Id, Call> {
   readonly name: Name
   readonly layer: Layer.Layer<Id>
   readonly calls: Effect.Effect<ReadonlyArray<Call>>
+  readonly reset: Effect.Effect<void>
 }
 
 /**
@@ -50,6 +53,7 @@ export const probe = <Call>() =>
   return {
     name,
     layer: Layer.mock(tag)(build(record)),
-    calls: Ref.get(log)
+    calls: Ref.get(log),
+    reset: Ref.update(log, () => [])
   }
 }

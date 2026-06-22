@@ -169,3 +169,36 @@ export {
    */
   probe
 } from "./harness/Probe.js"
+/**
+ * @since 0.0.1
+ */
+export {
+  /**
+   * @since 0.0.1
+   */
+  type CallOf,
+  /**
+   * @since 0.0.1
+   */
+  type HarnessGivenBuilder,
+  /**
+   * @since 0.0.1
+   */
+  type HarnessThenBuilder,
+  /**
+   * @since 0.0.1
+   */
+  type HarnessWhenBuilder,
+  /**
+   * @since 0.0.1
+   */
+  makeHarness,
+  /**
+   * @since 0.0.1
+   */
+  type Observations,
+  /**
+   * @since 0.0.1
+   */
+  type ServicesOf
+} from "./harness/Harness.js"
