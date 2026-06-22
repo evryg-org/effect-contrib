@@ -81,3 +81,36 @@ export {
    */
   ScenarioError
 } from "./Run.js"
+/**
+ * @since 0.0.1
+ */
+export {
+  /**
+   * @since 0.0.1
+   */
+  type Keyword,
+  /**
+   * @since 0.0.1
+   */
+  ScenarioDocument,
+  /**
+   * @since 0.0.1
+   */
+  type ScenarioStep,
+  /**
+   * @since 0.0.1
+   */
+  steps,
+  /**
+   * @since 0.0.1
+   */
+  tags,
+  /**
+   * @since 0.0.1
+   */
+  toDocument,
+  /**
+   * @since 0.0.1
+   */
+  toGherkin
+} from "./Gherkin.js"
