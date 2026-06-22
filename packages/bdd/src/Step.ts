@@ -10,7 +10,7 @@
  *
  * @since 0.0.1
  */
-import type { Effect } from "effect"
+import { Effect } from "effect"
 
 /**
  * A precondition. It reads the accumulated context `Needs` and contributes
@@ -85,3 +85,13 @@ export const assertion = <X, R = never>(
   description: string,
   assert: (subject: X) => void | Effect.Effect<void, never, R>
 ): Assertion<X, R> => ({ description, assert })
+
+/**
+ * Normalize an assertion/observation body — which returns either nothing or an
+ * `Effect` — into an `Effect`. Internal: not re-exported from the package index.
+ *
+ * @internal
+ */
+export const settle = <R>(
+  result: void | Effect.Effect<void, never, R>
+): Effect.Effect<void, never, R> => (Effect.isEffect(result) ? result : Effect.void)

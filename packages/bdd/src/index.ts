@@ -68,3 +68,16 @@ export {
    */
   type WhenBuilder
 } from "./Scenario.js"
+/**
+ * @since 0.0.1
+ */
+export {
+  /**
+   * @since 0.0.1
+   */
+  run,
+  /**
+   * @since 0.0.1
+   */
+  ScenarioError
+} from "./Run.js"
