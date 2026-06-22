@@ -114,3 +114,28 @@ export {
    */
   toGherkin
 } from "./Gherkin.js"
+/**
+ * @since 0.0.1
+ */
+export {
+  /**
+   * @since 0.0.1
+   */
+  type AnyScenario,
+  /**
+   * @since 0.0.1
+   */
+  type Feature,
+  /**
+   * @since 0.0.1
+   */
+  feature,
+  /**
+   * @since 0.0.1
+   */
+  filterByTags,
+  /**
+   * @since 0.0.1
+   */
+  selectByTags
+} from "./Feature.js"
