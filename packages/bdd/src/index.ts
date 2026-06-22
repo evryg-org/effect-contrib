@@ -156,3 +156,16 @@ export {
    */
   type Handlers
 } from "./harness/Command.js"
+/**
+ * @since 0.0.1
+ */
+export {
+  /**
+   * @since 0.0.1
+   */
+  type Probe,
+  /**
+   * @since 0.0.1
+   */
+  probe
+} from "./harness/Probe.js"
