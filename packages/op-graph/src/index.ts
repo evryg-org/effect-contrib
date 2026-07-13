@@ -5,7 +5,6 @@
 export {
   VertexRef,
   UpsertVertex,
-  InsertVertex,
   UpsertEdge,
   GraphOp,
   GraphOpArray,

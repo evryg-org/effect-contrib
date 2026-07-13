@@ -1,5 +1,5 @@
 import { describe, it, expect } from "@effect/vitest"
-import { UpsertVertex, InsertVertex, UpsertEdge, VertexRef } from "./GraphOp.js"
+import { UpsertVertex, UpsertEdge, VertexRef } from "./GraphOp.js"
 import { enrichVertexKeys } from "./GraphOpScope.js"
 
 const enrich = enrichVertexKeys({ scope_id: "run-1" })
@@ -15,10 +15,10 @@ describe("enrichVertexKeys", () => {
     }))
   })
 
-  it("adds the extra fields to an InsertVertex identity", () => {
-    const op = enrich(new InsertVertex({ label: "RunLogLine", key: { seq: 1 }, properties: {} }))
+  it("adds the extra fields to a sequence-keyed vertex identity", () => {
+    const op = enrich(new UpsertVertex({ label: "RunLogLine", key: { seq: 1 }, properties: {} }))
 
-    expect(op).toEqual(new InsertVertex({ label: "RunLogLine", key: { seq: 1, scope_id: "run-1" }, properties: {} }))
+    expect(op).toEqual(new UpsertVertex({ label: "RunLogLine", key: { seq: 1, scope_id: "run-1" }, properties: {} }))
   })
 
   it("adds the extra fields to BOTH endpoint refs of an UpsertEdge, never to the edge's own key", () => {

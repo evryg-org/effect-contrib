@@ -1,5 +1,5 @@
 import { describe, it, expect } from "@effect/vitest"
-import { UpsertVertex, InsertVertex, UpsertEdge, VertexRef } from "./GraphOp.js"
+import { UpsertVertex, UpsertEdge, VertexRef } from "./GraphOp.js"
 import { buildSchemaIndex, validateGraphOps, type SchemaIndex } from "./GraphOpValidator.js"
 
 describe("buildSchemaIndex", () => {
@@ -55,8 +55,8 @@ describe("validateGraphOps", () => {
     expect(validateGraphOps(ops, index)).toEqual([])
   })
 
-  it("returns no violations for valid InsertVertex", () => {
-    const ops = [new InsertVertex({ label: "File", key: { path: "a.php" }, properties: {} })]
+  it("returns no violations for a valid File UpsertVertex", () => {
+    const ops = [new UpsertVertex({ label: "File", key: { path: "a.php" }, properties: {} })]
     expect(validateGraphOps(ops, index)).toEqual([])
   })
 
@@ -69,8 +69,8 @@ describe("validateGraphOps", () => {
     expect(violations[0].property).toBe("bogus")
   })
 
-  it("detects undeclared key property on InsertVertex", () => {
-    const ops = [new InsertVertex({ label: "Class", key: { unknown_key: "x" }, properties: {} })]
+  it("detects undeclared key property on UpsertVertex", () => {
+    const ops = [new UpsertVertex({ label: "Class", key: { unknown_key: "x" }, properties: {} })]
     const violations = validateGraphOps(ops, index)
     expect(violations).toHaveLength(1)
     expect(violations[0].property).toBe("unknown_key")

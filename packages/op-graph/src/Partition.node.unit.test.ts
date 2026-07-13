@@ -1,5 +1,5 @@
 import { describe, it, expect } from "@effect/vitest"
-import { UpsertVertex, InsertVertex, UpsertEdge, VertexRef } from "./GraphOp.js"
+import { UpsertVertex, UpsertEdge, VertexRef } from "./GraphOp.js"
 import { enrichVertexKeysBy } from "./Partition.js"
 
 // A per-label partition policy: "Widget" lives in a single-field partition, "Gadget" in a two-field one.
@@ -12,9 +12,9 @@ describe("enrichVertexKeysBy", () => {
     expect(op).toEqual(new UpsertVertex({ label: "Widget", key: { sku: "W1", tenant: "t1" }, properties: { n: 1 } }))
   })
 
-  it("stamps an InsertVertex identity, leaving properties alone", () => {
-    const op = enrichVertexKeysBy(partitionKeyFor)(new InsertVertex({ label: "Gadget", key: { seq: 1 }, properties: {} }))
-    expect(op).toEqual(new InsertVertex({ label: "Gadget", key: { seq: 1, region: "eu", zone: "z9" }, properties: {} }))
+  it("stamps a multi-field-partition vertex identity, leaving properties alone", () => {
+    const op = enrichVertexKeysBy(partitionKeyFor)(new UpsertVertex({ label: "Gadget", key: { seq: 1 }, properties: {} }))
+    expect(op).toEqual(new UpsertVertex({ label: "Gadget", key: { seq: 1, region: "eu", zone: "z9" }, properties: {} }))
   })
 
   it("keys EACH edge endpoint by its OWN label's partition (cross-partition edge), never the edge's own key", () => {

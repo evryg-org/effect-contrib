@@ -14,7 +14,6 @@ export interface GraphOpViolation {
 export function graphOpKind(op: GraphOp): string {
   return GraphOp.match(op, {
     UpsertVertex: () => "UpsertVertex",
-    InsertVertex: () => "InsertVertex",
     UpsertEdge: () => "UpsertEdge",
   })
 }
@@ -79,7 +78,6 @@ export function validateGraphOps(
   for (const op of ops) {
     GraphOp.match(op, {
       UpsertVertex: (v) => checkVertexProps("UpsertVertex", v.label, v.key, v.properties),
-      InsertVertex: (v) => checkVertexProps("InsertVertex", v.label, v.key, v.properties),
       UpsertEdge: (e) => {
         // Validate edge properties
         const edgeAllowed = index.get(e.label)

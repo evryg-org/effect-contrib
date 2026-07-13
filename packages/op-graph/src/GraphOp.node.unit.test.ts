@@ -1,6 +1,6 @@
 import { describe, it, expect } from "@effect/vitest"
 import { Schema } from "effect"
-import { UpsertVertex, InsertVertex, UpsertEdge, VertexRef, GraphOp, GraphOpArray } from "./GraphOp.js"
+import { UpsertVertex, UpsertEdge, VertexRef, GraphOp, GraphOpArray } from "./GraphOp.js"
 
 describe("GraphOp Schema types", () => {
   it("UpsertVertex constructs with the expected fields", () => {
@@ -9,14 +9,6 @@ describe("GraphOp Schema types", () => {
     expect(v.label).toBe("Class")
     expect(v.key).toEqual({ fqcn: "App\\Foo" })
     expect(v.properties).toEqual({ name: "Foo" })
-  })
-
-  it("InsertVertex constructs with the expected fields", () => {
-    const v = new InsertVertex({ label: "Event", key: { id: "ev-1" }, properties: { name: "OrderPlaced" } })
-    expect(GraphOp.guards.InsertVertex(v)).toBe(true)
-    expect(v.label).toBe("Event")
-    expect(v.key).toEqual({ id: "ev-1" })
-    expect(v.properties).toEqual({ name: "OrderPlaced" })
   })
 
   it("UpsertVertex key and properties are separate objects", () => {
@@ -44,7 +36,7 @@ describe("GraphOp Schema types", () => {
   it("JSON encode/decode round-trips via Schema", () => {
     const ops: GraphOpArray = [
       new UpsertVertex({ label: "Class", key: { fqcn: "A" }, properties: { name: "A" } }),
-      new InsertVertex({ label: "Event", key: { id: "ev-1" }, properties: { name: "OrderPlaced" } }),
+      new UpsertVertex({ label: "Event", key: { id: "ev-1" }, properties: { name: "OrderPlaced" } }),
       new UpsertEdge({
         label: "DEPENDS_ON",
         from: new VertexRef({ label: "Class", key: { fqcn: "A" } }),
@@ -59,23 +51,29 @@ describe("GraphOp Schema types", () => {
 
     expect(decoded).toHaveLength(3)
     expect(GraphOp.guards.UpsertVertex(decoded[0])).toBe(true)
-    expect(GraphOp.guards.InsertVertex(decoded[1])).toBe(true)
+    expect(GraphOp.guards.UpsertVertex(decoded[1])).toBe(true)
     expect(GraphOp.guards.UpsertEdge(decoded[2])).toBe(true)
   })
 
   it("preserves order in array", () => {
     const ops: GraphOpArray = [
-      new InsertVertex({ label: "A", key: { id: "0" }, properties: {} }),
-      new UpsertVertex({ label: "B", key: { id: "1" }, properties: {} }),
-      new InsertVertex({ label: "C", key: { id: "2" }, properties: {} }),
+      new UpsertVertex({ label: "A", key: { id: "0" }, properties: {} }),
+      new UpsertEdge({
+        label: "LINKS",
+        from: new VertexRef({ label: "A", key: { id: "0" } }),
+        to: new VertexRef({ label: "C", key: { id: "2" } }),
+        key: {},
+        properties: {},
+      }),
+      new UpsertVertex({ label: "C", key: { id: "2" }, properties: {} }),
     ]
 
     const encoded = Schema.encodeSync(GraphOpArray)(ops)
     const decoded = Schema.decodeSync(GraphOpArray)(encoded)
-    expect(GraphOp.guards.InsertVertex(decoded[0])).toBe(true)
-    expect(GraphOp.guards.UpsertVertex(decoded[1])).toBe(true)
-    expect(GraphOp.guards.InsertVertex(decoded[2])).toBe(true)
-    expect((decoded[0] as InsertVertex).label).toBe("A")
-    expect((decoded[2] as InsertVertex).label).toBe("C")
+    expect(GraphOp.guards.UpsertVertex(decoded[0])).toBe(true)
+    expect(GraphOp.guards.UpsertEdge(decoded[1])).toBe(true)
+    expect(GraphOp.guards.UpsertVertex(decoded[2])).toBe(true)
+    expect((decoded[0] as UpsertVertex).label).toBe("A")
+    expect((decoded[2] as UpsertVertex).label).toBe("C")
   })
 })
