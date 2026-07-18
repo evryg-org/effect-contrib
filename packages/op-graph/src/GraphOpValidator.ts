@@ -1,3 +1,4 @@
+import { Array, Record } from "effect"
 import { GraphOp } from "./GraphOp.js"
 
 /** label → set of allowed property names (both key fields and properties) */
@@ -23,26 +24,20 @@ export function buildSchemaIndex(
   nodeEntries: ReadonlyArray<{ labels: ReadonlyArray<string>; propertyName: string }>,
   relEntries: ReadonlyArray<{ relType: string; propertyName: string }>,
 ): SchemaIndex {
-  const index = new Map<string, Set<string>>()
-  for (const entry of nodeEntries) {
-    for (const label of entry.labels) {
-      let props = index.get(label)
-      if (!props) {
-        props = new Set()
-        index.set(label, props)
-      }
-      props.add(entry.propertyName)
-    }
-  }
-  for (const entry of relEntries) {
-    let props = index.get(entry.relType)
-    if (!props) {
-      props = new Set()
-      index.set(entry.relType, props)
-    }
-    props.add(entry.propertyName)
-  }
-  return index
+  // Expand nodeEntries into (label, propertyName) pairs, then group by label.
+  const nodePairs = nodeEntries.flatMap((entry) =>
+    entry.labels.map((label) => ({ label, propertyName: entry.propertyName })),
+  )
+  const nodeGroups = Array.groupBy(nodePairs, (p) => p.label)
+  const nodeRecord = Record.map(nodeGroups, (group) => new Set(group.map((p) => p.propertyName)) as ReadonlySet<string>)
+
+  // Group relEntries by relType.
+  const relGroups = Array.groupBy(relEntries, (e) => e.relType)
+  const relRecord = Record.map(relGroups, (group) => new Set(group.map((e) => e.propertyName)) as ReadonlySet<string>)
+
+  // Merge both records into one and convert to Map to satisfy SchemaIndex = ReadonlyMap.
+  const merged = { ...nodeRecord, ...relRecord }
+  return new Map(Record.toEntries(merged)) as SchemaIndex
 }
 
 /** Validate all GraphOps against the schema index. Returns accumulated violations. */
@@ -50,75 +45,60 @@ export function validateGraphOps(
   ops: ReadonlyArray<GraphOp>,
   index: SchemaIndex,
 ): ReadonlyArray<GraphOpViolation> {
-  const violations: GraphOpViolation[] = []
-
   function checkVertexProps(
     opKind: string,
     label: string,
     key: Record<string, unknown>,
     properties: Record<string, unknown>,
-  ): void {
+  ): ReadonlyArray<GraphOpViolation> {
     const allowed = index.get(label)
     if (!allowed) {
-      violations.push({ op: opKind, label, property: "*", message: `Unknown label "${label}"` })
-      return
+      return [{ op: opKind, label, property: "*", message: `Unknown label "${label}"` }]
     }
-    for (const prop of Object.keys(key)) {
-      if (!allowed.has(prop)) {
-        violations.push({ op: opKind, label, property: prop, message: `Undeclared key property "${prop}" on label "${label}"` })
-      }
-    }
-    for (const prop of Object.keys(properties)) {
-      if (!allowed.has(prop)) {
-        violations.push({ op: opKind, label, property: prop, message: `Undeclared property "${prop}" on label "${label}"` })
-      }
-    }
+    const keyViolations = Object.keys(key)
+      .filter((prop) => !allowed.has(prop))
+      .map((prop) => ({ op: opKind, label, property: prop, message: `Undeclared key property "${prop}" on label "${label}"` }))
+    const propViolations = Object.keys(properties)
+      .filter((prop) => !allowed.has(prop))
+      .map((prop) => ({ op: opKind, label, property: prop, message: `Undeclared property "${prop}" on label "${label}"` }))
+    return [...keyViolations, ...propViolations]
   }
 
-  for (const op of ops) {
+  return ops.flatMap((op) =>
     GraphOp.match(op, {
       UpsertVertex: (v) => checkVertexProps("UpsertVertex", v.label, v.key, v.properties),
       UpsertEdge: (e) => {
-        // Validate edge properties
+        // Edge properties
         const edgeAllowed = index.get(e.label)
-        if (!edgeAllowed) {
-          violations.push({ op: "UpsertEdge", label: e.label, property: "*", message: `Unknown relationship type "${e.label}"` })
-        } else {
-          for (const prop of Object.keys(e.key)) {
-            if (!edgeAllowed.has(prop)) {
-              violations.push({ op: "UpsertEdge", label: e.label, property: prop, message: `Undeclared key property "${prop}" on relationship "${e.label}"` })
-            }
-          }
-          for (const prop of Object.keys(e.properties)) {
-            if (!edgeAllowed.has(prop)) {
-              violations.push({ op: "UpsertEdge", label: e.label, property: prop, message: `Undeclared property "${prop}" on relationship "${e.label}"` })
-            }
-          }
-        }
-        // Validate from/to vertex key fields
-        const fromAllowed = index.get(e.from.label)
-        if (!fromAllowed) {
-          violations.push({ op: "UpsertEdge", label: e.from.label, property: "*", message: `Unknown from-label "${e.from.label}"` })
-        } else {
-          for (const prop of Object.keys(e.from.key)) {
-            if (!fromAllowed.has(prop)) {
-              violations.push({ op: "UpsertEdge", label: e.from.label, property: prop, message: `Undeclared key property "${prop}" on from-label "${e.from.label}"` })
-            }
-          }
-        }
-        const toAllowed = index.get(e.to.label)
-        if (!toAllowed) {
-          violations.push({ op: "UpsertEdge", label: e.to.label, property: "*", message: `Unknown to-label "${e.to.label}"` })
-        } else {
-          for (const prop of Object.keys(e.to.key)) {
-            if (!toAllowed.has(prop)) {
-              violations.push({ op: "UpsertEdge", label: e.to.label, property: prop, message: `Undeclared key property "${prop}" on to-label "${e.to.label}"` })
-            }
-          }
-        }
-      },
-    })
-  }
+        const edgeViolations: ReadonlyArray<GraphOpViolation> = edgeAllowed
+          ? [
+              ...Object.keys(e.key)
+                .filter((prop) => !edgeAllowed.has(prop))
+                .map((prop) => ({ op: "UpsertEdge", label: e.label, property: prop, message: `Undeclared key property "${prop}" on relationship "${e.label}"` })),
+              ...Object.keys(e.properties)
+                .filter((prop) => !edgeAllowed.has(prop))
+                .map((prop) => ({ op: "UpsertEdge", label: e.label, property: prop, message: `Undeclared property "${prop}" on relationship "${e.label}"` })),
+            ]
+          : [{ op: "UpsertEdge", label: e.label, property: "*", message: `Unknown relationship type "${e.label}"` }]
 
-  return violations
+        // from-vertex key fields
+        const fromAllowed = index.get(e.from.label)
+        const fromViolations: ReadonlyArray<GraphOpViolation> = fromAllowed
+          ? Object.keys(e.from.key)
+              .filter((prop) => !fromAllowed.has(prop))
+              .map((prop) => ({ op: "UpsertEdge", label: e.from.label, property: prop, message: `Undeclared key property "${prop}" on from-label "${e.from.label}"` }))
+          : [{ op: "UpsertEdge", label: e.from.label, property: "*", message: `Unknown from-label "${e.from.label}"` }]
+
+        // to-vertex key fields
+        const toAllowed = index.get(e.to.label)
+        const toViolations: ReadonlyArray<GraphOpViolation> = toAllowed
+          ? Object.keys(e.to.key)
+              .filter((prop) => !toAllowed.has(prop))
+              .map((prop) => ({ op: "UpsertEdge", label: e.to.label, property: prop, message: `Undeclared key property "${prop}" on to-label "${e.to.label}"` }))
+          : [{ op: "UpsertEdge", label: e.to.label, property: "*", message: `Unknown to-label "${e.to.label}"` }]
+
+        return [...edgeViolations, ...fromViolations, ...toViolations]
+      },
+    }),
+  )
 }

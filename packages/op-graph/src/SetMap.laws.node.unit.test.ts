@@ -1,5 +1,6 @@
 import { expect } from "@effect/vitest"
 import fc from "fast-check"
+import { Array } from "effect"
 import { boundedSemilatticeLaws } from "@evryg/effect-algebraic-laws"
 import { SetMap } from "./SetMap.js"
 
@@ -10,13 +11,12 @@ import { SetMap } from "./SetMap.js"
 // generic — the partition policy that decides WHICH key a fact merges on lives in the app.
 
 const structuralEq = (a: SetMap, b: SetMap): boolean => {
-  const keys = new Set([...a.keys(), ...b.keys()])
-  for (const k of keys) {
+  const keys = Array.fromIterable(new Set([...a.keys(), ...b.keys()]))
+  return Array.every(keys, (k) => {
     const sa = a.get(k) ?? new Set<string>()
     const sb = b.get(k) ?? new Set<string>()
-    if (sa.size !== sb.size || [...sa].some((v) => !sb.has(v))) return false
-  }
-  return true
+    return sa.size === sb.size && !Array.fromIterable(sa).some((v) => !sb.has(v))
+  })
 }
 
 // Small constant pools so generated maps overlap — exercises idempotence/commutativity meaningfully.

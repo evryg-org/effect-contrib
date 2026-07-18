@@ -1,3 +1,5 @@
+import { Array } from "effect"
+
 /**
  * Commutative monoid: Map<string, Set<string>> with set-union merge.
  */
@@ -7,17 +9,18 @@ export const SetMap = {
   empty: new Map() as SetMap,
 
   of: (entries: ReadonlyArray<readonly [string, string]>): SetMap =>
-    entries.reduce<Map<string, Set<string>>>(
-      (acc, [k, v]) => acc.set(k, (acc.get(k) ?? new Set<string>()).add(v)),
-      new Map(),
+    new Map(
+      Object.entries(Array.groupBy(entries, ([k]) => k)).map(
+        ([k, pairs]) => [k, new Set(pairs.map(([, v]) => v))] as const,
+      ),
     ),
 
-  concat: (a: SetMap, b: SetMap): SetMap =>
-    [...b].reduce<Map<string, Set<string>>>(
-      (acc, [k, vs]) =>
-        acc.set(k, [...vs].reduce((s, v) => s.add(v), new Set(acc.get(k) ?? []))),
-      new Map([...a].map(([k, v]) => [k, new Set(v)])),
-    ),
+  concat: (a: SetMap, b: SetMap): SetMap => {
+    const keys = Array.dedupe([...[...a].map(([k]) => k), ...[...b].map(([k]) => k)])
+    return new Map(
+      keys.map((k) => [k, new Set([...(a.get(k) ?? []), ...(b.get(k) ?? [])])] as const),
+    )
+  },
 
   concatAll: (...maps: ReadonlyArray<SetMap>): SetMap =>
     maps.reduce(SetMap.concat, SetMap.empty),
