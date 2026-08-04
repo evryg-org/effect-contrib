@@ -401,6 +401,22 @@ describe("inferExpressionType — CASE branch join and nullability", () => {
     expect(result).toEqual(ListType(new ScalarType({ scalarType: "String" })))
   })
 
+  it("narrows each branch under its own WHEN guard", () => {
+    const nullableVars = envWith({
+      a: { type: new VertexType({ label: "Sample" }), nullable: true },
+      b: { type: new VertexType({ label: "Sample" }), nullable: true }
+    })
+    const result = inferExpressionType(
+      parseExpression(
+        "CASE WHEN a IS NOT NULL THEN a.requiredString WHEN b IS NOT NULL THEN b.requiredString ELSE \"other\" END"
+      ),
+      nullableVars,
+      schema
+    )
+    // Every branch guards its own variable, so no branch can yield null.
+    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
+  })
+
   it("a scrutinee shifts the branch offsets without changing the result", () => {
     const result = inferExpressionType(
       parseExpression("CASE s.requiredLong WHEN 1 THEN s.requiredString ELSE null END"),

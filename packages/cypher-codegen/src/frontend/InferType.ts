@@ -649,8 +649,8 @@ function inferCaseType(
     throw new CypherTypeError("CASE expression missing THEN branch")
   }
 
-  const thenEnv = narrowByGuard(arms[0].guard, env)
-  const branches = arms.map((arm) => inferExpressionType(arm.result, thenEnv, schema))
+  // Each arm's result is typed under its own WHEN guard — arm i's guard says nothing about arm j.
+  const branches = arms.map((arm) => inferExpressionType(arm.result, narrowByGuard(arm.guard, env), schema))
 
   // An absent ELSE behaves exactly like `ELSE null`, since Cypher yields null when no WHEN matches.
   branches.push(
