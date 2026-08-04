@@ -351,6 +351,37 @@ describe("inferExpressionType — CASE expression", () => {
   })
 })
 
+describe("inferExpressionType — CASE branch join and nullability", () => {
+  const env = envWith({ s: { type: new VertexType({ label: "Sample" }), nullable: false } })
+
+  it("ELSE null makes the result nullable", () => {
+    const result = inferExpressionType(
+      parseExpression("CASE WHEN s.requiredLong > 1 THEN s.requiredString ELSE null END"),
+      env,
+      schema
+    )
+    expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
+  })
+
+  it("a non-null ELSE keeps the result non-nullable", () => {
+    const result = inferExpressionType(
+      parseExpression("CASE WHEN s.requiredLong > 1 THEN s.requiredString ELSE \"other\" END"),
+      env,
+      schema
+    )
+    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
+  })
+
+  it("a scrutinee shifts the branch offsets without changing the result", () => {
+    const result = inferExpressionType(
+      parseExpression("CASE s.requiredLong WHEN 1 THEN s.requiredString ELSE null END"),
+      env,
+      schema
+    )
+    expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
+  })
+})
+
 describe("inferExpressionType — comparison and boolean", () => {
   it("IS NOT NULL returns Boolean", () => {
     const env = envWith({ m: { type: new VertexType({ label: "Method" }), nullable: false } })

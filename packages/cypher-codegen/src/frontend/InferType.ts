@@ -120,18 +120,24 @@ function lookupEdgePropertyType(
   return { type: normalizeNeo4jType(rawType), mandatory: prop.mandatory }
 }
 
+// ── Type helpers ──
+
+/** Peel a top-level NullableType off a type, leaving its payload. */
+function stripNullable(t: CypherType): CypherType {
+  return t._tag === "NullableType" ? t.inner : t
+}
+
 // ── List element extraction ──
 
 /** Extract the element type from a list, unwrapping NullableType if present.
  *  NullableType wraps non-mandatory properties — nullability is on the list, not the elements. */
 function extractListElementType(listType: CypherType): CypherType {
-  const unwrapped = listType._tag === "NullableType" ? listType.inner : listType
+  const unwrapped = stripNullable(listType)
   return unwrapped._tag === "ListType" ? unwrapped.element : unwrapped
 }
 
 function isListType(t: CypherType): boolean {
-  const unwrapped = t._tag === "NullableType" ? t.inner : t
-  return unwrapped._tag === "ListType"
+  return stripNullable(t)._tag === "ListType"
 }
 
 // ── Known function return types ──
@@ -325,7 +331,7 @@ function inferAtomicType(
     if (listExpr.IN()) return new ScalarType({ scalarType: "Boolean" })
     // Array indexing [expr] → element type of the base expression, unwrapping NullableType
     const baseType = inferPropertyExpressionType(propOrLabel.propertyExpression(), env, schema)
-    const unwrapped = baseType._tag === "NullableType" ? baseType.inner : baseType
+    const unwrapped = stripNullable(baseType)
     if (unwrapped._tag === "ListType") return unwrapped.element
     throw new CypherTypeError(`Cannot index into non-list type '${baseType._tag}'`)
   }
@@ -589,45 +595,61 @@ function inferMapLitType(
   return MapType(fields)
 }
 
+/**
+ * Join the result branches of a CASE into a single column type.
+ *
+ * ```
+ *   payload  = join(strip(b₁), …, strip(bₙ))   -- NeverType is the join identity
+ *   nullable = ∃i. bᵢ : NullableType(_)        -- a nullable branch
+ *            ∨ ∃i. bᵢ : NeverType              -- a branch that is the `null` literal
+ *   result   = nullable ? NullableType(payload) : payload
+ * ```
+ *
+ * Stripping before wrapping keeps the result from double-wrapping. When every branch is null the
+ * payload has no inhabitant, so the bare `NeverType` is returned rather than `NullableType(_)`.
+ */
+function joinCaseBranches(branches: ReadonlyArray<CypherType>): CypherType {
+  const nullable = branches.some((b) => b._tag === "NullableType" || b._tag === "NeverType")
+  const payloads = branches.map(stripNullable).filter((b) => b._tag !== "NeverType")
+  if (payloads.length === 0) return new NeverType({})
+  const payload = payloads[0]
+  return nullable ? NullableType(payload) : payload
+}
+
+/** Narrow a `var IS NOT NULL` guard into the environment its branch is typed under. */
+function narrowByGuard(guard: ExpressionContext | undefined, env: TypeEnv): TypeEnv {
+  const narrowedVar = guard === undefined ? undefined : extractIsNotNullVar(guard)
+  if (narrowedVar === undefined) return env
+  const entry = env.get(narrowedVar)
+  if (entry === undefined || !entry.nullable) return env
+  return new Map([...env, [narrowedVar, { ...entry, nullable: false }]])
+}
+
 function inferCaseType(
   caseExpr: CaseExpressionContext,
   env: TypeEnv,
   schema: GraphSchema
 ): CypherType {
-  // CASE expression? (WHEN expression THEN expression)+ (ELSE expression)? END
-  // Infer type from the first THEN branch
+  // caseExpression: CASE expression? (WHEN expression THEN expression)+ (ELSE expression)? END
+  //
+  // The flat expression list interleaves the WHEN/THEN pairs, offset by one when the CASE carries a
+  // scrutinee: with `base` expressions consumed by the scrutinee and n THEN keywords, the i-th THEN
+  // sits at `base + 2i + 1` and the ELSE at `base + 2n`.
   const exprs = caseExpr.expression()
-  // In a simple CASE: CASE expr WHEN val THEN result ...
-  // In a generic CASE: CASE WHEN cond THEN result ...
-  // THEN expressions are at odd indices (1, 3, 5, ...) for generic CASE
-  // or at even indices for simple CASE with initial expression
+  const branchCount = caseExpr.THEN().length
+  const hasElse = caseExpr.ELSE() !== null
+  const armExpressionCount = branchCount * 2 + (hasElse ? 1 : 0)
+  const base = exprs.length > armExpressionCount ? 1 : 0
 
-  // The THEN keyword positions tell us which expressions are results
-  const thenTokens = caseExpr.THEN()
-  if (thenTokens && thenTokens.length > 0) {
-    // Find the first THEN result expression
-    // In the grammar: CASE expr? (WHEN expr THEN expr)+ (ELSE expr)? END
-    // With initial CASE expr: exprs[0]=case, exprs[1]=when, exprs[2]=then, ...
-    // Without: exprs[0]=when, exprs[1]=then, ...
-    const hasInitialExpr = caseExpr.expression().length > thenTokens.length * 2 + (caseExpr.ELSE() ? 1 : 0)
-    const whenIndex = hasInitialExpr ? 1 : 0
-    const thenIndex = hasInitialExpr ? 2 : 1
-
-    // Narrow nullable variables if WHEN clause is `var IS NOT NULL`
-    let thenEnv = env
-    if (exprs.length > whenIndex) {
-      const narrowedVar = extractIsNotNullVar(exprs[whenIndex])
-      if (narrowedVar && env.has(narrowedVar) && env.get(narrowedVar)!.nullable) {
-        thenEnv = new Map([...env, [narrowedVar, { ...env.get(narrowedVar)!, nullable: false }]])
-      }
-    }
-
-    if (exprs.length > thenIndex) {
-      return inferExpressionType(exprs[thenIndex], thenEnv, schema)
-    }
+  const firstThen = exprs[base + 1]
+  if (branchCount === 0 || firstThen === undefined) {
+    throw new CypherTypeError("CASE expression missing THEN branch")
   }
 
-  throw new CypherTypeError("CASE expression missing THEN branch")
+  const branches = [inferExpressionType(firstThen, narrowByGuard(exprs[base], env), schema)]
+  if (hasElse) branches.push(inferExpressionType(exprs[base + 2 * branchCount], env, schema))
+
+  return joinCaseBranches(branches)
 }
 
 /** Extract variable name from `var IS NOT NULL` expression, or undefined */
@@ -696,7 +718,7 @@ function inferFunctionType(
   if (funcName === "collect") {
     if (args.length > 0) {
       const argType = inferExpressionType(args[0], env, schema)
-      const elementType = argType._tag === "NullableType" ? argType.inner : argType
+      const elementType = stripNullable(argType)
       return ListType(elementType)
     }
     throw new CypherTypeError("collect() requires an argument")
@@ -712,7 +734,7 @@ function inferFunctionType(
     let result: CypherType | undefined
     for (const arg of args) {
       const argType = inferExpressionType(arg, env, schema)
-      const stripped = argType._tag === "NullableType" ? argType.inner : argType
+      const stripped = stripNullable(argType)
       result = result === undefined ? stripped : unifyCoalesce(result, stripped)
       if (argType._tag !== "NullableType") break
     }
@@ -735,7 +757,7 @@ function inferFunctionType(
   if (funcName === "abs") {
     if (args.length === 0) throw new CypherTypeError("abs() requires an argument")
     const argType = inferExpressionType(args[0], env, schema)
-    return argType._tag === "NullableType" ? argType.inner : argType
+    return stripNullable(argType)
   }
 
   // Known aggregates / conversion functions
