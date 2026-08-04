@@ -127,6 +127,9 @@ function stripNullable(t: CypherType): CypherType {
   return t._tag === "NullableType" ? t.inner : t
 }
 
+const isNumericScalar = (t: CypherType): boolean =>
+  t._tag === "ScalarType" && (t.scalarType === "Long" || t.scalarType === "Double")
+
 // ── List element extraction ──
 
 /** Extract the element type from a list, unwrapping NullableType if present.
@@ -230,9 +233,6 @@ export function inferExpressionType(
 }
 
 // ── Arithmetic operand typing ──
-
-const isNumericScalar = (t: CypherType): boolean =>
-  t._tag === "ScalarType" && (t.scalarType === "Long" || t.scalarType === "Double")
 
 /** Numeric join over arithmetic operands: `Long ⊔ Double = Double`. Returns `undefined` when any
  *  operand is not a numeric scalar (e.g. dates/durations), so callers fall back to their leading
@@ -596,6 +596,23 @@ function inferMapLitType(
 }
 
 /**
+ * Unify two candidate types for one column (already stripped of nullable). `coalesce` and `CASE`
+ * share this lattice: both name several values of which exactly one reaches the row, so one decoder
+ * has to accept them all. Equal scalars collapse to that scalar; two numeric scalars (Long/Double in
+ * any mix) collapse to Long — the integer-tolerant decoder is the numeric superset, accepting both
+ * database integers and floats. Anything else keeps the leading candidate's type: a genuine
+ * disagreement such as String vs. Long has no representable answer, and non-scalar candidates
+ * (lists, maps, nodes) are left as they were.
+ */
+function unifyCandidateTypes(a: CypherType, b: CypherType): CypherType {
+  if (a._tag === "ScalarType" && b._tag === "ScalarType") {
+    if (a.scalarType === b.scalarType) return a
+    if (isNumericScalar(a) && isNumericScalar(b)) return new ScalarType({ scalarType: "Long" })
+  }
+  return a
+}
+
+/**
  * Join the result branches of a CASE into a single column type.
  *
  * ```
@@ -610,9 +627,9 @@ function inferMapLitType(
  */
 function joinCaseBranches(branches: ReadonlyArray<CypherType>): CypherType {
   const nullable = branches.some((b) => b._tag === "NullableType" || b._tag === "NeverType")
-  const payloads = branches.map(stripNullable).filter((b) => b._tag !== "NeverType")
+  const payloads: ReadonlyArray<CypherType> = branches.map(stripNullable).filter((b) => b._tag !== "NeverType")
   if (payloads.length === 0) return new NeverType({})
-  const payload = payloads[0]
+  const payload = payloads.reduce(unifyCandidateTypes)
   return nullable ? NullableType(payload) : payload
 }
 
@@ -698,21 +715,6 @@ function extractIsNotNullVar(expr: ExpressionContext): string | undefined {
   return symbol.getText()
 }
 
-/**
- * Unify two coalesce candidate types (already stripped of nullable). Equal scalars collapse to that
- * scalar; two numeric scalars (Long/Double in any mix) collapse to Long — the integer-tolerant
- * decoder is the numeric superset, accepting both database integers and floats. Anything else keeps
- * the leading argument's type (no regression for heterogeneous or non-scalar candidates).
- */
-function unifyCoalesce(a: CypherType, b: CypherType): CypherType {
-  if (a._tag === "ScalarType" && b._tag === "ScalarType") {
-    if (a.scalarType === b.scalarType) return a
-    const isNumeric = (s: string) => s === "Long" || s === "Double"
-    if (isNumeric(a.scalarType) && isNumeric(b.scalarType)) return new ScalarType({ scalarType: "Long" })
-  }
-  return a
-}
-
 function inferFunctionType(
   func: FunctionInvocationContext,
   env: TypeEnv,
@@ -743,7 +745,7 @@ function inferFunctionType(
     for (const arg of args) {
       const argType = inferExpressionType(arg, env, schema)
       const stripped = stripNullable(argType)
-      result = result === undefined ? stripped : unifyCoalesce(result, stripped)
+      result = result === undefined ? stripped : unifyCandidateTypes(result, stripped)
       if (argType._tag !== "NullableType") break
     }
     return result!

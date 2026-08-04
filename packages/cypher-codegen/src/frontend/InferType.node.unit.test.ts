@@ -392,15 +392,6 @@ describe("inferExpressionType — CASE branch join and nullability", () => {
     expect(result).toEqual(new ScalarType({ scalarType: "String" }))
   })
 
-  it("collect strips the nullability a CASE with no ELSE introduces", () => {
-    const result = inferExpressionType(
-      parseExpression("collect(CASE WHEN s.requiredLong > 1 THEN s.requiredString END)"),
-      env,
-      schema
-    )
-    expect(result).toEqual(ListType(new ScalarType({ scalarType: "String" })))
-  })
-
   it("narrows each branch under its own WHEN guard", () => {
     const nullableVars = envWith({
       a: { type: new VertexType({ label: "Sample" }), nullable: true },
@@ -424,6 +415,35 @@ describe("inferExpressionType — CASE branch join and nullability", () => {
       schema
     )
     expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
+  })
+
+  // Mixed numeric branches follow the coalesce lattice, not the arithmetic one: a CASE column is a
+  // single decoder over several candidate values, so it widens to the integer-tolerant Long
+  // whichever branch the Double sits in.
+  it.each([
+    "CASE WHEN s.requiredLong > 1 THEN s.requiredLong ELSE s.nullableDouble END",
+    "CASE WHEN s.requiredLong > 1 THEN s.nullableDouble ELSE s.requiredLong END"
+  ])("%s infers a nullable Long", (expr) => {
+    const result = inferExpressionType(parseExpression(expr), env, schema)
+    expect(result).toEqual(NullableType(new ScalarType({ scalarType: "Long" })))
+  })
+
+  it("keeps the leading branch's type when branches genuinely disagree", () => {
+    const result = inferExpressionType(
+      parseExpression("CASE WHEN s.requiredLong > 1 THEN s.requiredString ELSE s.requiredLong END"),
+      env,
+      schema
+    )
+    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
+  })
+
+  it("collect strips the nullability a CASE with no ELSE introduces", () => {
+    const result = inferExpressionType(
+      parseExpression("collect(CASE WHEN s.requiredLong > 1 THEN s.requiredString END)"),
+      env,
+      schema
+    )
+    expect(result).toEqual(ListType(new ScalarType({ scalarType: "String" })))
   })
 })
 
