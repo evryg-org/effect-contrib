@@ -363,6 +363,17 @@ describe("inferExpressionType — CASE branch join and nullability", () => {
     expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
   })
 
+  it("a null in a later THEN makes the result nullable", () => {
+    const result = inferExpressionType(
+      parseExpression(
+        "CASE WHEN s.requiredLong > 1 THEN s.requiredString WHEN s.requiredLong > 2 THEN null ELSE \"other\" END"
+      ),
+      env,
+      schema
+    )
+    expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
+  })
+
   it("a non-null ELSE keeps the result non-nullable", () => {
     const result = inferExpressionType(
       parseExpression("CASE WHEN s.requiredLong > 1 THEN s.requiredString ELSE \"other\" END"),

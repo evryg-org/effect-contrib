@@ -641,12 +641,16 @@ function inferCaseType(
   const armExpressionCount = branchCount * 2 + (hasElse ? 1 : 0)
   const base = exprs.length > armExpressionCount ? 1 : 0
 
-  const firstThen = exprs[base + 1]
-  if (branchCount === 0 || firstThen === undefined) {
+  const arms = Array.from({ length: branchCount }, (_, i) => ({
+    guard: exprs[base + 2 * i],
+    result: exprs[base + 2 * i + 1]
+  }))
+  if (branchCount === 0 || arms.some((arm) => arm.result === undefined)) {
     throw new CypherTypeError("CASE expression missing THEN branch")
   }
 
-  const branches = [inferExpressionType(firstThen, narrowByGuard(exprs[base], env), schema)]
+  const thenEnv = narrowByGuard(arms[0].guard, env)
+  const branches = arms.map((arm) => inferExpressionType(arm.result, thenEnv, schema))
   if (hasElse) branches.push(inferExpressionType(exprs[base + 2 * branchCount], env, schema))
 
   return joinCaseBranches(branches)
