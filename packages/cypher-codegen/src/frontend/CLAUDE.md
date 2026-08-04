@@ -51,10 +51,34 @@ If `env(x).nullable = true`, the entire result is wrapped in `NullableType` rega
 ### CASE expression
 
 ```
-CASE [expr] WHEN cond THEN result [ELSE alt] END
+CASE [scrutinee] (WHEN cᵢ THEN tᵢ)+ [ELSE e] END
 ```
 
-Type is inferred from the first THEN branch. If the WHEN clause is `var IS NOT NULL`, the variable is narrowed to non-nullable in the THEN branch environment.
+Every result branch is typed — all n `THEN`s plus the `ELSE` — and the branches are joined into one
+column type:
+
+```
+branches = t₁ … tₙ, (e | NeverType)        -- an absent ELSE contributes NeverType
+payload  = ⊔ᵢ strip(bᵢ)                    -- NeverType is the join identity
+nullable = ∃i. bᵢ : Nullable(_)  ∨  ∃i. bᵢ : NeverType
+------------------------------------------------------
+CASE … END : Nullable(payload)   if nullable
+CASE … END : payload             otherwise
+```
+
+An absent `ELSE` is treated as `ELSE null`, because Cypher yields null when no `WHEN` matches — one
+mechanism rather than a special case: a `NULL` literal branch is `NeverType`, which contributes
+nullability without contributing a payload. If every branch is null the payload has no inhabitant and
+the bare `NeverType` is returned.
+
+`⊔` is the **coalesce** lattice (`unifyCandidateTypes`), not the arithmetic one: a CASE column is one
+decoder over several candidate values, exactly like `coalesce`, so mixed numerics widen to the
+integer-tolerant `Long` rather than to `Double`. A genuine disagreement such as String vs. Long has
+no representable answer and keeps the leading branch's type — never `UnknownType`, never a union.
+
+Each branch is typed under **its own** `WHEN`: if `cᵢ` is `var IS NOT NULL`, that variable is narrowed
+to non-nullable in `tᵢ`'s environment only. A structurally malformed CASE (a `THEN` with no result
+expression) throws `CypherTypeError`.
 
 ### List comprehension
 
