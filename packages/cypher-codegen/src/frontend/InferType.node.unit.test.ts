@@ -374,6 +374,15 @@ describe("inferExpressionType — CASE branch join and nullability", () => {
     expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
   })
 
+  it("an absent ELSE makes the result nullable", () => {
+    const result = inferExpressionType(
+      parseExpression("CASE WHEN s.requiredLong > 1 THEN s.requiredString END"),
+      env,
+      schema
+    )
+    expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
+  })
+
   it("a non-null ELSE keeps the result non-nullable", () => {
     const result = inferExpressionType(
       parseExpression("CASE WHEN s.requiredLong > 1 THEN s.requiredString ELSE \"other\" END"),
@@ -381,6 +390,15 @@ describe("inferExpressionType — CASE branch join and nullability", () => {
       schema
     )
     expect(result).toEqual(new ScalarType({ scalarType: "String" }))
+  })
+
+  it("collect strips the nullability a CASE with no ELSE introduces", () => {
+    const result = inferExpressionType(
+      parseExpression("collect(CASE WHEN s.requiredLong > 1 THEN s.requiredString END)"),
+      env,
+      schema
+    )
+    expect(result).toEqual(ListType(new ScalarType({ scalarType: "String" })))
   })
 
   it("a scrutinee shifts the branch offsets without changing the result", () => {
@@ -488,6 +506,8 @@ describe("inferExpressionType — property access on nullable variable", () => {
 })
 
 describe("inferExpressionType — CASE WHEN IS NOT NULL narrowing", () => {
+  // These CASEs have no ELSE, so the column itself is nullable. Narrowing shows up inside the
+  // payload: the guarded variable's mandatory properties are non-null there.
   it("narrows nullable variable in THEN branch", () => {
     const env = envWith({ m: { type: new VertexType({ label: "Method" }), nullable: true } })
     const result = inferExpressionType(
@@ -495,7 +515,7 @@ describe("inferExpressionType — CASE WHEN IS NOT NULL narrowing", () => {
       env,
       schema
     )
-    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
+    expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
   })
 
   it("narrows nullable variable in map literal", () => {
@@ -506,10 +526,10 @@ describe("inferExpressionType — CASE WHEN IS NOT NULL narrowing", () => {
       schema
     )
     // id: mandatory + narrowed → non-null; vis: non-mandatory → still nullable
-    expect(result).toEqual(MapType([
+    expect(result).toEqual(NullableType(MapType([
       { name: "id", value: new ScalarType({ scalarType: "String" }) },
       { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) }
-    ]))
+    ])))
   })
 
   it("does not narrow without IS NOT NULL", () => {

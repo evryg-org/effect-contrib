@@ -651,7 +651,11 @@ function inferCaseType(
 
   const thenEnv = narrowByGuard(arms[0].guard, env)
   const branches = arms.map((arm) => inferExpressionType(arm.result, thenEnv, schema))
-  if (hasElse) branches.push(inferExpressionType(exprs[base + 2 * branchCount], env, schema))
+
+  // An absent ELSE behaves exactly like `ELSE null`, since Cypher yields null when no WHEN matches.
+  branches.push(
+    hasElse ? inferExpressionType(exprs[base + 2 * branchCount], env, schema) : new NeverType({})
+  )
 
   return joinCaseBranches(branches)
 }
