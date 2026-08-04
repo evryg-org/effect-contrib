@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
-import type { ResolvedColumn, ResolvedParam } from "../frontend/QueryAnalyzer.js"
+import { GraphSchema, VertexProperty } from "@evryg/effect-neo4j-schema"
+import { analyzeQuery, type ResolvedColumn, type ResolvedParam } from "../frontend/QueryAnalyzer.js"
 import { type CypherType, ListType, MapType, NeverType, ScalarType, UnknownType } from "../types/CypherType.js"
 
 // ── Barrel generation (typed params) ──
@@ -338,5 +339,27 @@ describe("generateModule — no any in generated code", () => {
       col("fqcn", S("String"), false)
     ])
     expect(source).not.toContain(": any)")
+  })
+})
+
+describe("generateModule — analyzed CASE with a null branch", () => {
+  // End-to-end over the whole pipeline: a CASE that can yield null must reach the emitted decoder as
+  // Schema.NullOr, otherwise decoding a row where the column is null fails.
+  it("emits Schema.NullOr for a CASE whose ELSE is null", () => {
+    const schema = new GraphSchema({
+      vertexProperties: [
+        new VertexProperty({
+          labels: ["Sample"],
+          propertyName: "requiredString",
+          propertyTypes: ["String"],
+          mandatory: true
+        })
+      ],
+      edgeProperties: []
+    })
+    const cypher = `MATCH (s:Sample)
+                    RETURN CASE WHEN s.requiredString = "x" THEN s.requiredString ELSE null END AS maybeString`
+    const source = generateModule(cypher, analyzeQuery(cypher, schema).columns)
+    expect(source).toContain("Schema.NullOr(Schema.String)")
   })
 })

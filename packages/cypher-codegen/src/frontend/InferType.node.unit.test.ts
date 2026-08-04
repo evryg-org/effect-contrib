@@ -351,6 +351,102 @@ describe("inferExpressionType — CASE expression", () => {
   })
 })
 
+describe("inferExpressionType — CASE branch join and nullability", () => {
+  const env = envWith({ s: { type: new VertexType({ label: "Sample" }), nullable: false } })
+
+  it("ELSE null makes the result nullable", () => {
+    const result = inferExpressionType(
+      parseExpression("CASE WHEN s.requiredLong > 1 THEN s.requiredString ELSE null END"),
+      env,
+      schema
+    )
+    expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
+  })
+
+  it("a null in a later THEN makes the result nullable", () => {
+    const result = inferExpressionType(
+      parseExpression(
+        "CASE WHEN s.requiredLong > 1 THEN s.requiredString WHEN s.requiredLong > 2 THEN null ELSE \"other\" END"
+      ),
+      env,
+      schema
+    )
+    expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
+  })
+
+  it("an absent ELSE makes the result nullable", () => {
+    const result = inferExpressionType(
+      parseExpression("CASE WHEN s.requiredLong > 1 THEN s.requiredString END"),
+      env,
+      schema
+    )
+    expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
+  })
+
+  it("a non-null ELSE keeps the result non-nullable", () => {
+    const result = inferExpressionType(
+      parseExpression("CASE WHEN s.requiredLong > 1 THEN s.requiredString ELSE \"other\" END"),
+      env,
+      schema
+    )
+    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
+  })
+
+  it("narrows each branch under its own WHEN guard", () => {
+    const nullableVars = envWith({
+      a: { type: new VertexType({ label: "Sample" }), nullable: true },
+      b: { type: new VertexType({ label: "Sample" }), nullable: true }
+    })
+    const result = inferExpressionType(
+      parseExpression(
+        "CASE WHEN a IS NOT NULL THEN a.requiredString WHEN b IS NOT NULL THEN b.requiredString ELSE \"other\" END"
+      ),
+      nullableVars,
+      schema
+    )
+    // Every branch guards its own variable, so no branch can yield null.
+    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
+  })
+
+  it("a scrutinee shifts the branch offsets without changing the result", () => {
+    const result = inferExpressionType(
+      parseExpression("CASE s.requiredLong WHEN 1 THEN s.requiredString ELSE null END"),
+      env,
+      schema
+    )
+    expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
+  })
+
+  // Mixed numeric branches follow the coalesce lattice, not the arithmetic one: a CASE column is a
+  // single decoder over several candidate values, so it widens to the integer-tolerant Long
+  // whichever branch the Double sits in.
+  it.each([
+    "CASE WHEN s.requiredLong > 1 THEN s.requiredLong ELSE s.nullableDouble END",
+    "CASE WHEN s.requiredLong > 1 THEN s.nullableDouble ELSE s.requiredLong END"
+  ])("%s infers a nullable Long", (expr) => {
+    const result = inferExpressionType(parseExpression(expr), env, schema)
+    expect(result).toEqual(NullableType(new ScalarType({ scalarType: "Long" })))
+  })
+
+  it("keeps the leading branch's type when branches genuinely disagree", () => {
+    const result = inferExpressionType(
+      parseExpression("CASE WHEN s.requiredLong > 1 THEN s.requiredString ELSE s.requiredLong END"),
+      env,
+      schema
+    )
+    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
+  })
+
+  it("collect strips the nullability a CASE with no ELSE introduces", () => {
+    const result = inferExpressionType(
+      parseExpression("collect(CASE WHEN s.requiredLong > 1 THEN s.requiredString END)"),
+      env,
+      schema
+    )
+    expect(result).toEqual(ListType(new ScalarType({ scalarType: "String" })))
+  })
+})
+
 describe("inferExpressionType — comparison and boolean", () => {
   it("IS NOT NULL returns Boolean", () => {
     const env = envWith({ m: { type: new VertexType({ label: "Method" }), nullable: false } })
@@ -446,6 +542,8 @@ describe("inferExpressionType — property access on nullable variable", () => {
 })
 
 describe("inferExpressionType — CASE WHEN IS NOT NULL narrowing", () => {
+  // These CASEs have no ELSE, so the column itself is nullable. Narrowing shows up inside the
+  // payload: the guarded variable's mandatory properties are non-null there.
   it("narrows nullable variable in THEN branch", () => {
     const env = envWith({ m: { type: new VertexType({ label: "Method" }), nullable: true } })
     const result = inferExpressionType(
@@ -453,7 +551,7 @@ describe("inferExpressionType — CASE WHEN IS NOT NULL narrowing", () => {
       env,
       schema
     )
-    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
+    expect(result).toEqual(NullableType(new ScalarType({ scalarType: "String" })))
   })
 
   it("narrows nullable variable in map literal", () => {
@@ -464,10 +562,10 @@ describe("inferExpressionType — CASE WHEN IS NOT NULL narrowing", () => {
       schema
     )
     // id: mandatory + narrowed → non-null; vis: non-mandatory → still nullable
-    expect(result).toEqual(MapType([
+    expect(result).toEqual(NullableType(MapType([
       { name: "id", value: new ScalarType({ scalarType: "String" }) },
       { name: "vis", value: NullableType(new ScalarType({ scalarType: "String" })) }
-    ]))
+    ])))
   })
 
   it("does not narrow without IS NOT NULL", () => {

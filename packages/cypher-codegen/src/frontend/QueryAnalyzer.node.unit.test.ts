@@ -618,6 +618,25 @@ describe("analyzeQuery — CASE with integer literal THEN branches", () => {
   })
 })
 
+describe("analyzeQuery — CASE with a null branch", () => {
+  // The two projection sites each unwrap a top-level NullableType into the column's `nullable` flag,
+  // so a CASE that can yield null has to be checked through RETURN and through WITH.
+  it("marks a RETURN CASE column with ELSE null as nullable", () => {
+    const cypher = `MATCH (c:Class)
+                     RETURN CASE WHEN c.kind = "interface" THEN c.fqcn ELSE null END AS maybeFqcn`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([col("maybeFqcn", S("String"), true)])
+  })
+
+  it("marks a WITH CASE column with ELSE null as nullable", () => {
+    const cypher = `MATCH (c:Class)
+                     WITH CASE WHEN c.kind = "interface" THEN c.fqcn ELSE null END AS maybeFqcn
+                     RETURN maybeFqcn`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([col("maybeFqcn", S("String"), true)])
+  })
+})
+
 describe("analyzeQuery — unlabeled node variable", () => {
   it("does not throw for unlabeled node in MATCH pattern", () => {
     const cypher = `MATCH (c:Class)-[ev:EVIDENCED_BY]->(e)
