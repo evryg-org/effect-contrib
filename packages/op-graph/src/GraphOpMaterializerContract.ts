@@ -133,6 +133,26 @@ const collisionKeysOf = (combined: string): readonly [PropertyMap, PropertyMap] 
   { [combined.slice(0, combined.length - 1)]: combined.slice(combined.length - 1) },
 ]
 
+// ── A draw that fans one "Alpha-[:LINKS]->Beta" edge out over two Alpha nodes that share the
+// same `id` (a shorter ref subset-matches both) while a second, genuinely dangling edge in the
+// same apply targets a Beta that was never declared — the shape that lets fan-out's positive
+// contribution to a tally cancel an unrelated negative one, values only.
+const ConservationDraw = Schema.Struct({
+  shared: FixtureValue,
+  discriminator: FixtureValue,
+  target: FixtureValue,
+  missing: FixtureValue,
+}).pipe(
+  Schema.check(
+    Schema.makeFilter(
+      (draw) => draw.missing !== draw.target || "missing must differ from target",
+      { title: "missing id distinct from target id" },
+    ),
+  ),
+)
+
+const conservationArbitrary = Schema.toArbitrary(ConservationDraw)
+
 /**
  * The nine properties every `GraphOpMaterializer` implementation must satisfy, run identically
  * against `under` — memory passes a dependency-free layer, neo4j passes one already provided a
@@ -316,5 +336,26 @@ export const graphOpMaterializerContract = (
         expect(events[0].counts.size).toBe(0)
         expect(events[0].dropped.size).toBe(0)
       }))
+
+    it.effect("P10 — the tally conserves ops: a dangling edge is tallied dropped even when another op in the same apply fans out", () =>
+      Effect.forEach(FastCheck.sample(conservationArbitrary, samples), (draw) =>
+        Effect.gen(function* () {
+          const probe = yield* MaterializedGraph
+          yield* probe.clear()
+          const lastProgress = yield* Ref.make<MaterializeProgress | undefined>(undefined)
+          const result = yield* materialize([
+            vertex("Alpha", { id: draw.shared }),
+            vertex("Alpha", { id: draw.shared, tier: draw.discriminator }),
+            vertex("Beta", { id: draw.target }),
+            edge("LINKS", ref("Alpha", { id: draw.shared }), ref("Beta", { id: draw.target })),
+            edge("LINKS", ref("Alpha", { id: draw.shared }), ref("Beta", { id: draw.missing })),
+          ]).pipe(Stream.runForEach((p) => Ref.set(lastProgress, p)), Effect.result)
+          expect(Result.isFailure(result)).toBe(true)
+          const last = yield* Ref.get(lastProgress)
+          expect(last?.dropped.get("Alpha-[:LINKS]->Beta")).toBe(1)
+          const edges = yield* probe.edges("LINKS")
+          expect(edges.length).toBe(2)
+        }),
+      ))
   })
 }

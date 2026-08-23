@@ -22,6 +22,8 @@ export type {
 export { SetMap } from "./SetMap.js"
 export type { SetMap as SetMapType } from "./SetMap.js"
 
+export { EdgeShape, EdgeOutcome, EdgeMaterialized, EdgeDropped, EdgeTally } from "./EdgeTally.js"
+
 export {
   GraphOpMaterializer,
   materialize,
