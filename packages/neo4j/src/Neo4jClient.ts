@@ -22,7 +22,18 @@ export type Neo4jRecord = Neo4jRecord_
 export class Neo4jConnectionError extends Schema.TaggedErrorClass<Neo4jConnectionError>()("Neo4jConnectionError", {
   uri: Schema.String,
   cause: Schema.Defect()
-}) {}
+}) {
+  /**
+   * The connection failure's message, derived from `cause`.
+   *
+   * A structural field like `cause` carries no message of its own, so the
+   * inherited `Error#message` is empty by default. This override reports
+   * `cause`'s message instead, matching what a plain `Error` would surface.
+   */
+  override get message(): string {
+    return this.cause instanceof Error ? this.cause.message : String(this.cause)
+  }
+}
 
 /**
  * @since 0.0.1
@@ -31,7 +42,20 @@ export class Neo4jConnectionError extends Schema.TaggedErrorClass<Neo4jConnectio
 export class Neo4jQueryError extends Schema.TaggedErrorClass<Neo4jQueryError>()("Neo4jQueryError", {
   cypher: Schema.String,
   cause: Schema.Defect()
-}) {}
+}) {
+  /**
+   * The query failure's message, derived from `cause`.
+   *
+   * A structural field like `cause` carries no message of its own, so the
+   * inherited `Error#message` is empty by default. This override reports
+   * `cause`'s message instead, matching what a plain `Error` would surface.
+   * The failing `cypher` remains available as a structured field for callers
+   * that want it.
+   */
+  override get message(): string {
+    return this.cause instanceof Error ? this.cause.message : String(this.cause)
+  }
+}
 
 /**
  * @since 0.0.1
