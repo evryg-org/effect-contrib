@@ -3,7 +3,7 @@
   "compilerOptions": {
     "noEmit": true,
     "rootDir": "src",
-    "tsBuildInfoFile": "outputs/tsc/test.tsbuildinfo"
+    "tsBuildInfoFile": "outputs/tsc-tests/test.tsbuildinfo"
   },
   "include": ["src/**/*.test.ts"],
   "exclude": [],
