@@ -1,6 +1,6 @@
 {
   "name": "@evryg/effect-neo4j-schema",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "license": "MIT",
   "description": "Graph schema model, annotations, DDL compiler, and resolvers for Effect Neo4j",
