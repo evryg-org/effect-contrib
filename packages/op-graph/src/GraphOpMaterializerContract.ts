@@ -133,10 +133,8 @@ const collisionKeysOf = (combined: string): readonly [PropertyMap, PropertyMap] 
   { [combined.slice(0, combined.length - 1)]: combined.slice(combined.length - 1) },
 ]
 
-// ── A draw that fans one "Alpha-[:LINKS]->Beta" edge out over two Alpha nodes that share the
-// same `id` (a shorter ref subset-matches both) while a second, genuinely dangling edge in the
-// same apply targets a Beta that was never declared — the shape that lets fan-out's positive
-// contribution to a tally cancel an unrelated negative one, values only.
+// A draw that fans one edge out over two nodes sharing an `id` while a second, genuinely dangling
+// edge in the same apply targets a node never declared -- letting fan-out's positive tally cancel an unrelated negative one.
 const ConservationDraw = Schema.Struct({
   shared: FixtureValue,
   discriminator: FixtureValue,

@@ -4,11 +4,9 @@ import { Array } from "effect"
 import { boundedSemilatticeLaws } from "@evryg/effect-algebraic-laws"
 import { SetMap } from "./SetMap.js"
 
-// SetMap is the MERGE-dedup carrier: keys accumulate, values union, re-applying is a no-op. That makes
-// it a BOUNDED JOIN-SEMILATTICE under (concat, empty) — idempotent, commutative, associative, identity.
-// This is the algebra the append-only graph rests on: materializing the same fact twice (or in either
-// order, across two runs) collapses to one node. Proving the law here keeps that guarantee honest and
-// generic — the partition policy that decides WHICH key a fact merges on lives in the app.
+// SetMap is the MERGE-dedup carrier: keys accumulate, values union, re-applying is a no-op -- a
+// BOUNDED JOIN-SEMILATTICE under (concat, empty). This is the algebra the append-only graph rests
+// on: materializing the same fact twice, in either order, collapses to one node.
 
 const structuralEq = (a: SetMap, b: SetMap): boolean => {
   const keys = Array.fromIterable(new Set([...a.keys(), ...b.keys()]))
