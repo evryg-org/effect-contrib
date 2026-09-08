@@ -31,7 +31,7 @@ export const neo4jVertex = (
   opts?: {
     compositeKey?: Array<string>
     compositeIndexes?: Array<Array<string>>
-    fullTextIndex?: { name: string; fields: Array<string> }
+    fullTextIndexes?: Array<{ name: string; fields: Array<string> }>
   }
 ) => ({ neo4jLabel: label, ...opts })
 

@@ -27,7 +27,7 @@ const IndexedVertex = Schema.Struct({
   name: Schema.String
 }).annotate(neo4jVertex("Indexed", {
   compositeIndexes: [["id", "name"]],
-  fullTextIndex: { name: "indexed_search", fields: ["id", "name"] }
+  fullTextIndexes: [{ name: "indexed_search", fields: ["id", "name"] }]
 }))
 
 const KnowsEdge = Schema.Struct({
@@ -183,7 +183,7 @@ describe("compileToCypherDDL", () => {
     expect(ddl).toContain("CREATE INDEX IF NOT EXISTS FOR (n:Indexed) ON (n.id, n.name);")
   })
 
-  it("generates FULLTEXT INDEX for fullTextIndex", () => {
+  it("generates FULLTEXT INDEX for fullTextIndexes", () => {
     const ddl = compileToCypherDDL([IndexedVertex])
     expect(ddl).toContain(
       "CREATE FULLTEXT INDEX indexed_search IF NOT EXISTS FOR (n:Indexed) ON EACH [n.id, n.name];"
@@ -200,19 +200,19 @@ describe("compileToCypherDDL", () => {
     expect(ddl.trim()).toBe("")
   })
 
-  it("merges same-named fullTextIndex annotations across schemas into one statement", () => {
+  it("merges same-named fullTextIndexes entries across schemas into one statement", () => {
     const BookVertex = Schema.Struct({
       title: Schema.String,
       summary: Schema.optional(Schema.String)
     }).annotate(neo4jVertex("Book", {
-      fullTextIndex: { name: "content_search", fields: ["title", "summary"] }
+      fullTextIndexes: [{ name: "content_search", fields: ["title", "summary"] }]
     }))
 
     const AuthorVertex = Schema.Struct({
       title: Schema.String,
       summary: Schema.optional(Schema.String)
     }).annotate(neo4jVertex("Author", {
-      fullTextIndex: { name: "content_search", fields: ["title", "summary"] }
+      fullTextIndexes: [{ name: "content_search", fields: ["title", "summary"] }]
     }))
 
     const ddl = compileToCypherDDL([BookVertex, AuthorVertex])
@@ -222,18 +222,18 @@ describe("compileToCypherDDL", () => {
     ])
   })
 
-  it("throws when same-named fullTextIndex annotations declare different field lists", () => {
+  it("throws when same-named fullTextIndexes entries declare different field lists", () => {
     const BookVertex = Schema.Struct({
       title: Schema.String,
       summary: Schema.optional(Schema.String)
     }).annotate(neo4jVertex("Book", {
-      fullTextIndex: { name: "content_search", fields: ["title", "summary"] }
+      fullTextIndexes: [{ name: "content_search", fields: ["title", "summary"] }]
     }))
 
     const AuthorVertex = Schema.Struct({
       name: Schema.String
     }).annotate(neo4jVertex("Author", {
-      fullTextIndex: { name: "content_search", fields: ["name"] }
+      fullTextIndexes: [{ name: "content_search", fields: ["name"] }]
     }))
 
     expect(() => compileToCypherDDL([BookVertex, AuthorVertex])).toThrow(/content_search/)

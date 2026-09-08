@@ -53,8 +53,10 @@ export function compileToCypherDDL(schemas: Array<Schema.Top>): string {
     // Index names are store-global in Neo4j and ON EACH has no per-label scoping, so
     // same-named annotations merge their labels but must declare identical field lists;
     // a reserved line slot keeps a solo name's output byte-identical.
-    const fullTextIndex = annotations.fullTextIndex as { name: string; fields: Array<string> } | undefined
-    if (fullTextIndex) {
+    const fullTextIndexes = annotations.fullTextIndexes as
+      | Array<{ name: string; fields: Array<string> }>
+      | undefined
+    for (const fullTextIndex of fullTextIndexes ?? []) {
       const group = fullTextGroups.get(fullTextIndex.name)
       if (group) {
         const sameFields = group.fields.length === fullTextIndex.fields.length &&
