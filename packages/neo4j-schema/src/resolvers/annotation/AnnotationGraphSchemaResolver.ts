@@ -3,7 +3,7 @@
  */
 import { Effect, Layer } from "effect"
 import type { Schema } from "effect"
-import { EdgeConnectivity, EdgeProperty, GraphSchema, VertexProperty } from "../../GraphSchemaModel.js"
+import { EdgeConnectivity, EdgeProperty, FullTextIndex, GraphSchema, VertexProperty } from "../../GraphSchemaModel.js"
 import { GraphSchemaResolver } from "../../GraphSchemaResolver.js"
 
 // ── AST type mapping ──
@@ -51,6 +51,7 @@ export function compileToGraphSchema(schemas: Array<Schema.Top>): GraphSchema {
   const vertexProperties: Array<VertexProperty> = []
   const edgeProperties: Array<EdgeProperty> = []
   const edgeConnectivity: Array<EdgeConnectivity> = []
+  const fullTextGroups = new Map<string, { labels: Array<string>; fields: Array<string> }>()
 
   for (const schema of schemas) {
     const ast = schema.ast
@@ -68,6 +69,32 @@ export function compileToGraphSchema(schemas: Array<Schema.Top>): GraphSchema {
       if (connectivity) {
         for (const { from, to } of connectivity) {
           edgeConnectivity.push(new EdgeConnectivity({ edgeType, fromLabel: from, toLabel: to }))
+        }
+      }
+    }
+
+    // Index names are store-global, so same-named annotations merge their labels but must
+    // declare identical field lists — consistent with compileToCypherDDL's merge in Neo4jSchemaDDL.ts.
+    if (label) {
+      const fullTextIndexesAnno = annotations.fullTextIndexes as
+        | Array<{ name: string; fields: Array<string> }>
+        | undefined
+      for (const fullTextIndex of fullTextIndexesAnno ?? []) {
+        const group = fullTextGroups.get(fullTextIndex.name)
+        if (group) {
+          const sameFields = group.fields.length === fullTextIndex.fields.length &&
+            group.fields.every((f, i) => f === fullTextIndex.fields[i])
+          if (!sameFields) {
+            throw new Error(
+              `fullTextIndex "${fullTextIndex.name}" declares conflicting field lists: label ` +
+                `${label} declares [${fullTextIndex.fields.join(", ")}], but a schema already merged ` +
+                `into this index declares [${group.fields.join(", ")}]. Make the field lists identical, ` +
+                `or give ${label} a distinct index name.`
+            )
+          }
+          if (!group.labels.includes(label)) group.labels.push(label)
+        } else {
+          fullTextGroups.set(fullTextIndex.name, { labels: [label], fields: [...fullTextIndex.fields] })
         }
       }
     }
@@ -101,7 +128,12 @@ export function compileToGraphSchema(schemas: Array<Schema.Top>): GraphSchema {
     }
   }
 
-  return new GraphSchema({ vertexProperties, edgeProperties, edgeConnectivity })
+  const fullTextIndexes = Array.from(
+    fullTextGroups,
+    ([name, { fields, labels }]) => new FullTextIndex({ name, labels, fields })
+  )
+
+  return new GraphSchema({ vertexProperties, edgeProperties, edgeConnectivity, fullTextIndexes })
 }
 
 // ── Layer ──
