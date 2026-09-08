@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
 import { EdgeConnectivity, EdgeProperty, GraphSchema, VertexProperty } from "@evryg/effect-neo4j-schema"
-import { type CypherType, ListType, MapType, NullableType, ScalarType } from "../types/CypherType.js"
+import { type CypherType, ListType, MapType, NullableType, ScalarType, UnknownType } from "../types/CypherType.js"
 import { analyzeQuery, type ResolvedColumn, type ResolvedParam } from "./QueryAnalyzer.js"
 
 // ── Schema fixture mimicking a typical analysis graph ──
@@ -839,6 +839,20 @@ describe("analyzeQuery — CREATE/MERGE-bound variables in RETURN", () => {
     expect(result.columns).toEqual([
       col("id", S("String"), false),
       col("fqcn", S("String"), false)
+    ])
+  })
+})
+
+describe("analyzeQuery — CALL ... YIELD binds variables", () => {
+  it("binds YIELD variables into the environment for a standalone procedure call", () => {
+    const cypher = `CALL db.index.fulltext.queryNodes("class_search", $query) YIELD node, score
+                     WHERE node.name = $name
+                     WITH node, score
+                     RETURN node.name AS name, score`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([
+      col("name", new UnknownType({}), false),
+      col("score", new UnknownType({}), false)
     ])
   })
 })
