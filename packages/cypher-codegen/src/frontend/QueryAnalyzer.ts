@@ -3,7 +3,6 @@ import type { GraphSchema } from "@evryg/effect-neo4j-schema"
 import { CharStream, CommonTokenStream } from "antlr4ng"
 import * as antlr from "antlr4ng"
 import { CypherLexer } from "../internal/generated-parser/CypherLexer.js"
-import type { RelationshipPatternContext } from "../internal/generated-parser/CypherParser.js"
 import {
   CypherParser,
   ListExpressionContext,
@@ -11,8 +10,10 @@ import {
   NodePatternContext,
   ParameterContext,
   PatternElemContext,
+  type QueryCallStContext,
   ReadingStatementContext,
   RelationDetailContext,
+  type RelationshipPatternContext,
   SetItemContext,
   UnwindStContext,
   UpdatingStatementContext,
@@ -447,6 +448,20 @@ function extendEnvFromUnwind(env: TypeEnv, unwindSt: UnwindStContext, schema: Gr
   return newEnv
 }
 
+function extendEnvFromQueryCall(env: TypeEnv, queryCallSt: QueryCallStContext): TypeEnv {
+  const newEnv = new Map(env)
+  const items = queryCallSt.yieldItems()?.yieldItem() ?? []
+
+  for (const item of items) {
+    const symbols = item.symbol_()
+    const boundSymbol = symbols[symbols.length - 1]
+    if (!boundSymbol) continue
+    newEnv.set(boundSymbol.getText(), { type: new UnknownType({}), nullable: false })
+  }
+
+  return newEnv
+}
+
 function computeEnvFromProjection(
   projBody: ReturnType<WithStContext["projectionBody"]>,
   env: TypeEnv,
@@ -704,6 +719,8 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
         if (matchSt) env = extendEnvFromMatch(env, matchSt, schema)
         const unwindSt = child.unwindSt()
         if (unwindSt) env = extendEnvFromUnwind(env, unwindSt, schema)
+        const queryCallSt = child.queryCallSt()
+        if (queryCallSt) env = extendEnvFromQueryCall(env, queryCallSt)
       } else if (child instanceof UnwindStContext) {
         env = extendEnvFromUnwind(env, child, schema)
       } else if (child instanceof MatchStContext) {
@@ -724,6 +741,8 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
       if (matchSt) env = extendEnvFromMatch(env, matchSt, schema)
       const unwindSt = reading.unwindSt()
       if (unwindSt) env = extendEnvFromUnwind(env, unwindSt, schema)
+      const queryCallSt = reading.queryCallSt()
+      if (queryCallSt) env = extendEnvFromQueryCall(env, queryCallSt)
     }
     // Updating statements (CREATE/MERGE) follow reading statements in a singlePartQ;
     // bind their pattern variables so a trailing RETURN can resolve them.
