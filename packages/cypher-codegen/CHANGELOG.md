@@ -1,5 +1,24 @@
 # @evryg/effect-cypher-codegen
 
+## 0.5.0
+
+### Minor Changes
+
+- [#196](https://github.com/evryg-org/effect-contrib/pull/196) [`abc3234`](https://github.com/evryg-org/effect-contrib/commit/abc3234753ac127dfa5dd55dfecfc5ec07111d7b) Thanks @jbmusso! - `analyzeQuery` binds variables introduced by a `CALL ... YIELD` clause
+
+  The grammar already parses a standalone procedure call with a YIELD clause (`CALL proc(...) YIELD a, b`) without error, but `analyzeQuery`'s reading-statement walk only branched on `matchSt()` and `unwindSt()` — `queryCallSt()` was never checked, so the names introduced by YIELD never entered the type environment. Any query with a `WITH` or `RETURN` referencing a yielded name (e.g. after `CALL db.index.fulltext.queryNodes(...) YIELD node, score`) threw `CypherTypeError: Unbound variable`. Yielded names are now bound as `UnknownType` (non-nullable), mirroring the alias in `yieldItem : (symbol AS)? symbol` when one is present. Purely additive: no query that previously analyzed successfully changes meaning.
+
+  Follow-up not addressed here: a standalone `CALL proc()` with no `RETURN` at all routes through a different code path (`standaloneCall`) that can throw on a null `regularQuery()`; that is a separate, pre-existing gap.
+
+- [#198](https://github.com/evryg-org/effect-contrib/pull/198) [`c4279eb`](https://github.com/evryg-org/effect-contrib/commit/c4279eb695a93b09c6120cc60a33ee2e7f28ecb4) Thanks @jbmusso! - Type fulltext procedure results from declared index labels
+
+  `CALL db.index.fulltext.queryNodes("name", ...) YIELD node, score` bound both yielded variables as `UnknownType`, so property access on `node` degraded to the `Neo4jValue` escape hatch and callers got no more type safety than a hand-written cast. When the invocation is `db.index.fulltext.queryNodes` and the index name is a string literal, `extendEnvFromQueryCall` now looks it up in the schema's `fullTextIndexes` (see the paired `@evryg/effect-neo4j-schema` release) and binds the yielded node to `VertexType` for a single covered label or `VertexUnionType` for several, so property access infers real types through the existing union rule. A small static table also types `score` (and the equivalent yield from `db.index.fulltext.queryRelationships` and `db.index.vector.queryNodes`) as a numeric scalar even without a schema hit. The lookup is a name lookup against a string literal, not general procedure-signature inference: only these three builtin procedures are affected, their YIELD variables move from `UnknownType` to a precise type, and no other query's inferred type changes.
+
+### Patch Changes
+
+- Updated dependencies [[`c4279eb`](https://github.com/evryg-org/effect-contrib/commit/c4279eb695a93b09c6120cc60a33ee2e7f28ecb4)]:
+  - @evryg/effect-neo4j-schema@0.4.0
+
 ## 0.4.6
 
 ### Patch Changes
