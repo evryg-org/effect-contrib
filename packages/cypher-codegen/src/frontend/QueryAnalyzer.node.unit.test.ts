@@ -859,6 +859,16 @@ describe("analyzeQuery — CALL ... YIELD binds variables", () => {
     ])
   })
 
+  it("resolves the index name from a single-quoted literal", () => {
+    const cypher = `CALL db.index.fulltext.queryNodes('class_search', $query) YIELD node, score
+                     RETURN node.name AS name, score`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([
+      col("name", S("String"), false),
+      col("score", S("Double"), false)
+    ])
+  })
+
   it("types the yielded node as a VertexUnionType when the index covers several labels", () => {
     const multiLabelSchema = new GraphSchema({
       vertexProperties: [
