@@ -5,6 +5,7 @@ import * as antlr from "antlr4ng"
 import { CypherLexer } from "../internal/generated-parser/CypherLexer.js"
 import {
   CypherParser,
+  type ExpressionContext,
   ListExpressionContext,
   MatchStContext,
   NodePatternContext,
@@ -19,7 +20,7 @@ import {
   UpdatingStatementContext,
   WithStContext
 } from "../internal/generated-parser/CypherParser.js"
-import { type CypherType, EdgeType, UnknownType, VertexType, VertexUnionType } from "../types/CypherType.js"
+import { type CypherType, EdgeType, ScalarType, UnknownType, VertexType, VertexUnionType } from "../types/CypherType.js"
 import { inferExpressionType, type TypeEnv } from "./InferType.js"
 
 // ── Public types ──
@@ -448,15 +449,53 @@ function extendEnvFromUnwind(env: TypeEnv, unwindSt: UnwindStContext, schema: Gr
   return newEnv
 }
 
-function extendEnvFromQueryCall(env: TypeEnv, queryCallSt: QueryCallStContext): TypeEnv {
+// ── Fulltext/vector procedure result typing ──
+//
+// The index name is a string literal in the query, so this is a name lookup against the
+// schema's fullTextIndexes, not general procedure-signature inference. A small static table
+// covers the well-known builtins' YIELD shape so `score` types even without a schema hit.
+
+const FULLTEXT_PROCEDURE_YIELD_TYPES: ReadonlyMap<string, ReadonlyArray<CypherType>> = new Map([
+  ["db.index.fulltext.queryNodes", [new UnknownType({}), new ScalarType({ scalarType: "Double" })]],
+  ["db.index.fulltext.queryRelationships", [new UnknownType({}), new ScalarType({ scalarType: "Double" })]],
+  ["db.index.vector.queryNodes", [new UnknownType({}), new ScalarType({ scalarType: "Double" })]]
+])
+
+/** A bare double-quoted string literal, with no operators or property access applied to it. */
+function extractStringLiteral(expr: ExpressionContext | undefined): string | undefined {
+  return expr?.getText().match(/^"([^"\\]*)"$/)?.[1]
+}
+
+function resolveFullTextTargetLabels(
+  queryCallSt: QueryCallStContext,
+  schema: GraphSchema
+): ReadonlyArray<string> | undefined {
+  const [nameArg] = queryCallSt.parenExpressionChain()?.expressionChain()?.expression() ?? []
+  const indexName = extractStringLiteral(nameArg)
+  if (indexName === undefined) return undefined
+  const labels = schema.fullTextIndexes.find((index) => index.name === indexName)?.labels
+  return labels && labels.length > 0 ? labels : undefined
+}
+
+function extendEnvFromQueryCall(env: TypeEnv, queryCallSt: QueryCallStContext, schema: GraphSchema): TypeEnv {
   const newEnv = new Map(env)
   const items = queryCallSt.yieldItems()?.yieldItem() ?? []
+  const procedureName = queryCallSt.invocationName().getText()
+  const builtinTypes = FULLTEXT_PROCEDURE_YIELD_TYPES.get(procedureName)
+  const targetLabels = procedureName === "db.index.fulltext.queryNodes"
+    ? resolveFullTextTargetLabels(queryCallSt, schema)
+    : undefined
 
-  for (const item of items) {
+  for (const [i, item] of items.entries()) {
     const symbols = item.symbol_()
     const boundSymbol = symbols[symbols.length - 1]
     if (!boundSymbol) continue
-    newEnv.set(boundSymbol.getText(), { type: new UnknownType({}), nullable: false })
+    const targetType = i === 0 && targetLabels
+      ? (targetLabels.length === 1
+        ? new VertexType({ label: targetLabels[0] })
+        : new VertexUnionType({ labels: targetLabels }))
+      : undefined
+    newEnv.set(boundSymbol.getText(), { type: targetType ?? builtinTypes?.[i] ?? new UnknownType({}), nullable: false })
   }
 
   return newEnv
@@ -720,7 +759,7 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
         const unwindSt = child.unwindSt()
         if (unwindSt) env = extendEnvFromUnwind(env, unwindSt, schema)
         const queryCallSt = child.queryCallSt()
-        if (queryCallSt) env = extendEnvFromQueryCall(env, queryCallSt)
+        if (queryCallSt) env = extendEnvFromQueryCall(env, queryCallSt, schema)
       } else if (child instanceof UnwindStContext) {
         env = extendEnvFromUnwind(env, child, schema)
       } else if (child instanceof MatchStContext) {
@@ -742,7 +781,7 @@ export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis
       const unwindSt = reading.unwindSt()
       if (unwindSt) env = extendEnvFromUnwind(env, unwindSt, schema)
       const queryCallSt = reading.queryCallSt()
-      if (queryCallSt) env = extendEnvFromQueryCall(env, queryCallSt)
+      if (queryCallSt) env = extendEnvFromQueryCall(env, queryCallSt, schema)
     }
     // Updating statements (CREATE/MERGE) follow reading statements in a singlePartQ;
     // bind their pattern variables so a trailing RETURN can resolve them.
