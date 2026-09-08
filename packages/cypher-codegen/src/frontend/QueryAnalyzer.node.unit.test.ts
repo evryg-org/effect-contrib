@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
-import { EdgeConnectivity, EdgeProperty, GraphSchema, VertexProperty } from "@evryg/effect-neo4j-schema"
-import { type CypherType, ListType, MapType, NullableType, ScalarType, UnknownType } from "../types/CypherType.js"
+import { EdgeConnectivity, EdgeProperty, FullTextIndex, GraphSchema, VertexProperty } from "@evryg/effect-neo4j-schema"
+import { type CypherType, ListType, MapType, NullableType, ScalarType } from "../types/CypherType.js"
 import { analyzeQuery, type ResolvedColumn, type ResolvedParam } from "./QueryAnalyzer.js"
 
 // ── Schema fixture mimicking a typical analysis graph ──
@@ -69,6 +69,9 @@ const schema = new GraphSchema({
     new EdgeProperty({ edgeType: "USES", propertyName: "edge_count", propertyTypes: ["Double"], mandatory: true }),
     new EdgeProperty({ edgeType: "USES", propertyName: "reason", propertyTypes: ["String"], mandatory: true }),
     new EdgeProperty({ edgeType: "EVIDENCED_BY", propertyName: "role", propertyTypes: ["String"], mandatory: true })
+  ],
+  fullTextIndexes: [
+    new FullTextIndex({ name: "class_search", labels: ["Class"], fields: ["name"] })
   ]
 })
 
@@ -844,15 +847,49 @@ describe("analyzeQuery — CREATE/MERGE-bound variables in RETURN", () => {
 })
 
 describe("analyzeQuery — CALL ... YIELD binds variables", () => {
-  it("binds YIELD variables into the environment for a standalone procedure call", () => {
+  it("types the yielded node and score from a fulltext index registered in the schema", () => {
     const cypher = `CALL db.index.fulltext.queryNodes("class_search", $query) YIELD node, score
                      WHERE node.name = $name
                      WITH node, score
                      RETURN node.name AS name, score`
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual([
-      col("name", new UnknownType({}), false),
-      col("score", new UnknownType({}), false)
+      col("name", S("String"), false),
+      col("score", S("Double"), false)
     ])
+  })
+
+  it("types the yielded node as a VertexUnionType when the index covers several labels", () => {
+    const multiLabelSchema = new GraphSchema({
+      vertexProperties: [
+        new VertexProperty({ labels: ["Class"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
+        new VertexProperty({ labels: ["Method"], propertyName: "name", propertyTypes: ["String"], mandatory: true })
+      ],
+      edgeProperties: [],
+      fullTextIndexes: [
+        new FullTextIndex({ name: "text_search", labels: ["Class", "Method"], fields: ["name"] })
+      ]
+    })
+    const cypher = `CALL db.index.fulltext.queryNodes("text_search", $query) YIELD node, score
+                     RETURN node.name AS name, score`
+    const result = analyzeQuery(cypher, multiLabelSchema)
+    expect(result.columns).toEqual([
+      col("name", S("String"), false),
+      col("score", S("Double"), false)
+    ])
+  })
+
+  it("still types score via the builtin table when the index name has no schema entry", () => {
+    const cypher = `CALL db.index.fulltext.queryNodes("unregistered_search", $query) YIELD node, score
+                     RETURN score`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([col("score", S("Double"), false)])
+  })
+
+  it("types score for db.index.vector.queryNodes via the builtin table", () => {
+    const cypher = `CALL db.index.vector.queryNodes("embedding_search", 10, $vector) YIELD node, score
+                     RETURN score`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([col("score", S("Double"), false)])
   })
 })
