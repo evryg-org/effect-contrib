@@ -10,6 +10,7 @@ import type { Schema } from "effect"
  */
 export function compileToCypherDDL(schemas: Array<Schema.Top>): string {
   const lines: Array<string> = []
+  const fullTextGroups = new Map<string, { labels: Array<string>; fields: Array<string>; lineIndex: number }>()
 
   for (const schema of schemas) {
     const ast = schema.ast
@@ -49,11 +50,27 @@ export function compileToCypherDDL(schemas: Array<Schema.Top>): string {
       }
     }
 
+    // Index names are store-global in Neo4j, so schemas sharing a name are grouped into one
+    // multi-label statement; a reserved line slot keeps a solo name's output byte-identical.
     const fullTextIndex = annotations.fullTextIndex as { name: string; fields: Array<string> } | undefined
     if (fullTextIndex) {
-      const fields = fullTextIndex.fields.map((f) => `n.${f}`).join(", ")
-      lines.push(`CREATE FULLTEXT INDEX ${fullTextIndex.name} IF NOT EXISTS FOR (n:${label}) ON EACH [${fields}];`)
+      const group = fullTextGroups.get(fullTextIndex.name)
+      if (group) {
+        if (!group.labels.includes(label)) group.labels.push(label)
+        for (const f of fullTextIndex.fields) if (!group.fields.includes(f)) group.fields.push(f)
+      } else {
+        fullTextGroups.set(fullTextIndex.name, {
+          labels: [label],
+          fields: [...fullTextIndex.fields],
+          lineIndex: lines.push("") - 1
+        })
+      }
     }
+  }
+
+  for (const [name, { fields, labels, lineIndex }] of fullTextGroups) {
+    const fieldList = fields.map((f) => `n.${f}`).join(", ")
+    lines[lineIndex] = `CREATE FULLTEXT INDEX ${name} IF NOT EXISTS FOR (n:${labels.join("|")}) ON EACH [${fieldList}];`
   }
 
   return lines.join("\n")
