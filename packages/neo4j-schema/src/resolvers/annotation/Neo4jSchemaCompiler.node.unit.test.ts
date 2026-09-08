@@ -239,4 +239,23 @@ describe("compileToCypherDDL", () => {
     expect(() => compileToCypherDDL([BookVertex, AuthorVertex])).toThrow(/content_search/)
     expect(() => compileToCypherDDL([BookVertex, AuthorVertex])).toThrow(/Author/)
   })
+
+  it("generates one FULLTEXT INDEX per entry when a vertex declares multiple fullTextIndexes", () => {
+    const BookVertex = Schema.Struct({
+      title: Schema.String,
+      summary: Schema.optional(Schema.String)
+    }).annotate(neo4jVertex("Book", {
+      fullTextIndexes: [
+        { name: "title_search", fields: ["title"] },
+        { name: "content_search", fields: ["title", "summary"] }
+      ]
+    }))
+
+    const ddl = compileToCypherDDL([BookVertex])
+    const fullTextLines = ddl.split("\n").filter((line) => line.includes("FULLTEXT"))
+    expect(fullTextLines).toEqual([
+      "CREATE FULLTEXT INDEX title_search IF NOT EXISTS FOR (n:Book) ON EACH [n.title];",
+      "CREATE FULLTEXT INDEX content_search IF NOT EXISTS FOR (n:Book) ON EACH [n.title, n.summary];"
+    ])
+  })
 })
