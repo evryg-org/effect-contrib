@@ -1,5 +1,12 @@
 # @evryg/effect-cypher-codegen
 
+## 0.4.6
+
+### Patch Changes
+
+- Updated dependencies [[`46929ec`](https://github.com/evryg-org/effect-contrib/commit/46929ec5e566d295e5d59b4e0ebbd99855deab6e)]:
+  - @evryg/effect-neo4j-schema@0.3.0
+
 ## 0.4.5
 
 ### Patch Changes
