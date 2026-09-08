@@ -461,9 +461,10 @@ const FULLTEXT_PROCEDURE_YIELD_TYPES: ReadonlyMap<string, ReadonlyArray<CypherTy
   ["db.index.vector.queryNodes", [new UnknownType({}), new ScalarType({ scalarType: "Double" })]]
 ])
 
-/** A bare double-quoted string literal, with no operators or property access applied to it. */
+/** A bare single- or double-quoted string literal, with no operators or property access applied to it. */
 function extractStringLiteral(expr: ExpressionContext | undefined): string | undefined {
-  return expr?.getText().match(/^"([^"\\]*)"$/)?.[1]
+  const match = expr?.getText().match(/^"([^"\\]*)"$|^'([^'\\]*)'$/)
+  return match?.[1] ?? match?.[2]
 }
 
 function resolveFullTextTargetLabels(
