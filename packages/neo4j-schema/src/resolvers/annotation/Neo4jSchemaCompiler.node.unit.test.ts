@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Schema } from "effect"
+import { FullTextIndex } from "../../GraphSchemaModel.js"
 import { neo4jEdge, neo4jIndexed, neo4jUnique, neo4jVertex } from "../../Neo4jSchemaAnnotations.js"
 import { compileToCypherDDL } from "../../Neo4jSchemaDDL.js"
 import { compileToGraphSchema } from "./AnnotationGraphSchemaResolver.js"
@@ -154,6 +155,52 @@ describe("compileToGraphSchema", () => {
       const mergedProps = schema.vertexProperties.filter((p) => p.labels.includes("Merged"))
       const names = mergedProps.map((p) => p.propertyName).sort()
       expect(names).toEqual(["extra", "id"])
+    })
+  })
+
+  describe("fullTextIndexes", () => {
+    it("emits a FullTextIndex for a single label", () => {
+      const schema = compileToGraphSchema([IndexedVertex])
+      expect(schema.fullTextIndexes).toEqual([
+        new FullTextIndex({ name: "indexed_search", labels: ["Indexed"], fields: ["id", "name"] })
+      ])
+    })
+
+    it("merges same-named entries across labels", () => {
+      const BookVertex = Schema.Struct({
+        title: Schema.String,
+        summary: Schema.optional(Schema.String)
+      }).annotate(neo4jVertex("Book", {
+        fullTextIndexes: [{ name: "content_search", fields: ["title", "summary"] }]
+      }))
+
+      const AuthorVertex = Schema.Struct({
+        title: Schema.String,
+        summary: Schema.optional(Schema.String)
+      }).annotate(neo4jVertex("Author", {
+        fullTextIndexes: [{ name: "content_search", fields: ["title", "summary"] }]
+      }))
+
+      const schema = compileToGraphSchema([BookVertex, AuthorVertex])
+      expect(schema.fullTextIndexes).toEqual([
+        new FullTextIndex({ name: "content_search", labels: ["Book", "Author"], fields: ["title", "summary"] })
+      ])
+    })
+
+    it("throws when same-named entries declare different field lists", () => {
+      const BookVertex = Schema.Struct({
+        title: Schema.String
+      }).annotate(neo4jVertex("Book", {
+        fullTextIndexes: [{ name: "content_search", fields: ["title"] }]
+      }))
+
+      const AuthorVertex = Schema.Struct({
+        name: Schema.String
+      }).annotate(neo4jVertex("Author", {
+        fullTextIndexes: [{ name: "content_search", fields: ["name"] }]
+      }))
+
+      expect(() => compileToGraphSchema([BookVertex, AuthorVertex])).toThrow(/content_search/)
     })
   })
 })

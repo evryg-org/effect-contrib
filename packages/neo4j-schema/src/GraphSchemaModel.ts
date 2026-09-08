@@ -41,10 +41,24 @@ export class EdgeConnectivity extends Schema.Class<EdgeConnectivity>("EdgeConnec
  * @since 0.0.1
  * @category models
  */
+export class FullTextIndex extends Schema.Class<FullTextIndex>("FullTextIndex")({
+  name: Schema.String,
+  labels: Schema.Array(Schema.String),
+  fields: Schema.Array(Schema.String)
+}) {}
+
+/**
+ * @since 0.0.1
+ * @category models
+ */
 export class GraphSchema extends Schema.Class<GraphSchema>("GraphSchema")({
   vertexProperties: Schema.Array(VertexProperty),
   edgeProperties: Schema.Array(EdgeProperty),
   edgeConnectivity: Schema.Array(EdgeConnectivity).pipe(
+    Schema.withDecodingDefaultType(Effect.succeed([])),
+    Schema.withConstructorDefault(Effect.succeed([]))
+  ),
+  fullTextIndexes: Schema.Array(FullTextIndex).pipe(
     Schema.withDecodingDefaultType(Effect.succeed([])),
     Schema.withConstructorDefault(Effect.succeed([]))
   )

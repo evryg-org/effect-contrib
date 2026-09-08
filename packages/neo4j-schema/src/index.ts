@@ -13,6 +13,10 @@ export {
   /**
    * @since 0.0.1
    */
+  FullTextIndex,
+  /**
+   * @since 0.0.1
+   */
   GraphSchema,
   /**
    * @since 0.0.1
