@@ -50,14 +50,24 @@ export function compileToCypherDDL(schemas: Array<Schema.Top>): string {
       }
     }
 
-    // Index names are store-global in Neo4j, so schemas sharing a name are grouped into one
-    // multi-label statement; a reserved line slot keeps a solo name's output byte-identical.
+    // Index names are store-global in Neo4j and ON EACH has no per-label scoping, so
+    // same-named annotations merge their labels but must declare identical field lists;
+    // a reserved line slot keeps a solo name's output byte-identical.
     const fullTextIndex = annotations.fullTextIndex as { name: string; fields: Array<string> } | undefined
     if (fullTextIndex) {
       const group = fullTextGroups.get(fullTextIndex.name)
       if (group) {
+        const sameFields = group.fields.length === fullTextIndex.fields.length &&
+          group.fields.every((f, i) => f === fullTextIndex.fields[i])
+        if (!sameFields) {
+          throw new Error(
+            `fullTextIndex "${fullTextIndex.name}" declares conflicting field lists: label ` +
+              `${label} declares [${fullTextIndex.fields.join(", ")}], but a schema already merged ` +
+              `into this index declares [${group.fields.join(", ")}]. Make the field lists identical, ` +
+              `or give ${label} a distinct index name.`
+          )
+        }
         if (!group.labels.includes(label)) group.labels.push(label)
-        for (const f of fullTextIndex.fields) if (!group.fields.includes(f)) group.fields.push(f)
       } else {
         fullTextGroups.set(fullTextIndex.name, {
           labels: [label],
