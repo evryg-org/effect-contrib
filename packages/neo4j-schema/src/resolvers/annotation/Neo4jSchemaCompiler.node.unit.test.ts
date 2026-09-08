@@ -199,4 +199,25 @@ describe("compileToCypherDDL", () => {
     const ddl = compileToCypherDDL([KnowsEdge])
     expect(ddl.trim()).toBe("")
   })
+
+  it("merges same-named fullTextIndex annotations across schemas into one statement", () => {
+    const BookVertex = Schema.Struct({
+      title: Schema.String,
+      summary: Schema.optional(Schema.String)
+    }).annotate(neo4jVertex("Book", {
+      fullTextIndex: { name: "content_search", fields: ["title", "summary"] }
+    }))
+
+    const AuthorVertex = Schema.Struct({
+      name: Schema.String
+    }).annotate(neo4jVertex("Author", {
+      fullTextIndex: { name: "content_search", fields: ["name"] }
+    }))
+
+    const ddl = compileToCypherDDL([BookVertex, AuthorVertex])
+    const contentSearchLines = ddl.split("\n").filter((line) => line.includes("content_search"))
+    expect(contentSearchLines).toEqual([
+      "CREATE FULLTEXT INDEX content_search IF NOT EXISTS FOR (n:Book|Author) ON EACH [n.title, n.summary, n.name];"
+    ])
+  })
 })
