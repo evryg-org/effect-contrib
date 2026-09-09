@@ -59,6 +59,10 @@ export {
    */
   analyzeQuery,
   /**
+   * @since 0.6.0
+   */
+  CypherSyntaxError,
+  /**
    * @since 0.0.1
    */
   type Neo4jType,
