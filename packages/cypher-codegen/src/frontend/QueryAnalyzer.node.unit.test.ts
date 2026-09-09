@@ -1020,3 +1020,32 @@ describe("analyzeQuery — EXISTS and COUNT subquery bodies", () => {
     expect(analyzeQuery(cypher, itemSchema).columns).toEqual(idColumn)
   })
 })
+
+describe("analyzeQuery — property access after a list index", () => {
+  it("parses an indexed property access in an ORDER BY expression", () => {
+    const cypher = `MATCH (i:Item)
+                    WITH collect({rank: i.rank}) AS items
+                    ORDER BY items[0].rank
+                    RETURN items`
+    expect(analyzeQuery(cypher, itemSchema).columns).toEqual([
+      col("items", ListType(MapType([{ name: "rank", value: S("Long") }])), false)
+    ])
+  })
+
+  it("types an indexed property access in a RETURN projection", () => {
+    const cypher = `MATCH (i:Item)
+                    WITH collect({rank: i.rank}) AS items
+                    RETURN items[0].rank AS topRank`
+    expect(analyzeQuery(cypher, itemSchema).columns).toEqual([col("topRank", S("Long"), false)])
+  })
+
+  it("types a single-element index into a list property", () => {
+    const cypher = "MATCH (i:Item) RETURN i.tags[0] AS firstTag"
+    expect(analyzeQuery(cypher, itemSchema).columns).toEqual([col("firstTag", S("String"), false)])
+  })
+
+  it("types a range slice of a list property as a list", () => {
+    const cypher = "MATCH (i:Item) RETURN i.tags[1..3] AS someTags"
+    expect(analyzeQuery(cypher, itemSchema).columns).toEqual([col("someTags", ListType(S("String")), false)])
+  })
+})
