@@ -935,3 +935,40 @@ describe("analyzeQuery — unparseable input", () => {
     expect(result.params).toEqual([param("id", "String"), param("status", "String", true)])
   })
 })
+
+// ── FOREACH ──
+
+describe("analyzeQuery — FOREACH", () => {
+  const expectedColumns = [col("id", S("String"), false), col("status", S("String"), true)]
+
+  it("resolves the RETURN columns of a query whose FOREACH follows a WITH", () => {
+    const cypher = `MERGE (o:Order {id: $id})
+                    WITH o
+                    FOREACH (_ IN CASE WHEN o.total > $threshold THEN [1] ELSE [] END |
+                      SET o.status = $status
+                    )
+                    RETURN o.id AS id, o.status AS status`
+    const result = analyzeQuery(cypher, orderSchema)
+    expect(result.columns).toEqual(expectedColumns)
+  })
+
+  it("resolves the RETURN columns of a query whose FOREACH precedes a WITH", () => {
+    const cypher = `MERGE (o:Order {id: $id})
+                    FOREACH (_ IN CASE WHEN o.total > $threshold THEN [1] ELSE [] END |
+                      SET o.status = $status
+                    )
+                    WITH o
+                    RETURN o.id AS id, o.status AS status`
+    const result = analyzeQuery(cypher, orderSchema)
+    expect(result.columns).toEqual(expectedColumns)
+  })
+
+  it("scopes a variable bound inside the FOREACH body to that body", () => {
+    const cypher = `MERGE (o:Order {id: $id})
+                    FOREACH (label IN $labels |
+                      MERGE (t:Tag {name: label})
+                    )
+                    RETURN t.name AS tag`
+    expect(() => analyzeQuery(cypher, orderSchema)).toThrow(/Unbound variable 't'/)
+  })
+})
