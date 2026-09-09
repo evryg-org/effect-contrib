@@ -903,3 +903,35 @@ describe("analyzeQuery — CALL ... YIELD binds variables", () => {
     expect(result.columns).toEqual([col("score", S("Double"), false)])
   })
 })
+
+// ── Unparseable input ──
+
+const orderSchema = new GraphSchema({
+  vertexProperties: [
+    new VertexProperty({ labels: ["Order"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Order"], propertyName: "status", propertyTypes: ["String"], mandatory: false }),
+    new VertexProperty({ labels: ["Order"], propertyName: "total", propertyTypes: ["Long"], mandatory: true }),
+    new VertexProperty({ labels: ["Tag"], propertyName: "name", propertyTypes: ["String"], mandatory: true })
+  ],
+  edgeProperties: []
+})
+
+describe("analyzeQuery — unparseable input", () => {
+  const malformed = "MATCH (o:Order) WHERE RETURN o.id AS id"
+
+  it("throws instead of reporting zero columns", () => {
+    expect(() => analyzeQuery(malformed, orderSchema)).toThrow()
+  })
+
+  it("reports the line, the column and the offending token", () => {
+    expect(() => analyzeQuery(malformed, orderSchema)).toThrow(/line 1:22/)
+    expect(() => analyzeQuery(malformed, orderSchema)).toThrow(/RETURN/)
+  })
+
+  it("still analyzes a write-only query with no RETURN as zero columns", () => {
+    const cypher = "MERGE (o:Order {id: $id}) SET o.status = $status"
+    const result = analyzeQuery(cypher, orderSchema)
+    expect(result.columns).toEqual([])
+    expect(result.params).toEqual([param("id", "String"), param("status", "String", true)])
+  })
+})
