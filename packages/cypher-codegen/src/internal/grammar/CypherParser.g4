@@ -247,7 +247,7 @@ atomicExpression
 
 listExpression
     : IN propertyOrLabelExpression
-    | LBRACK (expression? RANGE expression? | expression) RBRACK
+    | LBRACK expression? RANGE expression? RBRACK
     ;
 
 stringExpression
@@ -269,7 +269,12 @@ propertyOrLabelExpression
     ;
 
 propertyExpression
-    : atom (DOT name)*
+    : atom propertyPostfix*
+    ;
+
+propertyPostfix
+    : DOT name
+    | LBRACK expression RBRACK
     ;
 
 patternPart
@@ -333,11 +338,17 @@ unionSt
     ;
 
 subqueryExist
-    : EXISTS LBRACE (regularQuery | patternWhere) RBRACE
+    : EXISTS LBRACE subqueryBody RBRACE
     ;
 
 countSubquery
-    : COUNT LBRACE (regularQuery | patternWhere) RBRACE
+    : COUNT LBRACE subqueryBody RBRACE
+    ;
+
+subqueryBody
+    : regularQuery
+    | readingStatement+
+    | patternWhere
     ;
 
 invocationName
