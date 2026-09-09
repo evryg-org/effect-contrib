@@ -13,6 +13,8 @@ export {
 export { enrichVertexKeys } from "./GraphOpScope.js"
 export { enrichVertexKeysBy } from "./Partition.js"
 export type { PartitionKey, PartitionKeyFor } from "./Partition.js"
+export { enrichVertexPropertiesBy } from "./Attribution.js"
+export type { VertexAttribution, VertexAttributionFor } from "./Attribution.js"
 export type {
   GraphOp as GraphOpType,
   GraphOpArray as GraphOpArrayType,
