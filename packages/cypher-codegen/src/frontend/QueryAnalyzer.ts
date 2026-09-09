@@ -255,8 +255,8 @@ function extendEnvFromMatch(env: TypeEnv, matchSt: MatchStContext, schema: Graph
 }
 
 // Bind variables introduced by CREATE/MERGE patterns. Unlike OPTIONAL MATCH, a
-// created/merged node always exists, so its binding is never nullable. Other
-// updating clauses (DELETE/SET/REMOVE) introduce no new variables.
+// created/merged node always exists, so its binding is never nullable.
+// DELETE/SET/REMOVE bind nothing, and FOREACH binds only inside its own body.
 function extendEnvFromCreate(env: TypeEnv, updatingSt: UpdatingStatementContext): TypeEnv {
   const createSt = updatingSt.createSt()
   const mergeSt = updatingSt.mergeSt()
