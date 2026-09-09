@@ -972,3 +972,51 @@ describe("analyzeQuery — FOREACH", () => {
     expect(() => analyzeQuery(cypher, orderSchema)).toThrow(/Unbound variable 't'/)
   })
 })
+
+// ── Subquery expressions and postfix indexing ──
+
+const itemSchema = new GraphSchema({
+  vertexProperties: [
+    new VertexProperty({ labels: ["Item"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Item"], propertyName: "rank", propertyTypes: ["Long"], mandatory: true }),
+    new VertexProperty({ labels: ["Item"], propertyName: "tags", propertyTypes: ["StringArray"], mandatory: true }),
+    new VertexProperty({ labels: ["Facet"], propertyName: "name", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Facet"], propertyName: "weight", propertyTypes: ["Long"], mandatory: true })
+  ],
+  edgeProperties: [
+    new EdgeProperty({ edgeType: "HAS_FACET", propertyName: "role", propertyTypes: ["String"], mandatory: false })
+  ]
+})
+
+describe("analyzeQuery — EXISTS and COUNT subquery bodies", () => {
+  const idColumn = [col("id", S("String"), false)]
+
+  it.each([
+    {
+      label: "NOT EXISTS over a bare MATCH body",
+      cypher: "MATCH (i:Item) WHERE NOT EXISTS { MATCH (i)-[:HAS_FACET]->(:Facet) } RETURN i.id AS id"
+    },
+    {
+      label: "EXISTS over a MATCH body carrying its own WHERE",
+      cypher: `MATCH (i:Item)
+               WHERE EXISTS { MATCH (i)-[:HAS_FACET]->(f:Facet) WHERE f.weight > 3 }
+               RETURN i.id AS id`
+    },
+    {
+      label: "EXISTS over a bare pattern body",
+      cypher: "MATCH (i:Item) WHERE EXISTS { (i)-[:HAS_FACET]->(:Facet) } RETURN i.id AS id"
+    },
+    {
+      label: "COUNT over a MATCH body",
+      cypher: "MATCH (i:Item) WHERE COUNT { MATCH (i)-[:HAS_FACET]->(:Facet) } > 2 RETURN i.id AS id"
+    },
+    {
+      label: "EXISTS over a MATCH body ending in RETURN",
+      cypher: `MATCH (i:Item)
+               WHERE EXISTS { MATCH (i)-[:HAS_FACET]->(f:Facet) RETURN f }
+               RETURN i.id AS id`
+    }
+  ])("$label", ({ cypher }) => {
+    expect(analyzeQuery(cypher, itemSchema).columns).toEqual(idColumn)
+  })
+})
