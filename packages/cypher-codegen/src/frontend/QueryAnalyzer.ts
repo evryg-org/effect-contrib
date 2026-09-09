@@ -734,11 +734,13 @@ function extractParams(tree: ReturnType<typeof parse>, schema: GraphSchema): Arr
     const propExpr = item.propertyExpression()
     if (!propExpr) return
 
-    // LHS must be a simple `var.prop` (single property segment).
-    const names = propExpr.name()
-    if (names.length !== 1) return
+    // LHS must be a simple `var.prop` (a single dot-access postfix, no indexing).
+    const postfixes = propExpr.propertyPostfix()
+    if (postfixes.length !== 1) return
+    const nameCtx = postfixes[0]!.name()
+    if (!nameCtx) return
     const varName = propExpr.atom().getText()
-    const property = names[0]!.getText()
+    const property = nameCtx.getText()
 
     const expr = item.expression()
     if (!expr) return

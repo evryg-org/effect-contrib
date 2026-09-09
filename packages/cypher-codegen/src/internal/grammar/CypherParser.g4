@@ -247,7 +247,7 @@ atomicExpression
 
 listExpression
     : IN propertyOrLabelExpression
-    | LBRACK (expression? RANGE expression? | expression) RBRACK
+    | LBRACK expression? RANGE expression? RBRACK
     ;
 
 stringExpression
@@ -269,7 +269,12 @@ propertyOrLabelExpression
     ;
 
 propertyExpression
-    : atom (DOT name)*
+    : atom propertyPostfix*
+    ;
+
+propertyPostfix
+    : DOT name
+    | LBRACK expression RBRACK
     ;
 
 patternPart

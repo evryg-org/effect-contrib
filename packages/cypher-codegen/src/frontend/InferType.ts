@@ -323,16 +323,16 @@ function inferAtomicType(
   const strExprs = atomic.stringExpression()
   if (strExprs && strExprs.length > 0) return new ScalarType({ scalarType: "Boolean" })
 
-  // Check for list expressions (IN predicate or array indexing)
+  // Check for list expressions (IN predicate or a range slice)
   const listExprs = atomic.listExpression()
   if (listExprs && listExprs.length > 0) {
     const listExpr = listExprs[0]
     // IN predicate → boolean
     if (listExpr.IN()) return new ScalarType({ scalarType: "Boolean" })
-    // Array indexing [expr] → element type of the base expression, unwrapping NullableType
+    // Range slice [from..to] → a list of the same element type, unwrapping NullableType
     const baseType = inferPropertyExpressionType(propOrLabel.propertyExpression(), env, schema)
     const unwrapped = stripNullable(baseType)
-    if (unwrapped._tag === "ListType") return unwrapped.element
+    if (unwrapped._tag === "ListType") return unwrapped
     throw new CypherTypeError(`Cannot index into non-list type '${baseType._tag}'`)
   }
 
@@ -347,22 +347,31 @@ function inferPropertyExpressionType(
   env: TypeEnv,
   schema: GraphSchema
 ): CypherType {
-  // propertyExpression: atom (DOT name)*
+  // propertyExpression: atom propertyPostfix*
   const atom = propExpr.atom()
-  const dotNames = propExpr.name()
+  const postfixes = propExpr.propertyPostfix()
 
   const atomType = inferAtomType(atom, env, schema)
 
-  // No property access — just the atom
-  if (!dotNames || dotNames.length === 0) return atomType
+  // No postfix access — just the atom
+  if (!postfixes || postfixes.length === 0) return atomType
 
   // Check if the base variable is nullable (e.g. from OPTIONAL MATCH)
   const symbol = atom.symbol()
   const varNullable = symbol ? env.get(symbol.getText())?.nullable === true : false
 
-  // Property chain: resolve through dot access
+  // Postfix chain: apply dot access and single-element indexing left to right
   let current = atomType
-  for (const nameCtx of dotNames) {
+  for (const postfix of postfixes) {
+    const nameCtx = postfix.name()
+    if (!nameCtx) {
+      const indexed = stripNullable(current)
+      if (indexed._tag !== "ListType") {
+        throw new CypherTypeError(`Cannot index into non-list type '${current._tag}'`)
+      }
+      current = indexed.element
+      continue
+    }
     const propName = nameCtx.getText()
     if (current._tag === "VertexType") {
       const vertexType = current
@@ -427,6 +436,15 @@ function inferPropertyExpressionType(
         && found.every((l) => l.result!.mandatory)
       const resolvedType = found[0].result!.type
       current = allMandatory ? resolvedType : NullableType(resolvedType)
+    } else if (current._tag === "MapType") {
+      const field = current.fields.find((f) => f.name === propName)
+      if (!field) {
+        const available = current.fields.map((f) => f.name)
+        throw new CypherTypeError(
+          `Field '${propName}' not found on map type. Available: [${available.join(", ")}]`
+        )
+      }
+      current = field.value
     } else if (current._tag === "UnknownType") {
       // Property access on UnknownType (e.g., unlabeled node) — sound: result is UnknownType
       // We can't verify the property exists statically, but can't reject it either
@@ -710,8 +728,8 @@ function extractIsNotNullVar(expr: ExpressionContext): string | undefined {
   const propExpr = propOrLabel.propertyExpression()
   if (!propExpr) return undefined
   const symbol = propExpr.atom()?.symbol()
-  // Only narrow bare variables (no dot access in the IS NOT NULL check)
-  if (!symbol || (propExpr.name() && propExpr.name().length > 0)) return undefined
+  // Only narrow bare variables (no postfix access in the IS NOT NULL check)
+  if (!symbol || propExpr.propertyPostfix().length > 0) return undefined
   return symbol.getText()
 }
 
