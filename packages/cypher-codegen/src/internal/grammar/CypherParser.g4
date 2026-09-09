@@ -333,11 +333,17 @@ unionSt
     ;
 
 subqueryExist
-    : EXISTS LBRACE (regularQuery | patternWhere) RBRACE
+    : EXISTS LBRACE subqueryBody RBRACE
     ;
 
 countSubquery
-    : COUNT LBRACE (regularQuery | patternWhere) RBRACE
+    : COUNT LBRACE subqueryBody RBRACE
+    ;
+
+subqueryBody
+    : regularQuery
+    | readingStatement+
+    | patternWhere
     ;
 
 invocationName
