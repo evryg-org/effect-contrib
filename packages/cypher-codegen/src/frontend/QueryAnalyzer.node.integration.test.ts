@@ -143,6 +143,26 @@ layer(TestNeo4j, { timeout: "120 seconds" })("QueryAnalyzer — schema extractio
       }
     }))
 
+  it.effect("analyzes a FOREACH query that a real Neo4j runs", () =>
+    Effect.gen(function*() {
+      yield* CleanNeo4jGraph
+      const client = yield* Neo4jClient
+      yield* client.query(`CREATE (:Order {id: "o1", status: "new", total: 10})`)
+
+      const schema = yield* extractSchema()
+      const cypher = `MERGE (o:Order {id: $id})
+                      WITH o
+                      FOREACH (_ IN CASE WHEN o.total > $threshold THEN [1] ELSE [] END |
+                        SET o.status = $status
+                      )
+                      RETURN o.id AS id, o.status AS status`
+
+      const rows = yield* client.query(cypher, { id: "o1", status: "shipped", threshold: 5 })
+
+      expect(rows.map((r) => r.get("status"))).toEqual(["shipped"])
+      expect(analyzeQuery(cypher, schema).columns.map((c) => c.name)).toEqual(["id", "status"])
+    }))
+
   it.effect("analyzeQuery produces no UnknownType for representative .cypher files", () =>
     Effect.gen(function*() {
       yield* CleanNeo4jGraph

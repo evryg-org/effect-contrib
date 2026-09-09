@@ -122,6 +122,7 @@ updatingStatement
     | deleteSt
     | setSt
     | removeSt
+    | foreachSt
     ;
 
 deleteSt
@@ -177,6 +178,10 @@ nodeLabels
 
 createSt
     : CREATE pattern
+    ;
+
+foreachSt
+    : FOREACH LPAREN symbol IN expression STICK updatingStatement+ RPAREN
     ;
 
 patternWhere
@@ -503,4 +508,5 @@ reservedWord
     | OF
     | ADD
     | DROP
+    | FOREACH
     ;

@@ -903,3 +903,72 @@ describe("analyzeQuery — CALL ... YIELD binds variables", () => {
     expect(result.columns).toEqual([col("score", S("Double"), false)])
   })
 })
+
+// ── Unparseable input ──
+
+const orderSchema = new GraphSchema({
+  vertexProperties: [
+    new VertexProperty({ labels: ["Order"], propertyName: "id", propertyTypes: ["String"], mandatory: true }),
+    new VertexProperty({ labels: ["Order"], propertyName: "status", propertyTypes: ["String"], mandatory: false }),
+    new VertexProperty({ labels: ["Order"], propertyName: "total", propertyTypes: ["Long"], mandatory: true }),
+    new VertexProperty({ labels: ["Tag"], propertyName: "name", propertyTypes: ["String"], mandatory: true })
+  ],
+  edgeProperties: []
+})
+
+describe("analyzeQuery — unparseable input", () => {
+  const malformed = "MATCH (o:Order) WHERE RETURN o.id AS id"
+
+  it("throws instead of reporting zero columns", () => {
+    expect(() => analyzeQuery(malformed, orderSchema)).toThrow()
+  })
+
+  it("reports the line, the column and the offending token", () => {
+    expect(() => analyzeQuery(malformed, orderSchema)).toThrow(/line 1:22/)
+    expect(() => analyzeQuery(malformed, orderSchema)).toThrow(/RETURN/)
+  })
+
+  it("still analyzes a write-only query with no RETURN as zero columns", () => {
+    const cypher = "MERGE (o:Order {id: $id}) SET o.status = $status"
+    const result = analyzeQuery(cypher, orderSchema)
+    expect(result.columns).toEqual([])
+    expect(result.params).toEqual([param("id", "String"), param("status", "String", true)])
+  })
+})
+
+// ── FOREACH ──
+
+describe("analyzeQuery — FOREACH", () => {
+  const expectedColumns = [col("id", S("String"), false), col("status", S("String"), true)]
+
+  it("resolves the RETURN columns of a query whose FOREACH follows a WITH", () => {
+    const cypher = `MERGE (o:Order {id: $id})
+                    WITH o
+                    FOREACH (_ IN CASE WHEN o.total > $threshold THEN [1] ELSE [] END |
+                      SET o.status = $status
+                    )
+                    RETURN o.id AS id, o.status AS status`
+    const result = analyzeQuery(cypher, orderSchema)
+    expect(result.columns).toEqual(expectedColumns)
+  })
+
+  it("resolves the RETURN columns of a query whose FOREACH precedes a WITH", () => {
+    const cypher = `MERGE (o:Order {id: $id})
+                    FOREACH (_ IN CASE WHEN o.total > $threshold THEN [1] ELSE [] END |
+                      SET o.status = $status
+                    )
+                    WITH o
+                    RETURN o.id AS id, o.status AS status`
+    const result = analyzeQuery(cypher, orderSchema)
+    expect(result.columns).toEqual(expectedColumns)
+  })
+
+  it("scopes a variable bound inside the FOREACH body to that body", () => {
+    const cypher = `MERGE (o:Order {id: $id})
+                    FOREACH (label IN $labels |
+                      MERGE (t:Tag {name: label})
+                    )
+                    RETURN t.name AS tag`
+    expect(() => analyzeQuery(cypher, orderSchema)).toThrow(/Unbound variable 't'/)
+  })
+})

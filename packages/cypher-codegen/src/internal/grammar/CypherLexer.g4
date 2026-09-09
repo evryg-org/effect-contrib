@@ -128,6 +128,7 @@ OF         : 'OF';
 ADD        : 'ADD';
 DROP       : 'DROP';
 REDUCE     : 'REDUCE';
+FOREACH    : 'FOREACH';
 
 ID: Letter LetterOrDigit*;
 

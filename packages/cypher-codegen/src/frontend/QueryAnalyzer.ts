@@ -77,15 +77,52 @@ export interface QueryAnalysis {
   readonly params: ReadonlyArray<ResolvedParam>
 }
 
+/**
+ * Raised when a query cannot be parsed at all, as opposed to parsing into a
+ * tree whose types do not check (`CypherTypeError`).
+ *
+ * @since 0.6.0
+ * @category errors
+ */
+export class CypherSyntaxError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "CypherSyntaxError"
+  }
+}
+
 // ── ANTLR parsing ──
+
+class SyntaxErrorCollector extends antlr.BaseErrorListener {
+  readonly diagnostics: Array<string> = []
+
+  override syntaxError<S extends antlr.Token, T extends antlr.ATNSimulator>(
+    _recognizer: antlr.Recognizer<T>,
+    offendingSymbol: S | null,
+    line: number,
+    column: number,
+    message: string
+  ): void {
+    const token = offendingSymbol?.text
+    this.diagnostics.push(`line ${line}:${column} ${message}${token === undefined ? "" : ` (at '${token}')`}`)
+  }
+}
 
 function parse(cypher: string) {
   const input = CharStream.fromString(cypher)
   const lexer = new CypherLexer(input)
+  const collector = new SyntaxErrorCollector()
+  lexer.removeErrorListeners()
+  lexer.addErrorListener(collector)
   const tokens = new CommonTokenStream(lexer)
   const parser = new CypherParser(tokens)
   parser.removeErrorListeners()
-  return parser.script()
+  parser.addErrorListener(collector)
+  const tree = parser.script()
+  if (collector.diagnostics.length > 0) {
+    throw new CypherSyntaxError(`Cannot parse Cypher query:\n${collector.diagnostics.join("\n")}`)
+  }
+  return tree
 }
 
 // ── Schema lookup (for params — stays flat) ──
@@ -218,8 +255,8 @@ function extendEnvFromMatch(env: TypeEnv, matchSt: MatchStContext, schema: Graph
 }
 
 // Bind variables introduced by CREATE/MERGE patterns. Unlike OPTIONAL MATCH, a
-// created/merged node always exists, so its binding is never nullable. Other
-// updating clauses (DELETE/SET/REMOVE) introduce no new variables.
+// created/merged node always exists, so its binding is never nullable.
+// DELETE/SET/REMOVE bind nothing, and FOREACH binds only inside its own body.
 function extendEnvFromCreate(env: TypeEnv, updatingSt: UpdatingStatementContext): TypeEnv {
   const createSt = updatingSt.createSt()
   const mergeSt = updatingSt.mergeSt()
