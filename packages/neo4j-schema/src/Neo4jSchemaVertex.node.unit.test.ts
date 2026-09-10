@@ -9,6 +9,12 @@ import { neo4jPartition, neo4jProperties, neo4jVertexStruct } from "./Neo4jSchem
 // same shape. ──
 
 describe("neo4jVertexStruct", () => {
+  const assertSameDDL = (newWay: Schema.Top, oldWay: Schema.Top) =>
+    expect(compileToCypherDDL([newWay])).toBe(compileToCypherDDL([oldWay]))
+
+  const hasAnnotation = (struct: Schema.Top, key: string) =>
+    Object.prototype.hasOwnProperty.call(struct.ast.annotations ?? {}, key)
+
   describe("DDL parity with hand-written neo4jVertex", () => {
     it("partition + own key, unique: compositeKey is [...partitionFields, ...ownKey]", () => {
       const OldWay = Schema.Struct({
@@ -25,7 +31,7 @@ describe("neo4jVertexStruct", () => {
         mode: "unique"
       })
 
-      expect(compileToCypherDDL([NewWay])).toBe(compileToCypherDDL([OldWay]))
+      assertSameDDL(NewWay, OldWay)
     })
 
     it("omitted mode defaults to unique: compositeKey is emitted, compositeIndexes is not", () => {
@@ -42,11 +48,10 @@ describe("neo4jVertexStruct", () => {
         ownKey: ["serverId"]
       })
 
-      expect(compileToCypherDDL([NewWay])).toBe(compileToCypherDDL([OldWay]))
+      assertSameDDL(NewWay, OldWay)
 
-      const annotations = (NewWay.ast.annotations ?? {}) as Record<string, unknown>
-      expect(Object.prototype.hasOwnProperty.call(annotations, "compositeKey")).toBe(true)
-      expect(Object.prototype.hasOwnProperty.call(annotations, "compositeIndexes")).toBe(false)
+      expect(hasAnnotation(NewWay, "compositeKey")).toBe(true)
+      expect(hasAnnotation(NewWay, "compositeIndexes")).toBe(false)
     })
 
     it("partition + a non-key properties group: those fields are present as properties, absent from the key", () => {
@@ -66,7 +71,7 @@ describe("neo4jVertexStruct", () => {
         mode: "unique"
       })
 
-      expect(compileToCypherDDL([NewWay])).toBe(compileToCypherDDL([OldWay]))
+      assertSameDDL(NewWay, OldWay)
       expect(Object.keys(NewWay.fields).sort()).toEqual(["createdAt", "displayName", "region", "tenant"])
     })
 
@@ -85,7 +90,7 @@ describe("neo4jVertexStruct", () => {
         mode: "index"
       })
 
-      expect(compileToCypherDDL([NewWay])).toBe(compileToCypherDDL([OldWay]))
+      assertSameDDL(NewWay, OldWay)
     })
 
     it("no partition, two independent composite indexes: no compositeKey at all", () => {
@@ -102,7 +107,7 @@ describe("neo4jVertexStruct", () => {
         compositeIndexes: [["id", "name"], ["name", "email"]]
       })
 
-      expect(compileToCypherDDL([NewWay])).toBe(compileToCypherDDL([OldWay]))
+      assertSameDDL(NewWay, OldWay)
     })
 
     it("a key-derived index is emitted before additional independent compositeIndexes", () => {
@@ -124,7 +129,7 @@ describe("neo4jVertexStruct", () => {
         compositeIndexes: [["hostname", "region"]]
       })
 
-      expect(compileToCypherDDL([NewWay])).toBe(compileToCypherDDL([OldWay]))
+      assertSameDDL(NewWay, OldWay)
     })
   })
 
@@ -135,8 +140,7 @@ describe("neo4jVertexStruct", () => {
         compositeIndexes: [["id"]]
       })
 
-      const annotations = (NewWay.ast.annotations ?? {}) as Record<string, unknown>
-      expect(Object.prototype.hasOwnProperty.call(annotations, "compositeKey")).toBe(false)
+      expect(hasAnnotation(NewWay, "compositeKey")).toBe(false)
 
       const ddl = compileToCypherDDL([NewWay])
       expect(ddl).not.toContain("REQUIRE ()")
@@ -162,7 +166,7 @@ describe("neo4jVertexStruct", () => {
         fullTextIndexes: [{ name: "author_search", fields: ["name", "bio"] }]
       })
 
-      expect(compileToCypherDDL([NewWay])).toBe(compileToCypherDDL([OldWay]))
+      assertSameDDL(NewWay, OldWay)
     })
   })
 })

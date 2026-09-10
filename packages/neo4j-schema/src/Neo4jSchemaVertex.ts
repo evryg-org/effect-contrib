@@ -1,6 +1,7 @@
 /**
  * @since 0.0.1
  */
+import type { Types } from "effect"
 import { Schema } from "effect"
 import { neo4jVertex } from "./Neo4jSchemaAnnotations.js"
 
@@ -144,19 +145,19 @@ interface VertexStructCommonOptions<
    * collision fails to typecheck instead of silently shadowing the group's
    * field.
    */
-  readonly fields: OwnFields & NoShadow<OwnFields, NoInfer<keyof PartitionFields | keyof PropertiesFields>>
+  readonly fields: OwnFields & NoShadow<OwnFields, Types.NoInfer<keyof PartitionFields | keyof PropertiesFields>>
   /**
    * Composite indexes independent of the vertex's own key. When `mode` and a
    * key are also present, the key-derived index (if any) is emitted first,
    * followed by these, in declaration order.
    */
   readonly compositeIndexes?: ReadonlyArray<
-    ReadonlyArray<NoInfer<MergedFieldName<OwnFields, PartitionFields, PropertiesFields>>>
+    ReadonlyArray<Types.NoInfer<MergedFieldName<OwnFields, PartitionFields, PropertiesFields>>>
   >
   /** Passed straight through to {@link neo4jVertex}'s `fullTextIndexes`. */
   readonly fullTextIndexes?: ReadonlyArray<{
     readonly name: string
-    readonly fields: ReadonlyArray<NoInfer<MergedFieldName<OwnFields, PartitionFields, PropertiesFields>>>
+    readonly fields: ReadonlyArray<Types.NoInfer<MergedFieldName<OwnFields, PartitionFields, PropertiesFields>>>
   }>
 }
 
@@ -196,11 +197,9 @@ export const neo4jVertexStruct = <
   label: string,
   opts: VertexStructOptions<OwnFields, PartitionFields, PropertiesFields>
 ): Schema.Struct<OwnFields & PartitionFields & PropertiesFields> => {
-  const partitionFields = opts.partition?.fields ?? {}
-  const propertiesFields = opts.properties?.fields ?? {}
   const mergedFields = {
-    ...partitionFields,
-    ...propertiesFields,
+    ...(opts.partition?.fields ?? {}),
+    ...(opts.properties?.fields ?? {}),
     ...opts.fields
   } as unknown as OwnFields & PartitionFields & PropertiesFields
 
@@ -208,9 +207,10 @@ export const neo4jVertexStruct = <
   const isIndexMode = opts.mode === "index"
   const compositeKey = !isIndexMode && keyFields.length > 0 ? keyFields : undefined
 
-  const compositeIndexes: Array<Array<string>> = []
-  if (isIndexMode && keyFields.length > 0) compositeIndexes.push(keyFields)
-  for (const index of opts.compositeIndexes ?? []) compositeIndexes.push([...index])
+  const compositeIndexes: Array<Array<string>> = [
+    ...(isIndexMode && keyFields.length > 0 ? [keyFields] : []),
+    ...(opts.compositeIndexes ?? []).map((index) => [...index])
+  ]
 
   const fullTextIndexes = opts.fullTextIndexes?.map(({ fields, name }) => ({ name, fields: [...fields] }))
 
