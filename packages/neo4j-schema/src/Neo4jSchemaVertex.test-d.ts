@@ -19,6 +19,16 @@ describe("neo4jVertexStruct — valid usage still typechecks", () => {
     ).not.toBeNever()
   })
 
+  it("partition + own key, mode omitted defaults to unique", () => {
+    expectTypeOf(
+      neo4jVertexStruct("Server", {
+        partition,
+        fields: { serverId: Schema.String },
+        ownKey: ["serverId"]
+      })
+    ).not.toBeNever()
+  })
+
   it("no partition, no own key, only independent composite indexes", () => {
     expectTypeOf(
       neo4jVertexStruct("Server", {
@@ -66,6 +76,11 @@ describe("neo4jVertexStruct — illegal states are unrepresentable", () => {
   it("row 6b: a unique key with an empty own key and no partition", () => {
     // @ts-expect-error an empty ownKey isn't a non-empty tuple, and there is no partition either
     neo4jVertexStruct("X6b", { fields: { id: Schema.String }, ownKey: [], mode: "unique" })
+  })
+
+  it("row 6c: an omitted mode still defaults to unique, so an empty own key is illegal there too", () => {
+    // @ts-expect-error mode defaults to "unique"; an empty ownKey and no partition names nothing to be unique on
+    neo4jVertexStruct("X6c", { fields: { id: Schema.String }, ownKey: [] })
   })
 
   it("row 7: an index names a property that does not exist", () => {

@@ -97,25 +97,38 @@ type MergedFieldName<
 /**
  * The vertex's key, modeled as a union so "unique but nothing to be unique
  * on" cannot be constructed:
- * - `mode: "unique"` requires a `partition` and/or a non-empty `ownKey`.
- * - `mode: "index"` (the default when omitted) accepts either, both, or
- *   neither — an absent key simply contributes nothing.
+ * - A key exists once a `partition` and/or a non-empty `ownKey` is given,
+ *   and it defaults to `mode: "unique"` when `mode` is omitted. Unique is
+ *   the default on purpose: a migrator who forgets `mode` must land on the
+ *   stronger guarantee, never silently on a weaker one — 34 of the 36 real
+ *   vertices this module was built for use a unique composite key, only 2
+ *   use a plain index.
+ * - `mode: "index"` is the explicit opt-out into a plain composite index;
+ *   `partition`/`ownKey` stay optional there.
+ * - With neither a `partition` nor an `ownKey`, there is no key at all, so
+ *   `mode` must be absent — `mode: "unique"` naming nothing to be unique on
+ *   is exactly the illegal state this union forbids.
  */
 type VertexKey<OwnFields extends Schema.Struct.Fields, PartitionFields extends Schema.Struct.Fields> =
   | {
-    readonly mode: "unique"
+    readonly mode?: "unique"
     readonly partition: Partition<PartitionFields>
     readonly ownKey?: ReadonlyArray<keyof OwnFields & string>
   }
   | {
-    readonly mode: "unique"
+    readonly mode?: "unique"
     readonly partition?: undefined
     readonly ownKey: readonly [keyof OwnFields & string, ...ReadonlyArray<keyof OwnFields & string>]
   }
   | {
-    readonly mode?: "index"
+    readonly mode: "index"
     readonly partition?: Partition<PartitionFields>
     readonly ownKey?: ReadonlyArray<keyof OwnFields & string>
+  }
+  | {
+    readonly mode?: undefined
+    readonly partition?: undefined
+    readonly ownKey?: undefined
   }
 
 interface VertexStructCommonOptions<
@@ -166,9 +179,12 @@ type VertexStructOptions<
  * construction.
  *
  * The merged struct's fields are `partition`'s, then `properties`', then the
- * vertex's own, in that order. `compositeKey`/`compositeIndexes` are omitted
- * entirely (never emitted as `[]`) when the vertex has no key, since an
- * empty array is truthy and would otherwise compile to `REQUIRE ()`.
+ * vertex's own, in that order. When a key exists (a `partition` and/or a
+ * non-empty `ownKey`), it defaults to `mode: "unique"`; `mode: "index"` is
+ * the explicit opt-out into a plain composite index instead.
+ * `compositeKey`/`compositeIndexes` are omitted entirely (never emitted as
+ * `[]`) when the vertex has no key, since an empty array is truthy and
+ * would otherwise compile to `REQUIRE ()`.
  *
  * @since 0.0.1
  * @category constructors
@@ -190,10 +206,11 @@ export const neo4jVertexStruct = <
   } as unknown as OwnFields & PartitionFields & PropertiesFields
 
   const keyFields = [...(opts.partition?.keyFields ?? []), ...(opts.ownKey ?? [])]
-  const compositeKey = opts.mode === "unique" && keyFields.length > 0 ? keyFields : undefined
+  const isIndexMode = opts.mode === "index"
+  const compositeKey = !isIndexMode && keyFields.length > 0 ? keyFields : undefined
 
   const compositeIndexes: Array<Array<string>> = []
-  if (opts.mode !== "unique" && keyFields.length > 0) compositeIndexes.push(keyFields)
+  if (isIndexMode && keyFields.length > 0) compositeIndexes.push(keyFields)
   for (const index of opts.compositeIndexes ?? []) compositeIndexes.push([...index])
 
   const fullTextIndexes = opts.fullTextIndexes?.map(({ fields, name }) => ({ name, fields: [...fields] }))

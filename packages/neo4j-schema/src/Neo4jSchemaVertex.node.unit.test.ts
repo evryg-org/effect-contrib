@@ -28,6 +28,27 @@ describe("neo4jVertexStruct", () => {
       expect(compileToCypherDDL([NewWay])).toBe(compileToCypherDDL([OldWay]))
     })
 
+    it("omitted mode defaults to unique: compositeKey is emitted, compositeIndexes is not", () => {
+      const OldWay = Schema.Struct({
+        region: Schema.String,
+        tenant: Schema.String,
+        serverId: Schema.String
+      }).annotate(neo4jVertex("Server1b", { compositeKey: ["region", "tenant", "serverId"] }))
+
+      const partition = neo4jPartition({ region: Schema.String, tenant: Schema.String })
+      const NewWay = neo4jVertexStruct("Server1b", {
+        partition,
+        fields: { serverId: Schema.String },
+        ownKey: ["serverId"]
+      })
+
+      expect(compileToCypherDDL([NewWay])).toBe(compileToCypherDDL([OldWay]))
+
+      const annotations = (NewWay.ast.annotations ?? {}) as Record<string, unknown>
+      expect(Object.prototype.hasOwnProperty.call(annotations, "compositeKey")).toBe(true)
+      expect(Object.prototype.hasOwnProperty.call(annotations, "compositeIndexes")).toBe(false)
+    })
+
     it("partition + a non-key properties group: those fields are present as properties, absent from the key", () => {
       const OldWay = Schema.Struct({
         region: Schema.String,
