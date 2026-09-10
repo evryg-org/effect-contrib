@@ -23,18 +23,68 @@ type NoShadow<Fields extends Schema.Struct.Fields, Shadowed extends PropertyKey>
   readonly [K in Extract<keyof Fields, Shadowed>]: ShadowedFieldError<K & string>
 }
 
+// ── Branded error for optional/nullable key members ──
+
+declare const OptionalKeyFieldErrorId: unique symbol
+
+/**
+ * Substituted for the type of a partition field that is optional or
+ * nullable. A key member must be present and non-null on every vertex, so a
+ * field whose key is optional or whose type admits `undefined` or `null`
+ * fails to typecheck as a key member instead of silently weakening the
+ * identity constraint.
+ */
+interface OptionalKeyFieldError<Name extends string> {
+  readonly [OptionalKeyFieldErrorId]:
+    `neo4jVertexStruct: field "${Name}" cannot be a key member — key fields must be required and non-nullable`
+}
+
+/**
+ * The names of `Fields` whose schemas may name a key member: required keys
+ * whose type admits neither `undefined` nor `null`. Optional and nullable
+ * fields are excluded, because a vertex missing a key member breaks the
+ * totality of the partition's equivalence relation and escapes Neo4j's
+ * composite `IS UNIQUE` constraint (which binds only nodes that possess all
+ * constrained properties).
+ */
+type KeyEligibleFieldName<Fields extends Schema.Struct.Fields> =
+  & {
+    [K in keyof Fields]: Fields[K]["~type.optionality"] extends "optional" ? never
+      : undefined extends Fields[K]["Type"] ? never
+      : null extends Fields[K]["Type"] ? never
+      : K
+  }[keyof Fields]
+  & string
+
+type NoOptionalKeyFields<Fields extends Schema.Struct.Fields> = {
+  readonly [K in Exclude<keyof Fields, KeyEligibleFieldName<Fields>> & string]: OptionalKeyFieldError<K>
+}
+
 // ── Groups ──
 
 /**
  * An ordered, reusable group of properties that partitions the vertex set
  * and prefixes a vertex's composite key.
  *
- * **Why "partition" is the right word.** An ordered key-prefix group induces
- * an equivalence relation on vertices — same prefix value, same block — and
- * the blocks it defines are pairwise disjoint and cover the vertex set, with
- * the key acting as the quotient map. Edges spanning blocks are ordinary cut
- * edges. That is graph partitioning in the mathematical sense, regardless of
- * whether the underlying store implements physical partitioning.
+ * **Why "partition" is the right word.** Projecting each vertex onto this
+ * group's fields sends it to a tuple of key values. Because every field in
+ * the group must be required and non-nullable — optional and nullable
+ * fields are rejected at the type level — that projection is total, so
+ * "same tuple" is an equivalence relation on the vertex set: its blocks are
+ * pairwise disjoint, they cover the vertex set, and the projection is, up
+ * to the canonical bijection between tuples and blocks, the quotient map
+ * onto them. Cross-block edges form the cut induced by the partition. That
+ * is graph partitioning in the mathematical sense — a statement about
+ * vertex identity, not physical placement: it neither requests nor implies
+ * that the store co-locates a block's vertices, unlike the storage-level
+ * features that share the name (e.g. JanusGraph's explicit graph
+ * partitioning, or the Cassandra partition key behind DSE Graph's
+ * `partitionBy`).
+ *
+ * Note that the full composite key `[...partition fields, ...ownKey]` plays
+ * a different role: under a uniqueness constraint it is injective, so the
+ * block structure comes from this prefix alone — the own-key suffix refines
+ * each block down to individual vertices.
  *
  * There is no `order` option: the key order IS `fields`' declaration order,
  * so there is no second statement of order that could disagree with the
@@ -65,11 +115,20 @@ export interface Properties<Fields extends Schema.Struct.Fields> {
  * vertex set and prefixes a vertex's composite key. See {@link Partition}
  * for why "partition" is the precise word for this concept.
  *
+ * Every field in the group must be required and non-nullable; an optional or
+ * nullable field is rejected at the type level. The schema layer has to
+ * enforce this because the emitted DDL alone cannot: Neo4j's composite
+ * `IS UNIQUE` constraint binds only nodes that possess all constrained
+ * properties (property existence is a separate `NODE KEY` concern), and a
+ * Cypher `MERGE` on a key with a null member is a runtime error — so an
+ * optional key member would silently exempt vertices from the identity
+ * constraint instead of participating in it.
+ *
  * @since 0.0.1
  * @category constructors
  */
 export const neo4jPartition = <const Fields extends Schema.Struct.Fields>(
-  fields: Fields
+  fields: Fields & NoOptionalKeyFields<Fields>
 ): Partition<Fields> => ({
   fields,
   keyFields: Object.keys(fields) as ReadonlyArray<keyof Fields & string>
@@ -108,22 +167,26 @@ type MergedFieldName<
  * - With neither a `partition` nor an `ownKey`, there is no key at all, so
  *   `mode` must be absent — `mode: "unique"` naming nothing to be unique on
  *   is exactly the illegal state this union forbids.
+ *
+ * `ownKey` members must be required, non-nullable fields — an optional or
+ * nullable field is not nameable in a key, for the same reason
+ * {@link neo4jPartition} rejects one as a partition member.
  */
 type VertexKey<OwnFields extends Schema.Struct.Fields, PartitionFields extends Schema.Struct.Fields> =
   | {
     readonly mode?: "unique"
     readonly partition: Partition<PartitionFields>
-    readonly ownKey?: ReadonlyArray<keyof OwnFields & string>
+    readonly ownKey?: ReadonlyArray<KeyEligibleFieldName<OwnFields>>
   }
   | {
     readonly mode?: "unique"
     readonly partition?: undefined
-    readonly ownKey: readonly [keyof OwnFields & string, ...ReadonlyArray<keyof OwnFields & string>]
+    readonly ownKey: readonly [KeyEligibleFieldName<OwnFields>, ...ReadonlyArray<KeyEligibleFieldName<OwnFields>>]
   }
   | {
     readonly mode: "index"
     readonly partition?: Partition<PartitionFields>
-    readonly ownKey?: ReadonlyArray<keyof OwnFields & string>
+    readonly ownKey?: ReadonlyArray<KeyEligibleFieldName<OwnFields>>
   }
   | {
     readonly mode?: undefined

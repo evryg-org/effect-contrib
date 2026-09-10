@@ -37,6 +37,22 @@ describe("neo4jVertexStruct — valid usage still typechecks", () => {
       })
     ).not.toBeNever()
   })
+
+  it("optional and nullable fields are fine everywhere outside the key", () => {
+    expectTypeOf(
+      neo4jVertexStruct("Server", {
+        partition,
+        fields: {
+          serverId: Schema.String,
+          bio: Schema.optional(Schema.String),
+          notes: Schema.NullOr(Schema.String)
+        },
+        ownKey: ["serverId"],
+        compositeIndexes: [["bio", "notes"]],
+        fullTextIndexes: [{ name: "server_search", fields: ["bio"] }]
+      })
+    ).not.toBeNever()
+  })
 })
 
 // ── illegal states must be unrepresentable ──
@@ -91,5 +107,30 @@ describe("neo4jVertexStruct — illegal states are unrepresentable", () => {
   it("row 8: a Properties group passed where a partition belongs", () => {
     // @ts-expect-error `properties` has no `keyFields`, so it cannot satisfy `Partition`
     neo4jVertexStruct("X8", { partition: properties, fields: { id: Schema.String } })
+  })
+
+  it("row 9a: an optional field in a partition", () => {
+    // @ts-expect-error "when" is optional; a key member must be required and non-nullable
+    neo4jPartition({ region: Schema.String, when: Schema.optional(Schema.String) })
+  })
+
+  it("row 9b: a nullable field in a partition", () => {
+    // @ts-expect-error "region" admits null; a key member must be required and non-nullable
+    neo4jPartition({ region: Schema.NullOr(Schema.String) })
+  })
+
+  it("row 9c: an optional-key field in a partition", () => {
+    // @ts-expect-error "region" has an optional key; a key member must be required and non-nullable
+    neo4jPartition({ region: Schema.optionalKey(Schema.String) })
+  })
+
+  it("row 10a: an optional own field named in ownKey", () => {
+    // @ts-expect-error "id" is optional, so it is not nameable in a key
+    neo4jVertexStruct("X10a", { fields: { id: Schema.optional(Schema.String) }, ownKey: ["id"] })
+  })
+
+  it("row 10b: a nullable own field named in ownKey", () => {
+    // @ts-expect-error "id" admits null, so it is not nameable in a key
+    neo4jVertexStruct("X10b", { fields: { id: Schema.NullOr(Schema.String) }, ownKey: ["id"] })
   })
 })
