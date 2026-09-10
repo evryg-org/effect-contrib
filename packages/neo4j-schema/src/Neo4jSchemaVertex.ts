@@ -15,8 +15,7 @@ declare const ShadowedFieldErrorId: unique symbol
  * typecheck instead of silently shadowing the group's field.
  */
 interface ShadowedFieldError<Name extends string> {
-  readonly [ShadowedFieldErrorId]:
-    `neo4jVertexStruct: field "${Name}" is already declared by partition or properties`
+  readonly [ShadowedFieldErrorId]: `neo4jVertexStruct: field "${Name}" is already declared by partition or properties`
 }
 
 type NoShadow<Fields extends Schema.Struct.Fields, Shadowed extends PropertyKey> = {
@@ -145,19 +144,19 @@ interface VertexStructCommonOptions<
    * collision fails to typecheck instead of silently shadowing the group's
    * field.
    */
-  readonly fields: OwnFields & NoShadow<OwnFields, keyof PartitionFields | keyof PropertiesFields>
+  readonly fields: OwnFields & NoShadow<OwnFields, NoInfer<keyof PartitionFields | keyof PropertiesFields>>
   /**
    * Composite indexes independent of the vertex's own key. When `mode` and a
    * key are also present, the key-derived index (if any) is emitted first,
    * followed by these, in declaration order.
    */
   readonly compositeIndexes?: ReadonlyArray<
-    ReadonlyArray<MergedFieldName<OwnFields, PartitionFields, PropertiesFields>>
+    ReadonlyArray<NoInfer<MergedFieldName<OwnFields, PartitionFields, PropertiesFields>>>
   >
   /** Passed straight through to {@link neo4jVertex}'s `fullTextIndexes`. */
   readonly fullTextIndexes?: ReadonlyArray<{
     readonly name: string
-    readonly fields: ReadonlyArray<MergedFieldName<OwnFields, PartitionFields, PropertiesFields>>
+    readonly fields: ReadonlyArray<NoInfer<MergedFieldName<OwnFields, PartitionFields, PropertiesFields>>>
   }>
 }
 
