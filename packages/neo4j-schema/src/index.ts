@@ -77,6 +77,31 @@ export {
   /**
    * @since 0.0.1
    */
+  neo4jPartition,
+  /**
+   * @since 0.0.1
+   */
+  neo4jProperties,
+  /**
+   * @since 0.0.1
+   */
+  neo4jVertexStruct,
+  /**
+   * @since 0.0.1
+   */
+  type Partition,
+  /**
+   * @since 0.0.1
+   */
+  type Properties
+} from "./Neo4jSchemaVertex.js"
+/**
+ * @since 0.0.1
+ */
+export {
+  /**
+   * @since 0.0.1
+   */
   AnnotationGraphSchemaResolver,
   /**
    * @since 0.0.1
