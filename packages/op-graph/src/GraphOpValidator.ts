@@ -55,10 +55,10 @@ export function validateGraphOps(
     if (!allowed) {
       return [{ op: opKind, label, property: "*", message: `Unknown label "${label}"` }]
     }
-    const keyViolations = Object.keys(key)
+    const keyViolations = Record.keys(key)
       .filter((prop) => !allowed.has(prop))
       .map((prop) => ({ op: opKind, label, property: prop, message: `Undeclared key property "${prop}" on label "${label}"` }))
-    const propViolations = Object.keys(properties)
+    const propViolations = Record.keys(properties)
       .filter((prop) => !allowed.has(prop))
       .map((prop) => ({ op: opKind, label, property: prop, message: `Undeclared property "${prop}" on label "${label}"` }))
     return [...keyViolations, ...propViolations]
@@ -72,10 +72,10 @@ export function validateGraphOps(
         const edgeAllowed = index.get(e.label)
         const edgeViolations: ReadonlyArray<GraphOpViolation> = edgeAllowed
           ? [
-              ...Object.keys(e.key)
+              ...Record.keys(e.key)
                 .filter((prop) => !edgeAllowed.has(prop))
                 .map((prop) => ({ op: "UpsertEdge", label: e.label, property: prop, message: `Undeclared key property "${prop}" on relationship "${e.label}"` })),
-              ...Object.keys(e.properties)
+              ...Record.keys(e.properties)
                 .filter((prop) => !edgeAllowed.has(prop))
                 .map((prop) => ({ op: "UpsertEdge", label: e.label, property: prop, message: `Undeclared property "${prop}" on relationship "${e.label}"` })),
             ]
@@ -84,7 +84,7 @@ export function validateGraphOps(
         // from-vertex key fields
         const fromAllowed = index.get(e.from.label)
         const fromViolations: ReadonlyArray<GraphOpViolation> = fromAllowed
-          ? Object.keys(e.from.key)
+          ? Record.keys(e.from.key)
               .filter((prop) => !fromAllowed.has(prop))
               .map((prop) => ({ op: "UpsertEdge", label: e.from.label, property: prop, message: `Undeclared key property "${prop}" on from-label "${e.from.label}"` }))
           : [{ op: "UpsertEdge", label: e.from.label, property: "*", message: `Unknown from-label "${e.from.label}"` }]
@@ -92,7 +92,7 @@ export function validateGraphOps(
         // to-vertex key fields
         const toAllowed = index.get(e.to.label)
         const toViolations: ReadonlyArray<GraphOpViolation> = toAllowed
-          ? Object.keys(e.to.key)
+          ? Record.keys(e.to.key)
               .filter((prop) => !toAllowed.has(prop))
               .map((prop) => ({ op: "UpsertEdge", label: e.to.label, property: prop, message: `Undeclared key property "${prop}" on to-label "${e.to.label}"` }))
           : [{ op: "UpsertEdge", label: e.to.label, property: "*", message: `Unknown to-label "${e.to.label}"` }]

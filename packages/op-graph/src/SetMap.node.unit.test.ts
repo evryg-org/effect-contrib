@@ -1,3 +1,4 @@
+import { Array, Order } from "effect"
 import { describe, it, expect } from "@effect/vitest"
 import { SetMap } from "./SetMap.js"
 
@@ -67,7 +68,7 @@ describe("SetMap", () => {
     const m = SetMap.of([["a", "1"], ["b", "2"], ["a", "3"]])
     const e = SetMap.entries(m)
     expect(e.length).toBe(2)
-    expect(e.map(([k]) => k).sort()).toEqual(["a", "b"])
+    expect(Array.sort(e.map(([k]) => k), Order.String)).toEqual(["a", "b"])
   })
 
   describe("product", () => {

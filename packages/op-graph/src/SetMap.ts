@@ -1,4 +1,4 @@
-import { Array } from "effect"
+import { Array, Record } from "effect"
 
 /**
  * Commutative monoid: Map<string, Set<string>> with set-union merge.
@@ -10,13 +10,13 @@ export const SetMap = {
 
   of: (entries: ReadonlyArray<readonly [string, string]>): SetMap =>
     new Map(
-      Object.entries(Array.groupBy(entries, ([k]) => k)).map(
+      Record.toEntries(Array.groupBy(entries, ([k]) => k)).map(
         ([k, pairs]) => [k, new Set(pairs.map(([, v]) => v))] as const,
       ),
     ),
 
   concat: (a: SetMap, b: SetMap): SetMap => {
-    const keys = Array.dedupe([...[...a].map(([k]) => k), ...[...b].map(([k]) => k)])
+    const keys = Array.union([...a].map(([k]) => k), [...b].map(([k]) => k))
     return new Map(
       keys.map((k) => [k, new Set([...(a.get(k) ?? []), ...(b.get(k) ?? [])])] as const),
     )

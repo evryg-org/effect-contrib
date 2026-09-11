@@ -1,5 +1,5 @@
 import { describe, it, expect } from "@effect/vitest"
-import { Schema } from "effect"
+import { Schema, Record, Array, Order } from "effect"
 import { UpsertVertex, UpsertEdge, VertexRef, GraphOp, GraphOpArray } from "./GraphOp.js"
 
 describe("GraphOp Schema types", () => {
@@ -14,8 +14,8 @@ describe("GraphOp Schema types", () => {
   it("UpsertVertex key and properties are separate objects", () => {
     const v = new UpsertVertex({ label: "Class", key: { fqcn: "A" }, properties: { file: "src/A.php", name: "A" } })
     expect(v.key).not.toBe(v.properties)
-    expect(Object.keys(v.key)).toEqual(["fqcn"])
-    expect(Object.keys(v.properties).sort()).toEqual(["file", "name"])
+    expect(Record.keys(v.key)).toEqual(["fqcn"])
+    expect(Array.sort(Record.keys(v.properties), Order.String)).toEqual(["file", "name"])
   })
 
   it("UpsertEdge from/to are VertexRefs with label+key", () => {
