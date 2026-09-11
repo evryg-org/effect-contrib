@@ -71,27 +71,27 @@ export {
   compileToCypherDDL
 } from "./Neo4jSchemaDDL.js"
 /**
- * @since 0.0.1
+ * @since 0.5.0
  */
 export {
   /**
-   * @since 0.0.1
+   * @since 0.5.0
    */
   neo4jPartition,
   /**
-   * @since 0.0.1
+   * @since 0.5.0
    */
   neo4jProperties,
   /**
-   * @since 0.0.1
+   * @since 0.5.0
    */
   neo4jVertexStruct,
   /**
-   * @since 0.0.1
+   * @since 0.5.0
    */
   type Partition,
   /**
-   * @since 0.0.1
+   * @since 0.5.0
    */
   type Properties
 } from "./Neo4jSchemaVertex.js"

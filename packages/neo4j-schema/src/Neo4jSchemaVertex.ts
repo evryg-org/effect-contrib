@@ -1,5 +1,5 @@
 /**
- * @since 0.0.1
+ * @since 0.5.0
  */
 import type { Types } from "effect"
 import { Schema } from "effect"
@@ -90,7 +90,7 @@ type NoOptionalKeyFields<Fields extends Schema.Struct.Fields> = {
  * so there is no second statement of order that could disagree with the
  * first.
  *
- * @since 0.0.1
+ * @since 0.5.0
  * @category models
  */
 export interface Partition<Fields extends Schema.Struct.Fields> {
@@ -103,7 +103,7 @@ export interface Partition<Fields extends Schema.Struct.Fields> {
  * module can read a key contribution out of it. Use this for fields that
  * belong on the vertex but never participate in its composite key.
  *
- * @since 0.0.1
+ * @since 0.5.0
  * @category models
  */
 export interface Properties<Fields extends Schema.Struct.Fields> {
@@ -124,7 +124,7 @@ export interface Properties<Fields extends Schema.Struct.Fields> {
  * optional key member would silently exempt vertices from the identity
  * constraint instead of participating in it.
  *
- * @since 0.0.1
+ * @since 0.5.0
  * @category constructors
  */
 export const neo4jPartition = <const Fields extends Schema.Struct.Fields>(
@@ -138,7 +138,7 @@ export const neo4jPartition = <const Fields extends Schema.Struct.Fields>(
  * Declare a reusable group of properties that carries no order and never
  * contributes to a composite key. See {@link Properties}.
  *
- * @since 0.0.1
+ * @since 0.5.0
  * @category constructors
  */
 export const neo4jProperties = <const Fields extends Schema.Struct.Fields>(
@@ -249,7 +249,7 @@ type VertexStructOptions<
  * `[]`) when the vertex has no key, since an empty array is truthy and
  * would otherwise compile to `REQUIRE ()`.
  *
- * @since 0.0.1
+ * @since 0.5.0
  * @category constructors
  */
 export const neo4jVertexStruct = <
