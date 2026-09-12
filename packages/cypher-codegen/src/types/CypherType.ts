@@ -31,7 +31,7 @@ export class ScalarType extends Schema.TaggedClass<ScalarType>()("ScalarType", {
  * of a CASE (and, recursively, any nested CASE) is a string literal; joins with another `LiteralType`
  * by set union, and with anything else by widening to the plain `String` scalar.
  *
- * @since 0.0.1
+ * @since 0.7.2
  * @category models
  */
 export class LiteralType extends Schema.TaggedClass<LiteralType>()("LiteralType", {
