@@ -16,6 +16,7 @@ import type {
 import {
   type CypherType,
   ListType,
+  LiteralType,
   MapType,
   NeverType,
   NullableType,
@@ -129,6 +130,42 @@ function stripNullable(t: CypherType): CypherType {
 
 const isNumericScalar = (t: CypherType): boolean =>
   t._tag === "ScalarType" && (t.scalarType === "Long" || t.scalarType === "Double")
+
+/** A `LiteralType` is a String-family type everywhere except the join's own merge rule — it widens
+ *  like a String wherever else the type is inspected (concatenation, etc). */
+const isStringLike = (t: CypherType): boolean =>
+  t._tag === "LiteralType" || (t._tag === "ScalarType" && t.scalarType === "String")
+
+const CYPHER_STRING_ESCAPES: Record<string, string> = {
+  "\\\\": "\\",
+  "\\'": "'",
+  "\\\"": "\"",
+  "\\b": "\b",
+  "\\f": "\f",
+  "\\n": "\n",
+  "\\r": "\r",
+  "\\t": "\t"
+}
+
+/** Strip the surrounding quote (Cypher allows both 'single' and "double") and resolve the lexer's
+ *  escape sequences, so a literal arm's value matches what Neo4j actually returns at runtime. Octal
+ *  escapes are legacy/unused in practice and are left unresolved. */
+function unquoteCypherStringLiteral(raw: string): string {
+  const body = raw.slice(1, -1)
+  return body.replace(
+    /\\u([0-9a-fA-F]{4})|\\[\\'"bfnrt]/g,
+    (matched, unicodeHex: string | undefined) =>
+      unicodeHex !== undefined ? String.fromCharCode(parseInt(unicodeHex, 16)) : CYPHER_STRING_ESCAPES[matched]
+  )
+}
+
+/** Union two literal value sets, deduplicating with first-occurrence order so codegen output stays
+ *  deterministic across runs regardless of any hashing/iteration order. */
+function mergeLiteralValues(a: ReadonlyArray<string>, b: ReadonlyArray<string>): ReadonlyArray<string> {
+  const merged = [...a]
+  for (const value of b) if (!merged.includes(value)) merged.push(value)
+  return merged
+}
 
 // ── List element extraction ──
 
@@ -262,8 +299,10 @@ function inferAddSubType(
     return ListType(joined)
   }
 
-  // String concatenation: a String operand anywhere makes the whole expression a String.
-  if (types.some((t) => t._tag === "ScalarType" && t.scalarType === "String")) {
+  // String concatenation: a String (or string-literal) operand anywhere makes the whole expression a
+  // String. Concatenation is not constant-folded, so the result always widens — even 'a' + 'b' is a
+  // fresh, non-literal String, not the singleton "ab".
+  if (types.some(isStringLike)) {
     return new ScalarType({ scalarType: "String" })
   }
 
@@ -487,7 +526,11 @@ function inferAtomType(
   if (literal) {
     const numLit = literal.numLit()
     if (numLit) return inferNumLitType(numLit.getText())
-    if (literal.stringLit() || literal.charLit()) return new ScalarType({ scalarType: "String" })
+    const stringLit = literal.stringLit()
+    const charLit = literal.charLit()
+    if (stringLit || charLit) {
+      return new LiteralType({ values: [unquoteCypherStringLiteral((stringLit ?? charLit)!.getText())] })
+    }
     if (literal.boolLit()) return new ScalarType({ scalarType: "Boolean" })
     if (literal.NULL_W()) return new NeverType({})
     if (literal.mapLit()) return inferMapLitType(literal.mapLit()!, env, schema)
@@ -496,8 +539,11 @@ function inferAtomType(
       if (!chain) return ListType(new NeverType({}))
       const exprs = chain.expression()
       if (exprs.length === 0) return ListType(new NeverType({}))
-      const firstType = inferExpressionType(exprs[0], env, schema)
-      return ListType(firstType)
+      // A list literal's elements are all constants in the query text, so joining their types (not
+      // just the first element's) is both sound and precise — e.g. ['a','b'] really can only ever
+      // hold "a" and "b".
+      const elementTypes = exprs.map((e) => inferExpressionType(e, env, schema))
+      return ListType(elementTypes.reduce(unifyCandidateTypes))
     }
     throw new CypherTypeError("Unrecognized literal")
   }
@@ -618,16 +664,32 @@ function inferMapLitType(
  * share this lattice: both name several values of which exactly one reaches the row, so one decoder
  * has to accept them all. Equal scalars collapse to that scalar; two numeric scalars (Long/Double in
  * any mix) collapse to Long — the integer-tolerant decoder is the numeric superset, accepting both
- * database integers and floats. Anything else keeps the leading candidate's type: a genuine
- * disagreement such as String vs. Long has no representable answer, and non-scalar candidates
- * (lists, maps, nodes) are left as they were.
+ * database integers and floats. Two literal sets join by set union (first-occurrence order), the
+ * literal subtype's own semilattice — this is what makes a CASE nested inside another CASE's arm
+ * flatten for free: the nested CASE is typed by this same join, and joining its result again at the
+ * outer level is just another union.
+ *
+ * A `LiteralType` is treated as `ScalarType(String)` in every OTHER combination — i.e. it only ever
+ * keeps its precision by merging with another literal set; anything else erases it back to the plain
+ * String it is a subtype of, before applying the ordinary rules above. This widening has to happen
+ * unconditionally (not just when the literal disagrees with plain String) precisely so that a
+ * genuine disagreement can never be masked by a later fold step: once a candidate has disagreed with
+ * a literal, the accumulator must stop being a `LiteralType`, or a subsequent literal sibling could
+ * silently re-merge with it and resurrect a narrower-than-true type. Anything else keeps the leading
+ * candidate's type: a genuine disagreement such as String vs. Long has no representable answer, and
+ * non-scalar candidates (lists, maps, nodes) are left as they were.
  */
 function unifyCandidateTypes(a: CypherType, b: CypherType): CypherType {
-  if (a._tag === "ScalarType" && b._tag === "ScalarType") {
-    if (a.scalarType === b.scalarType) return a
-    if (isNumericScalar(a) && isNumericScalar(b)) return new ScalarType({ scalarType: "Long" })
+  if (a._tag === "LiteralType" && b._tag === "LiteralType") {
+    return new LiteralType({ values: mergeLiteralValues(a.values, b.values) })
   }
-  return a
+  const widenedA = a._tag === "LiteralType" ? new ScalarType({ scalarType: "String" }) : a
+  const widenedB = b._tag === "LiteralType" ? new ScalarType({ scalarType: "String" }) : b
+  if (widenedA._tag === "ScalarType" && widenedB._tag === "ScalarType") {
+    if (widenedA.scalarType === widenedB.scalarType) return widenedA
+    if (isNumericScalar(widenedA) && isNumericScalar(widenedB)) return new ScalarType({ scalarType: "Long" })
+  }
+  return widenedA
 }
 
 /**

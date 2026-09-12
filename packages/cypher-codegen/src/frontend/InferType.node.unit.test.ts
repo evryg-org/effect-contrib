@@ -7,6 +7,7 @@ import {
   type CypherType,
   EdgeType,
   ListType,
+  LiteralType,
   MapType,
   NeverType,
   NullableType,
@@ -662,14 +663,14 @@ describe("inferExpressionType — relationship property access", () => {
 })
 
 describe("inferExpressionType — standalone CASE with string literals", () => {
-  it("infers String from THEN branch with string literal", () => {
+  it("infers a literal union from THEN branches that are all string literals", () => {
     const env = envWith({ m: { type: new VertexType({ label: "Method" }), nullable: false } })
     const result = inferExpressionType(
       parseExpression("CASE WHEN m.ccn <= 5 THEN '1-5' ELSE '21+' END"),
       env,
       schema
     )
-    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
+    expect(result).toEqual(new LiteralType({ values: ["1-5", "21+"] }))
   })
 
   it("infers Long from THEN branch with mandatory property", () => {
@@ -680,6 +681,84 @@ describe("inferExpressionType — standalone CASE with string literals", () => {
       schema
     )
     expect(result).toEqual(new ScalarType({ scalarType: "Long" }))
+  })
+})
+
+describe("inferExpressionType — CASE with all string-literal arms infers a literal union", () => {
+  const env = envWith({ s: { type: new VertexType({ label: "Sample" }), nullable: false } })
+
+  it("searched CASE: every WHEN/THEN and ELSE a string literal", () => {
+    const result = inferExpressionType(
+      parseExpression(
+        "CASE WHEN s.requiredLong > 5 THEN 'High' WHEN s.requiredLong > 2 THEN 'Medium' ELSE 'Low' END"
+      ),
+      env,
+      schema
+    )
+    expect(result).toEqual(new LiteralType({ values: ["High", "Medium", "Low"] }))
+  })
+
+  it("simple CASE (with a scrutinee): every THEN and ELSE a string literal", () => {
+    const result = inferExpressionType(
+      parseExpression("CASE s.requiredLong WHEN 1 THEN 'One' WHEN 2 THEN 'Two' ELSE 'Other' END"),
+      env,
+      schema
+    )
+    expect(result).toEqual(new LiteralType({ values: ["One", "Two", "Other"] }))
+  })
+
+  it("a nested CASE in the ELSE arm flattens into the same literal union", () => {
+    const result = inferExpressionType(
+      parseExpression(
+        "CASE WHEN s.requiredLong > 5 THEN 'High' ELSE CASE WHEN s.requiredLong > 2 THEN 'Medium' ELSE 'Low' END END"
+      ),
+      env,
+      schema
+    )
+    expect(result).toEqual(new LiteralType({ values: ["High", "Medium", "Low"] }))
+  })
+
+  it("a null THEN branch makes the literal union nullable, not part of the payload", () => {
+    const result = inferExpressionType(
+      parseExpression(
+        "CASE WHEN s.requiredLong > 5 THEN 'High' WHEN s.requiredLong > 2 THEN null ELSE 'Low' END"
+      ),
+      env,
+      schema
+    )
+    expect(result).toEqual(NullableType(new LiteralType({ values: ["High", "Low"] })))
+  })
+
+  it("an absent ELSE makes the literal union nullable, even though every present arm is a literal", () => {
+    const result = inferExpressionType(
+      parseExpression("CASE WHEN s.requiredLong > 5 THEN 'High' WHEN s.requiredLong > 2 THEN 'Medium' END"),
+      env,
+      schema
+    )
+    expect(result).toEqual(NullableType(new LiteralType({ values: ["High", "Medium"] })))
+  })
+
+  it("a non-literal arm (property access) abandons narrowing for the whole CASE", () => {
+    const result = inferExpressionType(
+      parseExpression("CASE WHEN s.requiredLong > 5 THEN s.requiredString ELSE 'Fallback' END"),
+      env,
+      schema
+    )
+    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
+  })
+
+  it("a non-string literal arm sandwiched between literal arms still abandons narrowing", () => {
+    // Regression guard: a naive left-to-right fold could let the leading literal disagree with the
+    // Long arm, then wrongly re-merge with the trailing literal and resurrect a too-narrow union
+    // that a real Long value from the middle arm would fail to decode against.
+    const result = inferExpressionType(
+      parseExpression(
+        "CASE WHEN s.requiredLong > 5 THEN 'High' WHEN s.requiredLong > 2 THEN s.requiredLong ELSE 'Low' END"
+      ),
+      env,
+      schema
+    )
+    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
   })
 })
 
@@ -738,6 +817,16 @@ describe("inferExpressionType — strict mode errors", () => {
   it("empty list returns ListType(NeverType)", () => {
     const result = inferExpressionType(parseExpression("[]"), emptyEnv, schema)
     expect(result).toEqual(ListType(new NeverType({})))
+  })
+})
+
+describe("inferExpressionType — list literal element type", () => {
+  it("joins the type of every element, not just the first", () => {
+    // Every element of a list literal is a constant in the query text, so the element type can
+    // (and must) be the join of all of them — using only the first element would make ['a','b']
+    // infer as LiteralType(['a']) alone, and decoding "b" against that would throw.
+    const result = inferExpressionType(parseExpression("['a', 'b', 'c']"), emptyEnv, schema)
+    expect(result).toEqual(ListType(new LiteralType({ values: ["a", "b", "c"] })))
   })
 })
 

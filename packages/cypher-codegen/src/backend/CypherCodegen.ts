@@ -36,6 +36,10 @@ function cypherTypeToSchema(ct: CypherType): string {
           if (TEMPORAL_SCALAR_TYPES.has(ct.scalarType)) return "TemporalString"
           return "Neo4jValue"
       }
+    case "LiteralType":
+      return ct.values.length === 1
+        ? `Schema.Literal(${JSON.stringify(ct.values[0])})`
+        : `Schema.Literals([${ct.values.map((v) => JSON.stringify(v)).join(", ")}])`
     case "ListType":
       return `Schema.Array(${cypherTypeToSchema(ct.element)})`
     case "MapType": {
@@ -73,6 +77,8 @@ function collectNeo4jImports(ct: CypherType, imports: Set<string>): void {
         ct.scalarType !== "Double" && ct.scalarType !== "String" && ct.scalarType !== "Boolean" &&
         !TEMPORAL_SCALAR_TYPES.has(ct.scalarType)
       ) imports.add("Neo4jValue")
+      break
+    case "LiteralType":
       break
     case "ListType":
       collectNeo4jImports(ct.element, imports)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
 import { EdgeConnectivity, EdgeProperty, FullTextIndex, GraphSchema, VertexProperty } from "@evryg/effect-neo4j-schema"
-import { type CypherType, ListType, MapType, NullableType, ScalarType } from "../types/CypherType.js"
+import { type CypherType, ListType, LiteralType, MapType, NullableType, ScalarType } from "../types/CypherType.js"
 import { analyzeQuery, type ResolvedColumn, type ResolvedParam } from "./QueryAnalyzer.js"
 
 // ── Schema fixture mimicking a typical analysis graph ──
@@ -566,13 +566,13 @@ describe("analyzeQuery — CASE expression inference", () => {
       cypher: `MATCH (m:Method) WHERE m.ccn IS NOT NULL
                WITH CASE WHEN m.ccn <= 5 THEN '1-5' ELSE '21+' END AS bucket
                RETURN bucket`,
-      expectedColumns: [col("bucket", S("String"), false)]
+      expectedColumns: [col("bucket", new LiteralType({ values: ["1-5", "21+"] }), false)]
     },
     {
       label: "CASE in RETURN with string literals",
       cypher: `MATCH (f:File)
                RETURN CASE WHEN f.lineCount > 10 THEN 'large' ELSE 'small' END AS size`,
-      expectedColumns: [col("size", S("String"), false)]
+      expectedColumns: [col("size", new LiteralType({ values: ["large", "small"] }), false)]
     },
     {
       label: "multiple CASE in WITH",
@@ -581,13 +581,28 @@ describe("analyzeQuery — CASE expression inference", () => {
                     CASE WHEN m.ccn <= 5 THEN 'low' ELSE 'high' END AS tier
                RETURN bucket, tier`,
       expectedColumns: [
-        col("bucket", S("String"), false),
-        col("tier", S("String"), false)
+        col("bucket", new LiteralType({ values: ["1-5", "21+"] }), false),
+        col("tier", new LiteralType({ values: ["low", "high"] }), false)
       ]
     }
   ])("$label", ({ cypher, expectedColumns }) => {
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual(expectedColumns)
+  })
+})
+
+describe("analyzeQuery — CASE with all string-literal arms infers a literal union", () => {
+  it("infers Schema.Literals over the arm values instead of widening to String", () => {
+    const cypher = `MATCH (c:Class)
+                     RETURN CASE c.kind
+                              WHEN 'class' THEN 'Concrete'
+                              WHEN 'interface' THEN 'Contract'
+                              ELSE 'Other'
+                            END AS kindTag`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([
+      col("kindTag", new LiteralType({ values: ["Concrete", "Contract", "Other"] }), false)
+    ])
   })
 })
 
