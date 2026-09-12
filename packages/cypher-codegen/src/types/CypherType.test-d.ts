@@ -3,6 +3,7 @@ import type {
   CypherType,
   EdgeType,
   ListType,
+  LiteralType,
   MapField,
   MapType,
   NeverType,
@@ -14,14 +15,24 @@ import type {
 } from "./CypherType.js"
 
 describe("CypherType union", () => {
-  it("is exactly nine variants", () => {
+  it("is exactly ten variants", () => {
     expectTypeOf<CypherType>().toEqualTypeOf<
-      ScalarType | ListType | MapType | NullableType | VertexType | VertexUnionType | EdgeType | UnknownType | NeverType
+      | ScalarType
+      | LiteralType
+      | ListType
+      | MapType
+      | NullableType
+      | VertexType
+      | VertexUnionType
+      | EdgeType
+      | UnknownType
+      | NeverType
     >()
   })
 
   it("each variant is assignable to the union", () => {
     expectTypeOf<ScalarType>().toMatchTypeOf<CypherType>()
+    expectTypeOf<LiteralType>().toMatchTypeOf<CypherType>()
     expectTypeOf<ListType>().toMatchTypeOf<CypherType>()
     expectTypeOf<MapType>().toMatchTypeOf<CypherType>()
     expectTypeOf<NullableType>().toMatchTypeOf<CypherType>()
@@ -64,6 +75,12 @@ describe("MapType recursion", () => {
 describe("ScalarType precision", () => {
   it("scalarType is a string literal union", () => {
     expectTypeOf<ScalarType["scalarType"]>().toMatchTypeOf<string>()
+  })
+})
+
+describe("LiteralType", () => {
+  it("has a values field", () => {
+    expectTypeOf<LiteralType["values"]>().toEqualTypeOf<ReadonlyArray<string>>()
   })
 })
 

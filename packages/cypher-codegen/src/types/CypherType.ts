@@ -26,6 +26,19 @@ export class ScalarType extends Schema.TaggedClass<ScalarType>()("ScalarType", {
 }) {}
 
 /**
+ * A finite set of string literal values — the singleton (or union of singletons) subtype of
+ * `String` inhabited by exactly the values a literal expression can produce. Arises when every arm
+ * of a CASE (and, recursively, any nested CASE) is a string literal; joins with another `LiteralType`
+ * by set union, and with anything else by widening to the plain `String` scalar.
+ *
+ * @since 0.0.1
+ * @category models
+ */
+export class LiteralType extends Schema.TaggedClass<LiteralType>()("LiteralType", {
+  values: Schema.Array(Schema.String)
+}) {}
+
+/**
  * @since 0.0.1
  * @category models
  */
@@ -105,6 +118,7 @@ export interface NullableType {
  */
 export type CypherType =
   | ScalarType
+  | LiteralType
   | ListType
   | MapType
   | NullableType
@@ -151,6 +165,7 @@ export const NullableType = (inner: CypherType): NullableType => ({
  */
 export const CypherTypeSchema: Schema.Schema<CypherType> = Schema.Union([
   ScalarType,
+  LiteralType,
   Schema.Struct({
     _tag: Schema.Literal("ListType"),
     element: Schema.suspend((): Schema.Schema<CypherType> => CypherTypeSchema)

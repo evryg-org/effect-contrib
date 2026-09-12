@@ -33,6 +33,8 @@ function cypherTypeToTs(ct: CypherType): string {
           if (TEMPORAL_SCALAR_TYPES.has(ct.scalarType)) return "string"
           return "unknown"
       }
+    case "LiteralType":
+      return ct.values.map((v) => JSON.stringify(v)).join(" | ")
     case "ListType":
       return `readonly ${cypherTypeToTs(ct.element)}[]`
     case "MapType": {

@@ -3,7 +3,7 @@ import * as path from "node:path"
 import { fileURLToPath } from "node:url"
 import ts from "typescript"
 import type { ResolvedColumn, ResolvedParam } from "../frontend/QueryAnalyzer.js"
-import { type CypherType, ListType, MapType, ScalarType, UnknownType } from "../types/CypherType.js"
+import { type CypherType, ListType, LiteralType, MapType, ScalarType, UnknownType } from "../types/CypherType.js"
 import { type BarrelEntry, generateBarrel, generateModule } from "./CypherCodegen.js"
 
 // Type-checks generated query source against the repo's real compiler options.
@@ -61,8 +61,8 @@ const param = (name: string, type: ResolvedParam["type"], nullable: boolean): Re
 })
 
 // Columns covering every schema-emitting branch: scalars, Neo4jInt (Long),
-// nullable, temporal (TemporalString + SchemaTransformation), list, map, and
-// the Neo4jValue escape hatch.
+// nullable, temporal (TemporalString + SchemaTransformation), list, map,
+// literal unions (single-value and multi-value), and the Neo4jValue escape hatch.
 const allColumns: ReadonlyArray<ResolvedColumn> = [
   col("fqcn", scalar("String"), false),
   col("count", scalar("Long"), false),
@@ -71,6 +71,8 @@ const allColumns: ReadonlyArray<ResolvedColumn> = [
   col("createdAt", scalar("DateTime"), false),
   col("tags", ListType(scalar("String")), false),
   col("meta", MapType([{ name: "label", value: scalar("String") }]), false),
+  col("stateTag", new LiteralType({ values: ["Pending", "Confirmed", "Dispatched"] }), false),
+  col("singleTag", new LiteralType({ values: ["Pending"] }), true),
   col("blob", new UnknownType(), false)
 ]
 

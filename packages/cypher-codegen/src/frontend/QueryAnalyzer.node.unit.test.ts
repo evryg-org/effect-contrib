@@ -566,13 +566,13 @@ describe("analyzeQuery — CASE expression inference", () => {
       cypher: `MATCH (m:Method) WHERE m.ccn IS NOT NULL
                WITH CASE WHEN m.ccn <= 5 THEN '1-5' ELSE '21+' END AS bucket
                RETURN bucket`,
-      expectedColumns: [col("bucket", S("String"), false)]
+      expectedColumns: [col("bucket", new LiteralType({ values: ["1-5", "21+"] }), false)]
     },
     {
       label: "CASE in RETURN with string literals",
       cypher: `MATCH (f:File)
                RETURN CASE WHEN f.lineCount > 10 THEN 'large' ELSE 'small' END AS size`,
-      expectedColumns: [col("size", S("String"), false)]
+      expectedColumns: [col("size", new LiteralType({ values: ["large", "small"] }), false)]
     },
     {
       label: "multiple CASE in WITH",
@@ -581,8 +581,8 @@ describe("analyzeQuery — CASE expression inference", () => {
                     CASE WHEN m.ccn <= 5 THEN 'low' ELSE 'high' END AS tier
                RETURN bucket, tier`,
       expectedColumns: [
-        col("bucket", S("String"), false),
-        col("tier", S("String"), false)
+        col("bucket", new LiteralType({ values: ["1-5", "21+"] }), false),
+        col("tier", new LiteralType({ values: ["low", "high"] }), false)
       ]
     }
   ])("$label", ({ cypher, expectedColumns }) => {

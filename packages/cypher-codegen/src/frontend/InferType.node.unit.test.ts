@@ -663,14 +663,14 @@ describe("inferExpressionType — relationship property access", () => {
 })
 
 describe("inferExpressionType — standalone CASE with string literals", () => {
-  it("infers String from THEN branch with string literal", () => {
+  it("infers a literal union from THEN branches that are all string literals", () => {
     const env = envWith({ m: { type: new VertexType({ label: "Method" }), nullable: false } })
     const result = inferExpressionType(
       parseExpression("CASE WHEN m.ccn <= 5 THEN '1-5' ELSE '21+' END"),
       env,
       schema
     )
-    expect(result).toEqual(new ScalarType({ scalarType: "String" }))
+    expect(result).toEqual(new LiteralType({ values: ["1-5", "21+"] }))
   })
 
   it("infers Long from THEN branch with mandatory property", () => {
@@ -817,6 +817,16 @@ describe("inferExpressionType — strict mode errors", () => {
   it("empty list returns ListType(NeverType)", () => {
     const result = inferExpressionType(parseExpression("[]"), emptyEnv, schema)
     expect(result).toEqual(ListType(new NeverType({})))
+  })
+})
+
+describe("inferExpressionType — list literal element type", () => {
+  it("joins the type of every element, not just the first", () => {
+    // Every element of a list literal is a constant in the query text, so the element type can
+    // (and must) be the join of all of them — using only the first element would make ['a','b']
+    // infer as LiteralType(['a']) alone, and decoding "b" against that would throw.
+    const result = inferExpressionType(parseExpression("['a', 'b', 'c']"), emptyEnv, schema)
+    expect(result).toEqual(ListType(new LiteralType({ values: ["a", "b", "c"] })))
   })
 })
 

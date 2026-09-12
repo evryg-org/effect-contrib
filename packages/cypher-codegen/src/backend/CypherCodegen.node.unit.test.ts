@@ -363,3 +363,41 @@ describe("generateModule — analyzed CASE with a null branch", () => {
     expect(source).toContain("Schema.NullOr(Schema.String)")
   })
 })
+
+describe("generateModule — analyzed CASE with all string-literal arms", () => {
+  const schema = new GraphSchema({
+    vertexProperties: [
+      new VertexProperty({ labels: ["Order"], propertyName: "state", propertyTypes: ["String"], mandatory: true })
+    ],
+    edgeProperties: []
+  })
+
+  it("emits Schema.Literals over the arm values instead of Schema.String", () => {
+    const cypher = `MATCH (o:Order)
+                    RETURN CASE o.state
+                             WHEN 'new'     THEN 'Pending'
+                             WHEN 'shipped' THEN 'Dispatched'
+                             ELSE 'Unknown'
+                           END AS stateTag`
+    const source = generateModule(cypher, analyzeQuery(cypher, schema).columns)
+    expect(source).toContain("Schema.Literals([\"Pending\", \"Dispatched\", \"Unknown\"])")
+    expect(source).not.toContain("stateTag: Schema.String")
+  })
+
+  it("emits Schema.NullOr(Schema.Literals(...)) when the CASE has no ELSE", () => {
+    const cypher = `MATCH (o:Order)
+                    RETURN CASE o.state
+                             WHEN 'new'     THEN 'Pending'
+                             WHEN 'shipped' THEN 'Dispatched'
+                           END AS stateTag`
+    const source = generateModule(cypher, analyzeQuery(cypher, schema).columns)
+    expect(source).toContain("Schema.NullOr(Schema.Literals([\"Pending\", \"Dispatched\"]))")
+  })
+
+  it("emits the single-value Schema.Literal form for a one-value union", () => {
+    const cypher = `MATCH (o:Order)
+                    RETURN CASE WHEN o.state = 'new' THEN 'Pending' ELSE 'Pending' END AS stateTag`
+    const source = generateModule(cypher, analyzeQuery(cypher, schema).columns)
+    expect(source).toContain("Schema.Literal(\"Pending\")")
+  })
+})
