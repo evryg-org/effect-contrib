@@ -26,7 +26,7 @@ boundedSemilatticeLaws({
   name: "SetMap-union (MERGE-dedup)",
   arb: arbSetMap,
   arbCtx: fc.constant(null),
-  op: SetMap.concat,
+  op: (a, b) => SetMap.concat({ a, b }),
   id: SetMap.empty,
   eq: (a, b) => {
     expect(structuralEq(a, b)).toBe(true)

@@ -15,7 +15,7 @@ export const SetMap = {
       ),
     ),
 
-  concat: (a: SetMap, b: SetMap): SetMap => {
+  concat: ({ a, b }: { readonly a: SetMap; readonly b: SetMap }): SetMap => {
     const keys = Array.union([...a].map(([k]) => k), [...b].map(([k]) => k))
     return new Map(
       keys.map((k) => [k, new Set([...(a.get(k) ?? []), ...(b.get(k) ?? [])])] as const),
@@ -23,7 +23,7 @@ export const SetMap = {
   },
 
   concatAll: (...maps: ReadonlyArray<SetMap>): SetMap =>
-    maps.reduce(SetMap.concat, SetMap.empty),
+    maps.reduce((a, b) => SetMap.concat({ a, b }), SetMap.empty),
 
   has: (m: SetMap, key: string): boolean => m.has(key),
 
@@ -38,7 +38,7 @@ export const SetMap = {
     type P = Record<K, SetMap>
     const empty = Object.fromEntries(keys.map((k) => [k, SetMap.empty])) as P
     const concat = (a: P, b: P): P =>
-      Object.fromEntries(keys.map((k) => [k, SetMap.concat(a[k], b[k])])) as P
+      Object.fromEntries(keys.map((k) => [k, SetMap.concat({ a: a[k], b: b[k] })])) as P
     return {
       empty,
       concat,

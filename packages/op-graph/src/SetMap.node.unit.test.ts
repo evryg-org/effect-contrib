@@ -26,7 +26,7 @@ describe("SetMap", () => {
   it("concat merges with set-union semantics", () => {
     const a = SetMap.of([["x", "1"], ["x", "2"]])
     const b = SetMap.of([["x", "2"], ["x", "3"], ["y", "4"]])
-    const c = SetMap.concat(a, b)
+    const c = SetMap.concat({ a, b })
     expect(SetMap.values(c, "x")).toEqual(["1", "2", "3"])
     expect(SetMap.values(c, "y")).toEqual(["4"])
   })
@@ -34,15 +34,15 @@ describe("SetMap", () => {
   it("concat is commutative (same elements, order may differ)", () => {
     const a = SetMap.of([["k", "a"], ["k", "b"]])
     const b = SetMap.of([["k", "b"], ["k", "c"]])
-    const ab = SetMap.concat(a, b)
-    const ba = SetMap.concat(b, a)
+    const ab = SetMap.concat({ a, b })
+    const ba = SetMap.concat({ a: b, b: a })
     expect(new Set(SetMap.values(ab, "k"))).toEqual(new Set(SetMap.values(ba, "k")))
   })
 
   it("concat with empty is identity", () => {
     const m = SetMap.of([["a", "1"]])
-    expect(SetMap.concat(m, SetMap.empty)).toEqual(m)
-    expect(SetMap.concat(SetMap.empty, m)).toEqual(m)
+    expect(SetMap.concat({ a: m, b: SetMap.empty })).toEqual(m)
+    expect(SetMap.concat({ a: SetMap.empty, b: m })).toEqual(m)
   })
 
   it("concatAll merges multiple maps", () => {
