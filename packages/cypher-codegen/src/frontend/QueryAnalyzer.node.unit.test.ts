@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
 import { EdgeConnectivity, EdgeProperty, FullTextIndex, GraphSchema, VertexProperty } from "@evryg/effect-neo4j-schema"
-import { type CypherType, ListType, MapType, NullableType, ScalarType } from "../types/CypherType.js"
+import { type CypherType, ListType, LiteralType, MapType, NullableType, ScalarType } from "../types/CypherType.js"
 import { analyzeQuery, type ResolvedColumn, type ResolvedParam } from "./QueryAnalyzer.js"
 
 // ── Schema fixture mimicking a typical analysis graph ──
@@ -588,6 +588,21 @@ describe("analyzeQuery — CASE expression inference", () => {
   ])("$label", ({ cypher, expectedColumns }) => {
     const result = analyzeQuery(cypher, schema)
     expect(result.columns).toEqual(expectedColumns)
+  })
+})
+
+describe("analyzeQuery — CASE with all string-literal arms infers a literal union", () => {
+  it("infers Schema.Literals over the arm values instead of widening to String", () => {
+    const cypher = `MATCH (c:Class)
+                     RETURN CASE c.kind
+                              WHEN 'class' THEN 'Concrete'
+                              WHEN 'interface' THEN 'Contract'
+                              ELSE 'Other'
+                            END AS kindTag`
+    const result = analyzeQuery(cypher, schema)
+    expect(result.columns).toEqual([
+      col("kindTag", new LiteralType({ values: ["Concrete", "Contract", "Other"] }), false)
+    ])
   })
 })
 
