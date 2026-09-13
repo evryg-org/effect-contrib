@@ -36,9 +36,9 @@ export const SetMap = {
   /** Derive a product monoid over a record of SetMaps from a list of keys. */
   product: <K extends string>(keys: ReadonlyArray<K>) => {
     type P = Record<K, SetMap>
-    const empty = Object.fromEntries(keys.map((k) => [k, SetMap.empty])) as P
+    const empty = Record.fromEntries(keys.map((k) => [k, SetMap.empty])) as P
     const concat = (a: P, b: P): P =>
-      Object.fromEntries(keys.map((k) => [k, SetMap.concat({ a: a[k], b: b[k] })])) as P
+      Record.fromEntries(keys.map((k) => [k, SetMap.concat({ a: a[k], b: b[k] })])) as P
     return {
       empty,
       concat,
