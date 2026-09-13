@@ -12,8 +12,8 @@ describe("buildSchemaIndex", () => {
       ],
       [],
     )
-    expect(index.get("Class")).toEqual(new Set(["fqcn", "name"]))
-    expect(index.get("File")).toEqual(new Set(["path"]))
+    expect(index.propertiesOf("Class")).toEqual(new Set(["fqcn", "name"]))
+    expect(index.propertiesOf("File")).toEqual(new Set(["path"]))
   })
 
   it("indexes multi-label entries under each label", () => {
@@ -21,8 +21,8 @@ describe("buildSchemaIndex", () => {
       [{ labels: ["A", "B"], propertyName: "shared" }],
       [],
     )
-    expect(index.get("A")!.has("shared")).toBe(true)
-    expect(index.get("B")!.has("shared")).toBe(true)
+    expect(index.allows("A", "shared")).toBe(true)
+    expect(index.allows("B", "shared")).toBe(true)
   })
 
   it("indexes relationship properties by relType", () => {
@@ -33,7 +33,7 @@ describe("buildSchemaIndex", () => {
         { relType: "DEPENDS_ON", propertyName: "confidence" },
       ],
     )
-    expect(index.get("DEPENDS_ON")).toEqual(new Set(["kind", "confidence"]))
+    expect(index.propertiesOf("DEPENDS_ON")).toEqual(new Set(["kind", "confidence"]))
   })
 })
 

@@ -1,48 +1,67 @@
-import { Array, Record } from "effect"
+import { Array, HashMap, HashSet, Option, Record, Schema } from "effect"
 
 /**
- * Commutative monoid: Map<string, Set<string>> with set-union merge.
+ * Commutative monoid: a set-of-strings per key, with set-union merge.
  */
-export type SetMap = ReadonlyMap<string, ReadonlySet<string>>
+export class SetMap extends Schema.Class<SetMap>("SetMap")({
+  entries: Schema.HashMap(Schema.String, Schema.HashSet(Schema.String)),
+}) {
+  static readonly empty: SetMap = new SetMap({ entries: HashMap.empty() })
 
-export const SetMap = {
-  empty: new Map() as SetMap,
-
-  of: (entries: ReadonlyArray<readonly [string, string]>): SetMap =>
-    new Map(
-      Record.toEntries(Array.groupBy(entries, ([k]) => k)).map(
-        ([k, pairs]) => [k, new Set(pairs.map(([, v]) => v))] as const,
+  static of(pairs: ReadonlyArray<readonly [string, string]>): SetMap {
+    const grouped = Record.toEntries(Array.groupBy(pairs, ([key]) => key))
+    return new SetMap({
+      entries: HashMap.fromIterable(
+        grouped.map(([key, group]) => [key, HashSet.fromIterable(group.map(([, value]) => value))] as const),
       ),
-    ),
+    })
+  }
 
-  concat: ({ a, b }: { readonly a: SetMap; readonly b: SetMap }): SetMap => {
-    const keys = Array.union([...a].map(([k]) => k), [...b].map(([k]) => k))
-    return new Map(
-      keys.map((k) => [k, new Set([...(a.get(k) ?? []), ...(b.get(k) ?? [])])] as const),
-    )
-  },
-
-  concatAll: (...maps: ReadonlyArray<SetMap>): SetMap =>
-    maps.reduce((a, b) => SetMap.concat({ a, b }), SetMap.empty),
-
-  has: (m: SetMap, key: string): boolean => m.has(key),
-
-  values: (m: SetMap, key: string): ReadonlyArray<string> =>
-    [...(m.get(key) ?? [])],
-
-  entries: (m: SetMap): ReadonlyArray<readonly [string, ReadonlySet<string>]> =>
-    [...m],
+  static concatAll(...maps: ReadonlyArray<SetMap>): SetMap {
+    return maps.reduce((a, b) => a.concat(b), SetMap.empty)
+  }
 
   /** Derive a product monoid over a record of SetMaps from a list of keys. */
-  product: <K extends string>(keys: ReadonlyArray<K>) => {
+  static product<K extends string>(keys: ReadonlyArray<K>) {
     type P = Record<K, SetMap>
     const empty = Record.fromEntries(keys.map((k) => [k, SetMap.empty])) as P
     const concat = (a: P, b: P): P =>
-      Record.fromEntries(keys.map((k) => [k, SetMap.concat({ a: a[k], b: b[k] })])) as P
+      Record.fromEntries(keys.map((k) => [k, a[k].concat(b[k])])) as P
     return {
       empty,
       concat,
       concatAll: (...vals: ReadonlyArray<P>): P => vals.reduce(concat, empty),
     }
-  },
+  }
+
+  get size(): number {
+    return HashMap.size(this.entries)
+  }
+
+  concat(other: SetMap): SetMap {
+    const keys = HashSet.union(HashSet.fromIterable(HashMap.keys(this.entries)), HashSet.fromIterable(HashMap.keys(other.entries)))
+    return new SetMap({
+      entries: HashMap.fromIterable(
+        Array.fromIterable(keys).map((key) => [
+          key,
+          HashSet.union(
+            Option.getOrElse(HashMap.get(this.entries, key), () => HashSet.empty<string>()),
+            Option.getOrElse(HashMap.get(other.entries, key), () => HashSet.empty<string>()),
+          ),
+        ] as const),
+      ),
+    })
+  }
+
+  has(key: string): boolean {
+    return HashMap.has(this.entries, key)
+  }
+
+  values(key: string): ReadonlyArray<string> {
+    return Array.fromIterable(Option.getOrElse(HashMap.get(this.entries, key), () => HashSet.empty<string>()))
+  }
+
+  toEntries(): ReadonlyArray<readonly [string, ReadonlySet<string>]> {
+    return HashMap.toEntries(this.entries).map(([key, values]) => [key, new Set(values)] as const)
+  }
 }

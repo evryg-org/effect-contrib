@@ -1,8 +1,25 @@
-import { Array, Record, Result } from "effect"
+import { Array, Function, HashMap, HashSet, Option, Record, Result, Schema } from "effect"
 import { GraphOp } from "./GraphOp.js"
 
 /** label → set of allowed property names (both key fields and properties) */
-export type SchemaIndex = ReadonlyMap<string, ReadonlySet<string>>
+export class SchemaIndex extends Schema.Class<SchemaIndex>("SchemaIndex")({
+  entries: Schema.HashMap(Schema.String, Schema.HashSet(Schema.String)),
+}) {
+  hasLabel(label: string): boolean {
+    return HashMap.has(this.entries, label)
+  }
+
+  allows(label: string, property: string): boolean {
+    return HashMap.get(this.entries, label).pipe(
+      Option.map((properties) => HashSet.has(properties, property)),
+      Option.getOrElse(Function.constFalse),
+    )
+  }
+
+  propertiesOf(label: string): ReadonlySet<string> {
+    return new Set(HashMap.get(this.entries, label).pipe(Option.getOrElse(() => HashSet.empty<string>())))
+  }
+}
 
 export interface GraphOpViolation {
   readonly op: string
@@ -29,15 +46,15 @@ export function buildSchemaIndex(
     entry.labels.map((label) => ({ label, propertyName: entry.propertyName })),
   )
   const nodeGroups = Array.groupBy(nodePairs, (p) => p.label)
-  const nodeRecord = Record.map(nodeGroups, (group) => new Set(group.map((p) => p.propertyName)) as ReadonlySet<string>)
+  const nodeRecord = Record.map(nodeGroups, (group) => HashSet.fromIterable(group.map((p) => p.propertyName)))
 
   // Group relEntries by relType.
   const relGroups = Array.groupBy(relEntries, (e) => e.relType)
-  const relRecord = Record.map(relGroups, (group) => new Set(group.map((e) => e.propertyName)) as ReadonlySet<string>)
+  const relRecord = Record.map(relGroups, (group) => HashSet.fromIterable(group.map((e) => e.propertyName)))
 
-  // Merge both records into one and convert to Map to satisfy SchemaIndex = ReadonlyMap.
+  // Merge both records into one and lift into the SchemaIndex's HashMap.
   const merged = { ...nodeRecord, ...relRecord }
-  return new Map(Record.toEntries(merged)) as SchemaIndex
+  return new SchemaIndex({ entries: HashMap.fromIterable(Record.toEntries(merged)) })
 }
 
 /** Validate all GraphOps against the schema index. Returns accumulated violations. */
@@ -51,16 +68,15 @@ export function validateGraphOps(
     key: Record<string, unknown>,
     properties: Record<string, unknown>,
   ): ReadonlyArray<GraphOpViolation> {
-    const allowed = index.get(label)
-    if (!allowed) {
+    if (!index.hasLabel(label)) {
       return [{ op: opKind, label, property: "*", message: `Unknown label "${label}"` }]
     }
     const keyViolations = Array.filterMap(Record.keys(key), (prop) =>
-      !allowed.has(prop)
+      !index.allows(label, prop)
         ? Result.succeed({ op: opKind, label, property: prop, message: `Undeclared key property "${prop}" on label "${label}"` })
         : Result.failVoid)
     const propViolations = Array.filterMap(Record.keys(properties), (prop) =>
-      !allowed.has(prop)
+      !index.allows(label, prop)
         ? Result.succeed({ op: opKind, label, property: prop, message: `Undeclared property "${prop}" on label "${label}"` })
         : Result.failVoid)
     return [...keyViolations, ...propViolations]
@@ -71,34 +87,31 @@ export function validateGraphOps(
       UpsertVertex: (v) => checkVertexProps("UpsertVertex", v.label, v.key, v.properties),
       UpsertEdge: (e) => {
         // Edge properties
-        const edgeAllowed = index.get(e.label)
-        const edgeViolations: ReadonlyArray<GraphOpViolation> = edgeAllowed
+        const edgeViolations: ReadonlyArray<GraphOpViolation> = index.hasLabel(e.label)
           ? [
               ...Array.filterMap(Record.keys(e.key), (prop) =>
-                !edgeAllowed.has(prop)
+                !index.allows(e.label, prop)
                   ? Result.succeed({ op: "UpsertEdge", label: e.label, property: prop, message: `Undeclared key property "${prop}" on relationship "${e.label}"` })
                   : Result.failVoid),
               ...Array.filterMap(Record.keys(e.properties), (prop) =>
-                !edgeAllowed.has(prop)
+                !index.allows(e.label, prop)
                   ? Result.succeed({ op: "UpsertEdge", label: e.label, property: prop, message: `Undeclared property "${prop}" on relationship "${e.label}"` })
                   : Result.failVoid),
             ]
           : [{ op: "UpsertEdge", label: e.label, property: "*", message: `Unknown relationship type "${e.label}"` }]
 
         // from-vertex key fields
-        const fromAllowed = index.get(e.from.label)
-        const fromViolations: ReadonlyArray<GraphOpViolation> = fromAllowed
+        const fromViolations: ReadonlyArray<GraphOpViolation> = index.hasLabel(e.from.label)
           ? Array.filterMap(Record.keys(e.from.key), (prop) =>
-              !fromAllowed.has(prop)
+              !index.allows(e.from.label, prop)
                 ? Result.succeed({ op: "UpsertEdge", label: e.from.label, property: prop, message: `Undeclared key property "${prop}" on from-label "${e.from.label}"` })
                 : Result.failVoid)
           : [{ op: "UpsertEdge", label: e.from.label, property: "*", message: `Unknown from-label "${e.from.label}"` }]
 
         // to-vertex key fields
-        const toAllowed = index.get(e.to.label)
-        const toViolations: ReadonlyArray<GraphOpViolation> = toAllowed
+        const toViolations: ReadonlyArray<GraphOpViolation> = index.hasLabel(e.to.label)
           ? Array.filterMap(Record.keys(e.to.key), (prop) =>
-              !toAllowed.has(prop)
+              !index.allows(e.to.label, prop)
                 ? Result.succeed({ op: "UpsertEdge", label: e.to.label, property: prop, message: `Undeclared key property "${prop}" on to-label "${e.to.label}"` })
                 : Result.failVoid)
           : [{ op: "UpsertEdge", label: e.to.label, property: "*", message: `Unknown to-label "${e.to.label}"` }]
