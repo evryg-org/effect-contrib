@@ -27,6 +27,3 @@ export class UpsertEdge extends Schema.TaggedClass<UpsertEdge>()("UpsertEdge", {
 // comes from deleting whole scopes out-of-band — never from ops a task can emit.
 export const GraphOp = Schema.Union([UpsertVertex, UpsertEdge]).pipe(Schema.toTaggedUnion("_tag"))
 export type GraphOp = typeof GraphOp.Type
-
-export const GraphOpArray = Schema.Array(GraphOp)
-export type GraphOpArray = typeof GraphOpArray.Type

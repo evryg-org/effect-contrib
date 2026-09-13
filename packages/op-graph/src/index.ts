@@ -7,7 +7,6 @@ export {
   UpsertVertex,
   UpsertEdge,
   GraphOp,
-  GraphOpArray,
   PropertyMap,
 } from "./GraphOp.js"
 export { enrichVertexKeys } from "./GraphOpScope.js"
@@ -17,7 +16,6 @@ export { enrichVertexPropertiesBy } from "./Attribution.js"
 export type { VertexAttribution, VertexAttributionFor } from "./Attribution.js"
 export type {
   GraphOp as GraphOpType,
-  GraphOpArray as GraphOpArrayType,
   PropertyMap as PropertyMapType,
 } from "./GraphOp.js"
 

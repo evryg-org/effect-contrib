@@ -1,6 +1,6 @@
 import { describe, it, expect } from "@effect/vitest"
 import { Schema, Record, Array, Order } from "effect"
-import { UpsertVertex, UpsertEdge, VertexRef, GraphOp, GraphOpArray } from "./GraphOp.js"
+import { UpsertVertex, UpsertEdge, VertexRef, GraphOp } from "./GraphOp.js"
 
 describe("GraphOp Schema types", () => {
   it("UpsertVertex constructs with the expected fields", () => {
@@ -34,7 +34,7 @@ describe("GraphOp Schema types", () => {
   })
 
   it("JSON encode/decode round-trips via Schema", () => {
-    const ops: GraphOpArray = [
+    const ops: ReadonlyArray<GraphOp> = [
       new UpsertVertex({ label: "Class", key: { fqcn: "A" }, properties: { name: "A" } }),
       new UpsertVertex({ label: "Event", key: { id: "ev-1" }, properties: { name: "OrderPlaced" } }),
       new UpsertEdge({
@@ -46,8 +46,8 @@ describe("GraphOp Schema types", () => {
       }),
     ]
 
-    const json = Schema.encodeSync(Schema.fromJsonString(GraphOpArray))(ops)
-    const decoded = Schema.decodeSync(Schema.fromJsonString(GraphOpArray))(json)
+    const json = Schema.encodeSync(Schema.fromJsonString(Schema.Array(GraphOp)))(ops)
+    const decoded = Schema.decodeSync(Schema.fromJsonString(Schema.Array(GraphOp)))(json)
 
     expect(decoded).toHaveLength(3)
     expect(GraphOp.guards.UpsertVertex(decoded[0])).toBe(true)
@@ -56,7 +56,7 @@ describe("GraphOp Schema types", () => {
   })
 
   it("preserves order in array", () => {
-    const ops: GraphOpArray = [
+    const ops: ReadonlyArray<GraphOp> = [
       new UpsertVertex({ label: "A", key: { id: "0" }, properties: {} }),
       new UpsertEdge({
         label: "LINKS",
@@ -68,8 +68,8 @@ describe("GraphOp Schema types", () => {
       new UpsertVertex({ label: "C", key: { id: "2" }, properties: {} }),
     ]
 
-    const encoded = Schema.encodeSync(GraphOpArray)(ops)
-    const decoded = Schema.decodeSync(GraphOpArray)(encoded)
+    const encoded = Schema.encodeSync(Schema.Array(GraphOp))(ops)
+    const decoded = Schema.decodeSync(Schema.Array(GraphOp))(encoded)
     expect(GraphOp.guards.UpsertVertex(decoded[0])).toBe(true)
     expect(GraphOp.guards.UpsertEdge(decoded[1])).toBe(true)
     expect(GraphOp.guards.UpsertVertex(decoded[2])).toBe(true)
