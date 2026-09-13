@@ -1,4 +1,4 @@
-import { Array, Record } from "effect"
+import { Array, Record, Result } from "effect"
 import { GraphOp } from "./GraphOp.js"
 
 /** label → set of allowed property names (both key fields and properties) */
@@ -55,12 +55,14 @@ export function validateGraphOps(
     if (!allowed) {
       return [{ op: opKind, label, property: "*", message: `Unknown label "${label}"` }]
     }
-    const keyViolations = Record.keys(key)
-      .filter((prop) => !allowed.has(prop))
-      .map((prop) => ({ op: opKind, label, property: prop, message: `Undeclared key property "${prop}" on label "${label}"` }))
-    const propViolations = Record.keys(properties)
-      .filter((prop) => !allowed.has(prop))
-      .map((prop) => ({ op: opKind, label, property: prop, message: `Undeclared property "${prop}" on label "${label}"` }))
+    const keyViolations = Array.filterMap(Record.keys(key), (prop) =>
+      !allowed.has(prop)
+        ? Result.succeed({ op: opKind, label, property: prop, message: `Undeclared key property "${prop}" on label "${label}"` })
+        : Result.failVoid)
+    const propViolations = Array.filterMap(Record.keys(properties), (prop) =>
+      !allowed.has(prop)
+        ? Result.succeed({ op: opKind, label, property: prop, message: `Undeclared property "${prop}" on label "${label}"` })
+        : Result.failVoid)
     return [...keyViolations, ...propViolations]
   }
 
@@ -72,29 +74,33 @@ export function validateGraphOps(
         const edgeAllowed = index.get(e.label)
         const edgeViolations: ReadonlyArray<GraphOpViolation> = edgeAllowed
           ? [
-              ...Record.keys(e.key)
-                .filter((prop) => !edgeAllowed.has(prop))
-                .map((prop) => ({ op: "UpsertEdge", label: e.label, property: prop, message: `Undeclared key property "${prop}" on relationship "${e.label}"` })),
-              ...Record.keys(e.properties)
-                .filter((prop) => !edgeAllowed.has(prop))
-                .map((prop) => ({ op: "UpsertEdge", label: e.label, property: prop, message: `Undeclared property "${prop}" on relationship "${e.label}"` })),
+              ...Array.filterMap(Record.keys(e.key), (prop) =>
+                !edgeAllowed.has(prop)
+                  ? Result.succeed({ op: "UpsertEdge", label: e.label, property: prop, message: `Undeclared key property "${prop}" on relationship "${e.label}"` })
+                  : Result.failVoid),
+              ...Array.filterMap(Record.keys(e.properties), (prop) =>
+                !edgeAllowed.has(prop)
+                  ? Result.succeed({ op: "UpsertEdge", label: e.label, property: prop, message: `Undeclared property "${prop}" on relationship "${e.label}"` })
+                  : Result.failVoid),
             ]
           : [{ op: "UpsertEdge", label: e.label, property: "*", message: `Unknown relationship type "${e.label}"` }]
 
         // from-vertex key fields
         const fromAllowed = index.get(e.from.label)
         const fromViolations: ReadonlyArray<GraphOpViolation> = fromAllowed
-          ? Record.keys(e.from.key)
-              .filter((prop) => !fromAllowed.has(prop))
-              .map((prop) => ({ op: "UpsertEdge", label: e.from.label, property: prop, message: `Undeclared key property "${prop}" on from-label "${e.from.label}"` }))
+          ? Array.filterMap(Record.keys(e.from.key), (prop) =>
+              !fromAllowed.has(prop)
+                ? Result.succeed({ op: "UpsertEdge", label: e.from.label, property: prop, message: `Undeclared key property "${prop}" on from-label "${e.from.label}"` })
+                : Result.failVoid)
           : [{ op: "UpsertEdge", label: e.from.label, property: "*", message: `Unknown from-label "${e.from.label}"` }]
 
         // to-vertex key fields
         const toAllowed = index.get(e.to.label)
         const toViolations: ReadonlyArray<GraphOpViolation> = toAllowed
-          ? Record.keys(e.to.key)
-              .filter((prop) => !toAllowed.has(prop))
-              .map((prop) => ({ op: "UpsertEdge", label: e.to.label, property: prop, message: `Undeclared key property "${prop}" on to-label "${e.to.label}"` }))
+          ? Array.filterMap(Record.keys(e.to.key), (prop) =>
+              !toAllowed.has(prop)
+                ? Result.succeed({ op: "UpsertEdge", label: e.to.label, property: prop, message: `Undeclared key property "${prop}" on to-label "${e.to.label}"` })
+                : Result.failVoid)
           : [{ op: "UpsertEdge", label: e.to.label, property: "*", message: `Unknown to-label "${e.to.label}"` }]
 
         return [...edgeViolations, ...fromViolations, ...toViolations]
