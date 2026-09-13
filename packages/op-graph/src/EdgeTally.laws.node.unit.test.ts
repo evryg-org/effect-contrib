@@ -8,7 +8,7 @@ import { EdgeDropped, EdgeMaterialized, EdgeShape, EdgeTally, type EdgeOutcome }
 // monoid but not idempotent (combining a tally with itself doubles every count).
 
 const tallyEq = (a: EdgeTally, b: EdgeTally): boolean => {
-  const shapes = Array.fromIterable(new Set([...a.entries.keys(), ...b.entries.keys()]))
+  const shapes = Array.union(a.entries.keys(), b.entries.keys())
   return Array.every(shapes, (shape) => {
     const ca = a.entries.get(shape) ?? { written: 0, dropped: 0 }
     const cb = b.entries.get(shape) ?? { written: 0, dropped: 0 }

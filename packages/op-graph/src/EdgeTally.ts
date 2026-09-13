@@ -53,10 +53,10 @@ export class EdgeTally extends Schema.Class<EdgeTally>("EdgeTally")({
   }
 
   combine(other: EdgeTally): EdgeTally {
-    const shapes = new Set([...this.entries.keys(), ...other.entries.keys()])
+    const shapes = Array.union(this.entries.keys(), other.entries.keys())
     return new EdgeTally({
       entries: new Map(
-        Array.fromIterable(shapes).map((shape) =>
+        shapes.map((shape) =>
           [shape, combineShapeCount(this.entries.get(shape) ?? zeroShapeCount, other.entries.get(shape) ?? zeroShapeCount)] as const,
         ),
       ),
