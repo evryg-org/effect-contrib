@@ -44,8 +44,8 @@ export class EdgeTally extends Schema.Class<EdgeTally>("EdgeTally")({
     const byShape = Array.groupBy(outcomes.map(classify), (c) => c.shape)
     const counts = Record.map(byShape, (group) =>
       new ShapeCount({
-        written: group.filter((c) => !c.dropped).length,
-        dropped: group.filter((c) => c.dropped).length,
+        written: Array.countBy(group, (c) => !c.dropped),
+        dropped: Array.countBy(group, (c) => c.dropped),
       }))
     return new EdgeTally({
       entries: new Map(Record.toEntries(counts).map(([shape, count]) => [EdgeShape.make(shape), count])),
