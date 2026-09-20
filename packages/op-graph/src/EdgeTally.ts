@@ -1,4 +1,4 @@
-import { Array, Record, Schema } from "effect"
+import { Array, Number, Record, Schema } from "effect"
 
 export const EdgeShape = Schema.String.pipe(Schema.brand("EdgeShape"))
 export type EdgeShape = typeof EdgeShape.Type
@@ -68,7 +68,7 @@ export class EdgeTally extends Schema.Class<EdgeTally>("EdgeTally")({
   }
 
   droppedCount(): number {
-    return Array.reduce(Array.fromIterable(this.entries.values()), 0, (sum, count) => sum + count.dropped)
+    return Number.sumAll(Array.fromIterable(this.entries.values()).map((count) => (count.dropped)))
   }
 
   droppedByShape(): ReadonlyMap<string, number> {
