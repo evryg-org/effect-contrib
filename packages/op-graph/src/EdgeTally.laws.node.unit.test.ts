@@ -27,12 +27,14 @@ const arbOutcome: fc.Arbitrary<EdgeOutcome> = fc.oneof(
 // Built only through EdgeTally.of — the same restriction production code lives under.
 const arbTally: fc.Arbitrary<EdgeTally> = fc.array(arbOutcome).map(EdgeTally.of)
 
+// Laws are stated against the exposed `EdgeTally.Reducer` instance, not the `combine` instance
+// method it wraps -- proving the NATIVE surface consumers reach for (e.g. `.combineAll`) is lawful.
 commutativeMonoidLaws({
-  name: "EdgeTally-combine",
+  name: "EdgeTally.Reducer",
   arb: arbTally,
   arbCtx: fc.constant(null),
-  op: (a, b) => a.combine(b),
-  id: EdgeTally.empty,
+  op: (a, b) => EdgeTally.Reducer.combine(a, b),
+  id: EdgeTally.Reducer.initialValue,
   eq: (a, b) => {
     expect(tallyEq(a, b)).toBe(true)
   },

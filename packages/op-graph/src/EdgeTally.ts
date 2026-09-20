@@ -1,4 +1,4 @@
-import { Array, Number, Record, Schema } from "effect"
+import { Array, Number, Record, Reducer, Schema } from "effect"
 
 export const EdgeShape = Schema.String.pipe(Schema.brand("EdgeShape"))
 export type EdgeShape = typeof EdgeShape.Type
@@ -19,10 +19,20 @@ class ShapeCount extends Schema.Class<ShapeCount>("ShapeCount")({
   dropped: Schema.Number,
 }) {}
 
-const zeroShapeCount = new ShapeCount({ written: 0, dropped: 0 })
-
-const combineShapeCount = (a: ShapeCount, b: ShapeCount): ShapeCount =>
-  new ShapeCount({ written: a.written + b.written, dropped: a.dropped + b.dropped })
+/**
+ * Per-field sum over ShapeCount's two counters, built from the native `Number.ReducerSum`.
+ * NOT `Struct.makeReducer`: its combine returns a plain `{written, dropped}` object, which fails
+ * `ShapeCount`'s Schema.Class validation inside `EdgeTally`'s `entries` map — a `ShapeCount`
+ * instance is required, so the per-field sums are wrapped back into one here.
+ */
+const ShapeCountReducer: Reducer.Reducer<ShapeCount> = Reducer.make(
+  (a, b) =>
+    new ShapeCount({
+      written: Number.ReducerSum.combine(a.written, b.written),
+      dropped: Number.ReducerSum.combine(a.dropped, b.dropped),
+    }),
+  new ShapeCount({ written: Number.ReducerSum.initialValue, dropped: Number.ReducerSum.initialValue }),
+)
 
 const classify = (outcome: EdgeOutcome): { readonly shape: string; readonly dropped: boolean } =>
   EdgeOutcome.match(outcome, {
@@ -39,6 +49,9 @@ export class EdgeTally extends Schema.Class<EdgeTally>("EdgeTally")({
   entries: Schema.ReadonlyMap(EdgeShape, ShapeCount),
 }) {
   static readonly empty: EdgeTally = new EdgeTally({ entries: new Map() })
+
+  /** The native Reducer for the per-shape accounting monoid — `combine` is the instance-method form. */
+  static readonly Reducer: Reducer.Reducer<EdgeTally> = Reducer.make((a, b) => a.combine(b), EdgeTally.empty)
 
   static of(outcomes: ReadonlyArray<EdgeOutcome>): EdgeTally {
     const byShape = Array.groupBy(outcomes.map(classify), (c) => c.shape)
@@ -57,7 +70,13 @@ export class EdgeTally extends Schema.Class<EdgeTally>("EdgeTally")({
     return new EdgeTally({
       entries: new Map(
         shapes.map((shape) =>
-          [shape, combineShapeCount(this.entries.get(shape) ?? zeroShapeCount, other.entries.get(shape) ?? zeroShapeCount)] as const,
+          [
+            shape,
+            ShapeCountReducer.combine(
+              this.entries.get(shape) ?? ShapeCountReducer.initialValue,
+              other.entries.get(shape) ?? ShapeCountReducer.initialValue,
+            ),
+          ] as const,
         ),
       ),
     })
