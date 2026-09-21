@@ -6,6 +6,9 @@ import { GraphOp, UpsertVertex } from "./GraphOp.js"
  * key, which is the whole difference from a {@link PartitionKey}: attribution says where a node came
  * from without saying which node it is, so re-attributing never mints a second node.
  */
+// A generic Neo4j property bag spread-merged with a vertex's own properties and reduced across
+// labels via Record.makeReducerUnion — the record IS the domain here.
+// ast-grep-ignore: typescript/no-exported-collection-alias
 export type VertexAttribution = Record<string, string>
 
 /**

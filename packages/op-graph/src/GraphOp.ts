@@ -1,5 +1,8 @@
 import { Schema } from "effect"
 
+// The foundational Neo4j property bag, spread-merged throughout this eDSL and by ~14 downstream
+// call sites (VertexRef.key, UpsertVertex/UpsertEdge) — the arbitrary-key record IS the domain here.
+// ast-grep-ignore: effect/no-bare-collection-schema-alias
 export const PropertyMap = Schema.Record(Schema.String, Schema.Unknown)
 export type PropertyMap = typeof PropertyMap.Type
 

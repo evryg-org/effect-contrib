@@ -5,6 +5,9 @@ import { GraphOp, UpsertEdge, UpsertVertex, VertexRef } from "./GraphOp.js"
  * Extra identity fields a vertex carries for its partition. Part of the vertex's MERGE key, so two
  * vertices in different partitions are distinct nodes even with the same natural key.
  */
+// Spread-merged into a vertex/edge-endpoint's own MERGE key; callers project their own richer
+// partition key down to this generic bag before it reaches this library.
+// ast-grep-ignore: typescript/no-exported-collection-alias
 export type PartitionKey = Record<string, string>
 
 /**
