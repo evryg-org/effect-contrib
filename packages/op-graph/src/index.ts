@@ -1,5 +1,5 @@
 // The GraphOp graph-mutation eDSL: mutation terms as data (initial encoding),
-// its validator, the materializer port, and the one-way adapter combinator.
+// its declaration check, the materializer port, and the one-way adapter combinator.
 // Concrete materializers (neo4j, memory) are separate adapter packages.
 
 export {
@@ -33,11 +33,25 @@ export {
 } from "./GraphOpMaterializer.js"
 
 export {
-  buildSchemaIndex,
-  validateGraphOps,
-  graphOpKind,
-  type SchemaIndex,
-  type GraphOpViolation,
-} from "./GraphOpValidator.js"
+  EndpointPair,
+  VertexDeclaration,
+  EdgeDeclaration,
+  DeclarationIndex,
+  DeclarationViolationError,
+  DuplicateDeclarationError,
+  UndeclaredLabel,
+  UndeclaredProperty,
+  NullOnRequired,
+  UndecodableProperty,
+  UndeclaredConnectivity,
+  ViolationReason,
+  checkFields,
+  checkGraphOp,
+  checkGraphOps,
+  type Declaration,
+  type DeclaredFields,
+} from "./DeclarationCheck.js"
+
+export { declarationCheckedMaterializer } from "./DeclarationCheckedMaterializer.js"
 
 export { graphOpAdapter } from "./GraphOpAdapter.js"
