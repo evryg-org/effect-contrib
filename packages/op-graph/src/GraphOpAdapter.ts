@@ -1,7 +1,9 @@
-import { Schema, SchemaTransformation } from "effect"
+import { Schema, SchemaGetter, SchemaTransformation } from "effect"
 import { GraphOp } from "./GraphOp.js"
 
 const graphOpArray = Schema.Array(GraphOp)
+
+export const ONE_WAY_ENCODE_MESSAGE = "graphOpAdapter is a one-way (decode-only) codec"
 
 /**
  * Build the one-way `Schema.Codec<readonly GraphOp[], A>` a `TaskImpl` requires
@@ -19,11 +21,9 @@ export const graphOpAdapter = <A>(
   Schema.declare<A>((_): _ is A => true).pipe(
     Schema.decodeTo(
       graphOpArray,
-      SchemaTransformation.transform<typeof graphOpArray.Encoded, A>({
-        decode: (a) => toOps(a) as typeof graphOpArray.Encoded,
-        encode: () => {
-          throw new Error("graphOpAdapter is one-way (decode only)")
-        },
+      SchemaTransformation.make<typeof graphOpArray.Encoded, A>({
+        decode: SchemaGetter.transform((a) => toOps(a) as typeof graphOpArray.Encoded),
+        encode: SchemaGetter.forbidden(() => ONE_WAY_ENCODE_MESSAGE),
       }),
     ),
   )

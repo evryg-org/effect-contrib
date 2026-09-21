@@ -1,6 +1,6 @@
 import { describe, it, expect } from "@effect/vitest"
 import { Schema } from "effect"
-import { graphOpAdapter } from "./GraphOpAdapter.js"
+import { graphOpAdapter, ONE_WAY_ENCODE_MESSAGE } from "./GraphOpAdapter.js"
 import { UpsertVertex, GraphOp } from "./GraphOp.js"
 
 describe("graphOpAdapter", () => {
@@ -17,8 +17,9 @@ describe("graphOpAdapter", () => {
     expect(ops[0]).toMatchObject({ label: "Class", key: { fqcn: "App\\Foo" } })
   })
 
-  it("is one-way: encode throws", () => {
+  it("is one-way: encode fails with SchemaIssue.Forbidden", () => {
+    expect(ONE_WAY_ENCODE_MESSAGE).toBe("graphOpAdapter is a one-way (decode-only) codec")
     const adapter = graphOpAdapter(toOps)
-    expect(() => Schema.encodeSync(adapter)(toOps({ fqcn: "App\\Foo" }))).toThrow(/one-way/)
+    expect(() => Schema.encodeSync(adapter)(toOps({ fqcn: "App\\Foo" }))).toThrow(ONE_WAY_ENCODE_MESSAGE)
   })
 })
