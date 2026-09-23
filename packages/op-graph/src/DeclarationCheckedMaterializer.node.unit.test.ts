@@ -1,5 +1,5 @@
 import { it, expect } from "@effect/vitest"
-import { Effect, Layer, Ref, Result, Schema, Stream } from "effect"
+import { Clock, Duration, Effect, Layer, Logger, Predicate, Ref, Result, Schema, Stream } from "effect"
 import { DeclarationIndex, DeclarationViolationError, NullOnRequired, VertexDeclaration } from "./DeclarationCheck.js"
 import { declarationCheckedMaterializer } from "./DeclarationCheckedMaterializer.js"
 import { UpsertVertex, type GraphOp } from "./GraphOp.js"
@@ -16,6 +16,27 @@ const recordingBase = (recorded: Ref.Ref<ReadonlyArray<GraphOp>>) =>
         ),
       ),
   })
+
+/** Every reading lands `step` past the previous one, so a timed span over pure code measures `step`. */
+const steppingClock = (step: Duration.Duration): Clock.Clock => {
+  let nanos = 0n
+  const next = () => (nanos += Duration.toNanosUnsafe(step))
+  return {
+    currentTimeNanosUnsafe: next,
+    currentTimeNanos: Effect.sync(next),
+    currentTimeMillisUnsafe: () => Number(next() / 1_000_000n),
+    currentTimeMillis: Effect.sync(() => Number(next() / 1_000_000n)),
+    sleep: () => Effect.void,
+  }
+}
+
+const capturingLogger = () => {
+  const lines: string[] = []
+  const layer = Logger.layer([Logger.make(({ message }) => {
+    lines.push(Predicate.isString(message) ? message : globalThis.Array.isArray(message) ? message.join(" ") : String(message))
+  })])
+  return { lines, layer }
+}
 
 const indexed = () =>
   Result.getOrThrow(
@@ -56,3 +77,45 @@ it.effect("fails the stream on an undeclared write, and the base sees nothing", 
     expect(yield* Ref.get(recorded)).toEqual([])
   }),
 )
+
+it.effect("logs the check with the op count when it is slow", () => {
+  const { lines, layer } = capturingLogger()
+  return Effect.gen(function* () {
+    const ops: ReadonlyArray<GraphOp> = [
+      new UpsertVertex({ label: "Alpha", key: { id: "a1" }, properties: { category: "core" } }),
+      new UpsertVertex({ label: "Alpha", key: { id: "a2" }, properties: { category: "edge" } }),
+    ]
+    const recorded = yield* Ref.make<ReadonlyArray<GraphOp>>([])
+    yield* Effect.gen(function* () {
+      const m = yield* GraphOpMaterializer
+      yield* Stream.runDrain(m.materialize(ops))
+    }).pipe(
+      Effect.provide(declarationCheckedMaterializer(indexed())(recordingBase(recorded))),
+      Effect.provideService(Clock.Clock, steppingClock(Duration.seconds(2))),
+      Effect.provide(layer),
+    )
+
+    expect(lines).toEqual(["declaration-checked 2 ops (2s)"])
+  })
+})
+
+it.effect("a refused batch logs no phase line", () => {
+  const { lines, layer } = capturingLogger()
+  return Effect.gen(function* () {
+    const ops: ReadonlyArray<GraphOp> = [
+      new UpsertVertex({ label: "Alpha", key: { id: "a2" }, properties: { category: null } }),
+    ]
+    const recorded = yield* Ref.make<ReadonlyArray<GraphOp>>([])
+    yield* Effect.gen(function* () {
+      const m = yield* GraphOpMaterializer
+      yield* Stream.runDrain(m.materialize(ops))
+    }).pipe(
+      Effect.provide(declarationCheckedMaterializer(indexed())(recordingBase(recorded))),
+      Effect.provideService(Clock.Clock, steppingClock(Duration.seconds(2))),
+      Effect.provide(layer),
+      Effect.flip,
+    )
+
+    expect(lines).toEqual([])
+  })
+})

@@ -54,4 +54,6 @@ export {
 
 export { declarationCheckedMaterializer } from "./DeclarationCheckedMaterializer.js"
 
+export { formatElapsed, logPhase } from "./PhaseLog.js"
+
 export { graphOpAdapter } from "./GraphOpAdapter.js"
