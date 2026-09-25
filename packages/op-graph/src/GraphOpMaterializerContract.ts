@@ -151,15 +151,9 @@ const ConservationDraw = Schema.Struct({
 
 const conservationArbitrary = Schema.toArbitrary(ConservationDraw)
 
-/**
- * The nine properties every `GraphOpMaterializer` implementation must satisfy, run identically
- * against `under` — memory passes a dependency-free layer, neo4j passes one already provided a
- * Neo4j client. `samples` bounds the property-based cases (smaller across a container boundary).
- */
 export const graphOpMaterializerContract = (
   implementationName: string,
   under: Layer.Layer<GraphOpMaterializer | MaterializedGraph>,
-  samples: number,
 ): void => {
   layer(under, { timeout: "120 seconds" })(implementationName, (it) => {
     it.effect("P1 — vertices MERGE by (label, key); properties accumulate", () =>
@@ -175,20 +169,6 @@ export const graphOpMaterializerContract = (
           { label: "Alpha", properties: sortedEntries({ id: "1", name: "first", role: "primary" }) },
         ])
       }))
-
-    it.effect("P2 — re-applying the same op list is idempotent", () =>
-      Effect.forEach(FastCheck.sample(fixtureArbitrary, samples), (draw) =>
-        Effect.gen(function* () {
-          const ops = opsFromDraw(draw)
-          const probe = yield* MaterializedGraph
-          yield* probe.clear()
-          yield* materialize(ops).pipe(Stream.runDrain)
-          const once = yield* snapshotOf(probe)
-          yield* materialize(ops).pipe(Stream.runDrain)
-          const twice = yield* snapshotOf(probe)
-          expect(twice).toEqual(once)
-        }),
-      ))
 
     it.effect("P3 — edges MERGE by (endpoints, key); a different key is a distinct edge", () =>
       Effect.gen(function* () {
@@ -219,24 +199,6 @@ export const graphOpMaterializerContract = (
           ].toSorted(byKey((e) => `${e.label} ${entriesKey(e.from)} ${entriesKey(e.to)} ${entriesKey(e.properties)}`)),
         )
       }))
-
-    it.effect("P4 — distinct (label, key) pairs are distinct vertices", () =>
-      Effect.forEach(FastCheck.sample(collisionArbitrary, samples), (letters) =>
-        Effect.gen(function* () {
-          const combined = combinedOf(letters)
-          const [key1, key2] = collisionKeysOf(combined)
-          const probe = yield* MaterializedGraph
-          yield* probe.clear()
-          yield* materialize([vertex("Alpha", key1), vertex("Alpha", key2)]).pipe(Stream.runDrain)
-          const vertices = yield* probe.vertices("Alpha")
-          expect(sortedVertices(vertices)).toEqual(
-            [
-              { label: "Alpha", properties: sortedEntries(key1) },
-              { label: "Alpha", properties: sortedEntries(key2) },
-            ].toSorted(byKey((v) => `${v.label} ${entriesKey(v.properties)}`)),
-          )
-        }),
-      ))
 
     it.effect("P5 — a caller-ordered vertices-then-edges list materializes every edge", () =>
       Effect.gen(function* () {
@@ -308,6 +270,58 @@ export const graphOpMaterializerContract = (
         )
       }))
 
+    it.effect("P9 — an empty op list emits exactly one zero progress and never fails", () =>
+      Effect.gen(function* () {
+        const probe = yield* MaterializedGraph
+        yield* probe.clear()
+        const events = yield* materialize([]).pipe(Stream.runCollect)
+        expect(events.length).toBe(1)
+        expect(events[0].processed).toBe(0)
+        expect(events[0].total).toBe(0)
+        expect(events[0].counts.size).toBe(0)
+        expect(events[0].dropped.size).toBe(0)
+      }))
+  })
+}
+
+export const graphOpMaterializerLaws = (
+  implementationName: string,
+  under: Layer.Layer<GraphOpMaterializer | MaterializedGraph>,
+  samples: number,
+): void => {
+  layer(under, { timeout: "120 seconds" })(implementationName, (it) => {
+    it.effect("P2 — re-applying the same op list is idempotent", () =>
+      Effect.forEach(FastCheck.sample(fixtureArbitrary, samples), (draw) =>
+        Effect.gen(function* () {
+          const ops = opsFromDraw(draw)
+          const probe = yield* MaterializedGraph
+          yield* probe.clear()
+          yield* materialize(ops).pipe(Stream.runDrain)
+          const once = yield* snapshotOf(probe)
+          yield* materialize(ops).pipe(Stream.runDrain)
+          const twice = yield* snapshotOf(probe)
+          expect(twice).toEqual(once)
+        }),
+      ))
+
+    it.effect("P4 — distinct (label, key) pairs are distinct vertices", () =>
+      Effect.forEach(FastCheck.sample(collisionArbitrary, samples), (letters) =>
+        Effect.gen(function* () {
+          const combined = combinedOf(letters)
+          const [key1, key2] = collisionKeysOf(combined)
+          const probe = yield* MaterializedGraph
+          yield* probe.clear()
+          yield* materialize([vertex("Alpha", key1), vertex("Alpha", key2)]).pipe(Stream.runDrain)
+          const vertices = yield* probe.vertices("Alpha")
+          expect(sortedVertices(vertices)).toEqual(
+            [
+              { label: "Alpha", properties: sortedEntries(key1) },
+              { label: "Alpha", properties: sortedEntries(key2) },
+            ].toSorted(byKey((v) => `${v.label} ${entriesKey(v.properties)}`)),
+          )
+        }),
+      ))
+
     it.effect("P8 — processed is non-decreasing and the final progress totals the op count", () =>
       Effect.forEach(FastCheck.sample(fixtureArbitrary, samples), (draw) =>
         Effect.gen(function* () {
@@ -322,18 +336,6 @@ export const graphOpMaterializerContract = (
           expect(last.total).toBe(ops.length)
         }),
       ))
-
-    it.effect("P9 — an empty op list emits exactly one zero progress and never fails", () =>
-      Effect.gen(function* () {
-        const probe = yield* MaterializedGraph
-        yield* probe.clear()
-        const events = yield* materialize([]).pipe(Stream.runCollect)
-        expect(events.length).toBe(1)
-        expect(events[0].processed).toBe(0)
-        expect(events[0].total).toBe(0)
-        expect(events[0].counts.size).toBe(0)
-        expect(events[0].dropped.size).toBe(0)
-      }))
 
     it.effect("P10 — the tally conserves ops: a dangling edge is tallied dropped even when another op in the same apply fans out", () =>
       Effect.forEach(FastCheck.sample(conservationArbitrary, samples), (draw) =>
