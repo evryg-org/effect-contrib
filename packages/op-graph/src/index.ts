@@ -10,7 +10,7 @@ export {
   PropertyMap,
 } from "./GraphOp.js"
 export { enrichVertexKeys } from "./GraphOpScope.js"
-export { enrichVertexKeysBy } from "./Partition.js"
+export { enrichVertexKeysBy, enrichVertexKeysByResult } from "./Partition.js"
 export type { PartitionKey, PartitionKeyFor } from "./Partition.js"
 export { enrichVertexPropertiesBy } from "./Attribution.js"
 export type { VertexAttribution, VertexAttributionFor } from "./Attribution.js"

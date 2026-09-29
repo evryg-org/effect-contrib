@@ -1,6 +1,7 @@
 import { describe, it, expect } from "@effect/vitest"
+import { Result } from "effect"
 import { UpsertVertex, UpsertEdge, VertexRef } from "./GraphOp.js"
-import { enrichVertexKeysBy } from "./Partition.js"
+import { enrichVertexKeysBy, enrichVertexKeysByResult } from "./Partition.js"
 
 // A per-label partition policy: "Widget" lives in a single-field partition, "Gadget" in a two-field one.
 const partitionKeyFor = (label: string): Record<string, string> =>
@@ -37,5 +38,34 @@ describe("enrichVertexKeysBy", () => {
   it("is idempotent: enriching twice yields the same identity", () => {
     const once = enrichVertexKeysBy(partitionKeyFor)(new UpsertVertex({ label: "Widget", key: { sku: "W1" }, properties: {} }))
     expect(enrichVertexKeysBy(partitionKeyFor)(once)).toEqual(once)
+  })
+})
+
+// A partial policy: "Widget" has a partition, every other label is refused with its name.
+const partialPartitionKeyFor = (label: string): Result.Result<Record<string, string>, string> =>
+  label === "Widget" ? Result.succeed({ tenant: "t1" }) : Result.fail(label)
+
+describe("enrichVertexKeysByResult", () => {
+  it("stamps a vertex identity the policy partitions", () => {
+    const op = enrichVertexKeysByResult(partialPartitionKeyFor)(new UpsertVertex({ label: "Widget", key: { sku: "W1" }, properties: {} }))
+    expect(op).toEqual(Result.succeed(new UpsertVertex({ label: "Widget", key: { sku: "W1", tenant: "t1" }, properties: {} })))
+  })
+
+  it("refuses a vertex whose label the policy refuses, with the policy's own failure", () => {
+    expect(enrichVertexKeysByResult(partialPartitionKeyFor)(new UpsertVertex({ label: "Gadget", key: { seq: 1 }, properties: {} })))
+      .toEqual(Result.fail("Gadget"))
+  })
+
+  it("refuses an edge when either endpoint's label is refused", () => {
+    const edge = (from: string, to: string) =>
+      new UpsertEdge({
+        label: "LINKS",
+        from: new VertexRef({ label: from, key: { sku: "W1" } }),
+        to: new VertexRef({ label: to, key: { seq: 1 } }),
+        key: {},
+        properties: {},
+      })
+    expect(enrichVertexKeysByResult(partialPartitionKeyFor)(edge("Widget", "Gadget"))).toEqual(Result.fail("Gadget"))
+    expect(enrichVertexKeysByResult(partialPartitionKeyFor)(edge("Gadget", "Widget"))).toEqual(Result.fail("Gadget"))
   })
 })
