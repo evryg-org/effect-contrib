@@ -1,4 +1,4 @@
-import { Array, Data, Match, Option, Predicate, Record, Result, Schema, SchemaAST } from "effect"
+import { Array, Data, Equal, Match, Option, Predicate, Record, Result, Schema, SchemaAST } from "effect"
 import { GraphOp, PropertyMap, type UpsertEdge, type UpsertVertex, type VertexRef } from "./GraphOp.js"
 
 /** The field map of a declaring `Schema.Struct`, read structurally so this package keeps
@@ -16,10 +16,12 @@ export class VertexDeclaration extends Data.TaggedClass("VertexDeclaration")<{
   readonly fields: DeclaredFields
 }> {}
 
+/** An edge type's fields over the endpoint pairs it names: at least one, since an edge declared
+ *  over no pair would either connect nothing or claim every pair. */
 export class EdgeDeclaration extends Data.TaggedClass("EdgeDeclaration")<{
   readonly label: string
   readonly fields: DeclaredFields
-  readonly connectivity: ReadonlyArray<EndpointPair>
+  readonly connectivity: Array.NonEmptyReadonlyArray<EndpointPair>
 }> {}
 
 export type Declaration = VertexDeclaration | EdgeDeclaration
@@ -84,49 +86,76 @@ export class DuplicateDeclarationError extends Schema.TaggedErrorClass<Duplicate
   }
 }
 
-const mergeEdges = (existing: EdgeDeclaration, incoming: EdgeDeclaration): EdgeDeclaration =>
-  new EdgeDeclaration({
-    label: existing.label,
-    fields: { ...existing.fields, ...incoming.fields },
-    connectivity: [...existing.connectivity, ...incoming.connectivity],
-  })
+/** One declaration per endpoint pair it names. */
+const perPair = (edge: EdgeDeclaration): ReadonlyArray<EdgeDeclaration> =>
+  edge.connectivity.map((pair) => new EdgeDeclaration({ label: edge.label, fields: edge.fields, connectivity: [pair] }))
+
+/** Two declarations of one edge type on one endpoint pair that disagree on its fields: which one a
+ *  write should be checked against is a contradiction, never a merge. */
+export class ConflictingEdgeDeclarationError extends Schema.TaggedErrorClass<ConflictingEdgeDeclarationError>()(
+  "ConflictingEdgeDeclarationError",
+  {
+    label: Schema.String,
+    pair: EndpointPair,
+  },
+) {
+  override get message(): string {
+    return `Conflicting field declarations for edge "${this.label}" on ${this.pair.from} -> ${this.pair.to}: declare each pair's fields once`
+  }
+}
+
+type DeclarationConflictError = DuplicateDeclarationError | ConflictingEdgeDeclarationError
+
+const samePair = (a: EdgeDeclaration) => (b: EdgeDeclaration): boolean => Equal.equals(a.connectivity, b.connectivity)
+
+/** Field schemas compare by AST, structurally: two contexts spelling the same field agree. */
+const sameFields = (a: EdgeDeclaration, b: EdgeDeclaration): boolean =>
+  Equal.equals(Record.map(a.fields, (field) => field.ast), Record.map(b.fields, (field) => field.ast))
+
+const declaringPair = (
+  declared: Result.Result<ReadonlyArray<EdgeDeclaration>, ConflictingEdgeDeclarationError>,
+  incoming: EdgeDeclaration,
+): Result.Result<ReadonlyArray<EdgeDeclaration>, ConflictingEdgeDeclarationError> =>
+  Result.flatMap(declared, (pairs) =>
+    Option.match(Array.findFirst(pairs, samePair(incoming)), {
+      onNone: () => Result.succeed(Array.append(pairs, incoming)),
+      onSome: (existing) =>
+        sameFields(existing, incoming)
+          ? Result.succeed(pairs)
+          : Result.fail(new ConflictingEdgeDeclarationError({ label: incoming.label, pair: incoming.connectivity[0] })),
+    }))
 
 /** Declared labels, in two maps so an edge type and a vertex label of the same name never collide.
  *
  * A vertex label has exactly one declaration: two are a contradiction about what that node is. An
- * edge TYPE is graph-wide and several contexts declare their own share of it, so same-type edge
- * declarations MERGE — the union of their properties over the union of their endpoint pairs. */
+ * edge TYPE is graph-wide and several contexts declare their own share of it, so the index keeps
+ * one declaration per endpoint pair: the fields a write may carry are those of ITS pair. */
 export class DeclarationIndex {
-  constructor(
+  private constructor(
     private readonly vertices: ReadonlyMap<string, VertexDeclaration>,
-    private readonly edges: ReadonlyMap<string, EdgeDeclaration>,
+    private readonly edges: ReadonlyMap<string, ReadonlyArray<EdgeDeclaration>>,
   ) {}
 
   static fromDeclarations(
     declarations: Iterable<Declaration>,
-  ): Result.Result<DeclarationIndex, DuplicateDeclarationError> {
-    const empty: Result.Result<DeclarationIndex, DuplicateDeclarationError> = Result.succeed(
+  ): Result.Result<DeclarationIndex, DeclarationConflictError> {
+    const empty: Result.Result<DeclarationIndex, DeclarationConflictError> = Result.succeed(
       new DeclarationIndex(new Map(), new Map()),
     )
     return Array.reduce(Array.fromIterable(declarations), empty, (index, declaration) =>
       Result.flatMap(index, (built) => built.declaring(declaration)))
   }
 
-  private declaring(declaration: Declaration): Result.Result<DeclarationIndex, DuplicateDeclarationError> {
+  private declaring(declaration: Declaration): Result.Result<DeclarationIndex, DeclarationConflictError> {
     return Match.valueTags(declaration, {
       VertexDeclaration: (vertex) =>
         Option.isSome(this.vertex(vertex.label))
           ? Result.fail(new DuplicateDeclarationError({ label: vertex.label }))
           : Result.succeed(new DeclarationIndex(new Map([...this.vertices, [vertex.label, vertex]]), this.edges)),
       EdgeDeclaration: (edge) =>
-        Result.succeed(
-          new DeclarationIndex(
-            this.vertices,
-            new Map([
-              ...this.edges,
-              [edge.label, Option.match(this.edge(edge.label), { onNone: () => edge, onSome: (e) => mergeEdges(e, edge) })],
-            ]),
-          ),
+        Result.map(
+          Array.reduce(perPair(edge), Result.succeed(this.edgeDeclarations(edge.label)), declaringPair),
+          (pairs) => new DeclarationIndex(this.vertices, new Map([...this.edges, [edge.label, pairs]])),
         ),
     })
   }
@@ -135,8 +164,9 @@ export class DeclarationIndex {
     return Option.fromNullishOr(this.vertices.get(label))
   }
 
-  edge(label: string): Option.Option<EdgeDeclaration> {
-    return Option.fromNullishOr(this.edges.get(label))
+  /** One declaration per endpoint pair the edge type connects, empty for an undeclared type. */
+  edgeDeclarations(label: string): ReadonlyArray<EdgeDeclaration> {
+    return this.edges.get(label) ?? []
   }
 
   vertexLabels(): ReadonlyArray<string> {
@@ -196,29 +226,37 @@ const checkVertexWrite = (
 const checkEndpoint = (index: DeclarationIndex, ref: VertexRef): Option.Option<DeclarationViolationError> =>
   checkVertexWrite(index, "UpsertEdge", ref.label, ref.key, {})
 
-const checkConnectivity = (declaration: EdgeDeclaration, edge: UpsertEdge): Option.Option<ViolationReason> =>
-  declaration.connectivity.length === 0 ||
-  Array.some(declaration.connectivity, (pair) => pair.from === edge.from.label && pair.to === edge.to.label)
-    ? Option.none()
-    : Option.some(new UndeclaredConnectivity({ from: edge.from.label, to: edge.to.label }))
+const declarationOfPair = (
+  declarations: ReadonlyArray<EdgeDeclaration>,
+  edge: UpsertEdge,
+): Option.Option<EdgeDeclaration> =>
+  Array.findFirst(declarations, (declaration) =>
+    Array.some(declaration.connectivity, (pair) => pair.from === edge.from.label && pair.to === edge.to.label))
 
-const checkEdge = (index: DeclarationIndex, edge: UpsertEdge): Option.Option<DeclarationViolationError> =>
-  Option.match(index.edge(edge.label), {
-    onNone: () => Option.some(violationOf("UpsertEdge", edge.label, edge.key)(new UndeclaredLabel())),
-    onSome: (declaration) =>
-      Option.orElse(
-        Option.map(
-          Option.orElse(checkFields(declaration.fields, edge.key), () =>
-            checkFields(declaration.fields, edge.properties)),
-          violationOf("UpsertEdge", edge.label, edge.key),
+const checkEndpoints = (index: DeclarationIndex, edge: UpsertEdge): Option.Option<DeclarationViolationError> =>
+  Option.orElse(checkEndpoint(index, edge.from), () => checkEndpoint(index, edge.to))
+
+const checkEdge = (index: DeclarationIndex, edge: UpsertEdge): Option.Option<DeclarationViolationError> => {
+  const violation = violationOf("UpsertEdge", edge.label, edge.key)
+  const declarations = index.edgeDeclarations(edge.label)
+  return Array.isReadonlyArrayEmpty(declarations)
+    ? Option.some(violation(new UndeclaredLabel()))
+    : Option.match(declarationOfPair(declarations, edge), {
+      onNone: () =>
+        Option.orElse(
+          checkEndpoints(index, edge),
+          () => Option.some(violation(new UndeclaredConnectivity({ from: edge.from.label, to: edge.to.label }))),
         ),
-        () =>
-          Option.orElse(
-            Option.orElse(checkEndpoint(index, edge.from), () => checkEndpoint(index, edge.to)),
-            () => Option.map(checkConnectivity(declaration, edge), violationOf("UpsertEdge", edge.label, edge.key)),
+      onSome: (declaration) =>
+        Option.orElse(
+          Option.map(
+            Option.orElse(checkFields(declaration.fields, edge.key), () => checkFields(declaration.fields, edge.properties)),
+            violation,
           ),
-      ),
-  })
+          () => checkEndpoints(index, edge),
+        ),
+    })
+}
 
 export const checkGraphOp =
   (index: DeclarationIndex) =>

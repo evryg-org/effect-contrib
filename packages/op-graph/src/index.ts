@@ -39,6 +39,7 @@ export {
   DeclarationIndex,
   DeclarationViolationError,
   DuplicateDeclarationError,
+  ConflictingEdgeDeclarationError,
   UndeclaredLabel,
   UndeclaredProperty,
   NullOnRequired,

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "@effect/vitest"
 import { Function, Option, Result, Schema } from "effect"
 import {
+  ConflictingEdgeDeclarationError,
   DeclarationIndex,
   EdgeDeclaration,
   EndpointPair,
@@ -139,7 +140,7 @@ describe("the index and the batch", () => {
       DeclarationIndex.fromDeclarations([new VertexDeclaration({ label: "LINKS", fields: { id: Schema.String } }), links()]),
     )
     expect(Option.isSome(shared.vertex("LINKS"))).toBe(true)
-    expect(Option.isSome(shared.edge("LINKS"))).toBe(true)
+    expect(shared.edgeDeclarations("LINKS")).toHaveLength(1)
     expect(shared.vertexLabels()).toEqual(["LINKS"])
     expect(shared.edgeLabels()).toEqual(["LINKS"])
   })
@@ -172,6 +173,63 @@ describe("the index and the batch", () => {
     })
     expect(checkMerged(reversed)).toBeNull()
     expect(checkMerged(validEdge())).toBeNull()
+  })
+
+  it("refuses, on one endpoint pair, a field only another pair of the same edge type declares", () => {
+    const perPair = Result.getOrThrow(
+      DeclarationIndex.fromDeclarations([
+        alpha(),
+        beta(),
+        new EdgeDeclaration({
+          label: "RELATES",
+          fields: { weight: Schema.Number },
+          connectivity: [new EndpointPair({ from: "Alpha", to: "Beta" })],
+        }),
+        new EdgeDeclaration({
+          label: "RELATES",
+          fields: { weight: Schema.Number, reason: Schema.optional(Schema.String) },
+          connectivity: [new EndpointPair({ from: "Beta", to: "Alpha" })],
+        }),
+      ]),
+    )
+    const carryingTheOtherPairsField = new UpsertEdge({
+      label: "RELATES",
+      from: new VertexRef({ label: "Alpha", key: { id: "a1" } }),
+      to: new VertexRef({ label: "Beta", key: { id: "b1" } }),
+      key: {},
+      properties: { weight: 1, reason: "borrowed" },
+    })
+    const reason = Result.match(checkGraphOp(perPair)(carryingTheOtherPairsField), {
+      onFailure: (violation) => Option.some(violation.reason),
+      onSuccess: () => Option.none(),
+    })
+    expect(reason).toEqual(Option.some(new UndeclaredProperty({ property: "reason" })))
+  })
+
+  it("refuses two declarations of one edge type on one endpoint pair that disagree on its fields", () => {
+    const disagreeing = new EdgeDeclaration({
+      label: "LINKS",
+      fields: { ordinal: Schema.String },
+      connectivity: [new EndpointPair({ from: "Alpha", to: "Beta" })],
+    })
+    const outcome = DeclarationIndex.fromDeclarations([alpha(), beta(), links(), disagreeing])
+    expect(Result.isFailure(outcome)).toBe(true)
+    expect(Result.match(outcome, { onFailure: Function.identity, onSuccess: Function.constNull })).toEqual(
+      new ConflictingEdgeDeclarationError({ label: "LINKS", pair: new EndpointPair({ from: "Alpha", to: "Beta" }) }),
+    )
+  })
+
+  it("accepts two declarations of one edge type on one endpoint pair that agree on its fields", () => {
+    const agreeing = new EdgeDeclaration({
+      label: "LINKS",
+      fields: { ordinal: Schema.Number },
+      connectivity: [new EndpointPair({ from: "Alpha", to: "Beta" }), new EndpointPair({ from: "Beta", to: "Alpha" })],
+    })
+    const index = Result.getOrThrow(DeclarationIndex.fromDeclarations([alpha(), beta(), links(), agreeing]))
+    expect(index.edgeDeclarations("LINKS").flatMap((edge) => edge.connectivity)).toEqual([
+      new EndpointPair({ from: "Alpha", to: "Beta" }),
+      new EndpointPair({ from: "Beta", to: "Alpha" }),
+    ])
   })
 
   it("fails a batch on its first violation", () => {
