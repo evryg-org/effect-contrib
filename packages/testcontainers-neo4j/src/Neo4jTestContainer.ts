@@ -5,6 +5,7 @@ import { Neo4jConfig } from "@evryg/effect-neo4j"
 import { acquireContainer } from "@evryg/effect-testcontainers"
 import { Neo4jContainer } from "@testcontainers/neo4j"
 import { Effect, Layer } from "effect"
+import { Wait } from "testcontainers"
 
 /**
  * @since 0.0.1
@@ -29,7 +30,11 @@ export const makeNeo4jTestContainer = (
     Neo4jConfig,
     Effect.gen(function*() {
       const container = yield* acquireContainer(() =>
-        new Neo4jContainer(image).withPassword(password).withStartupTimeout(120_000).start()
+        new Neo4jContainer(image)
+          .withPassword(password)
+          .withWaitStrategy(Wait.forAll([Wait.forListeningPorts(), Wait.forHttp("/", 7474).forStatusCode(200)]))
+          .withStartupTimeout(120_000)
+          .start()
       )
       yield* Effect.log(`[testcontainers] Neo4j started at ${container.getBoltUri()}`)
       return { uri: container.getBoltUri(), user: "neo4j", password, database: "neo4j" }
