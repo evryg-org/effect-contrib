@@ -1,5 +1,12 @@
 # @evryg/effect-vitest-neo4j
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies [[`5af96b2`](https://github.com/evryg-org/effect-contrib/commit/5af96b2415d2e0c999b8b42b537680a7735532c7)]:
+  - @evryg/effect-testcontainers-neo4j@0.3.0
+
 ## 0.2.0
 
 ### Patch Changes
