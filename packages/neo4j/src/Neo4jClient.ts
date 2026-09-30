@@ -129,6 +129,15 @@ export const runCypherWrite = (
     catch: (e) => new Neo4jQueryError({ cypher, cause: e })
   })
 
+const operationName = (cypher: string): string => /^\s*([A-Za-z]+)/.exec(cypher)?.[1]?.toUpperCase() ?? "UNKNOWN"
+
+const spanAttributes = (database: string, cypher: string) => ({
+  "db.system.name": "neo4j",
+  "db.namespace": database,
+  "db.query.text": cypher,
+  "db.operation.name": operationName(cypher)
+})
+
 // --- Service ---
 
 /**
@@ -186,6 +195,8 @@ export const UnconfiguredNeo4jClient: Layer.Layer<Neo4jClient, never, Neo4jConfi
           runCypher(session, cypher, params ?? {}).pipe(
             Effect.map((result) => result.records)
           )
+        ).pipe(
+          Effect.withSpan("neo4j.query", { kind: "client", attributes: spanAttributes(config.database, cypher) })
         ),
 
       queryStream: (cypher: string, params?: Record<string, unknown>) =>
@@ -206,6 +217,11 @@ export const UnconfiguredNeo4jClient: Layer.Layer<Neo4jClient, never, Neo4jConfi
               })
             )
           )
+        ).pipe(
+          Stream.withSpan("neo4j.query_stream", {
+            kind: "client",
+            attributes: spanAttributes(config.database, cypher)
+          })
         ),
 
       runBatch: (cypher: string, rows: Array<unknown>, batchSize = 5000) =>
@@ -218,6 +234,11 @@ export const UnconfiguredNeo4jClient: Layer.Layer<Neo4jClient, never, Neo4jConfi
               total += batch.length
             }
             return total
+          })
+        ).pipe(
+          Effect.withSpan("neo4j.run_batch", {
+            kind: "client",
+            attributes: { ...spanAttributes(config.database, cypher), "db.operation.batch.size": rows.length }
           })
         )
     }
