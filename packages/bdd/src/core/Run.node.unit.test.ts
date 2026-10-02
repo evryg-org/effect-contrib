@@ -1,7 +1,8 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Cause, Effect, Exit, Fiber, Schedule } from "effect"
 import * as Interpreter from "../EffectInterpreter.js"
-import { Scenario } from "../index.js"
+import { Scenario, toGherkin } from "../index.js"
+import { toTest as toVitestTest } from "../vitest.js"
 import * as Given from "./Given.js"
 import { run } from "./Run.js"
 import * as Steps from "./Steps.js"
@@ -13,7 +14,7 @@ const increment = When.define<{ count: number }, number, string, { count: number
 const number = Then.success<{ count: number }, number>()("number", () => "the result matches the counter")
 const rejected = Then.failure<{ count: number }, string>()("rejected", () => "the rejection is acknowledged")
 const context = Then.context<{ count: number }>()("context", () => "the context exists")
-const spec = Scenario.make("counter").given(setup()).when(increment()).then(number()).build()
+const spec = Scenario.make("counter").given(setup()).when(increment()).then(number())
 const model = (offset = 1) =>
   Interpreter.make(
     Interpreter.bind(setup, () => Effect.succeed({ count: 0 })),
@@ -80,17 +81,17 @@ describe("ordered execution", () => {
             expect(world.count).toBe(-1)
           }))
       )
-      const unexpected = Scenario.make("unexpected").given(setup()).when(increment()).then(context()).build()
+      const unexpected = Scenario.make("unexpected").given(setup()).when(increment()).then(context())
       expect((yield* Effect.flip(run(unexpected, bindings))).reason).toContain("not acknowledged")
       const expected = Scenario.make("expected").given(setup()).when(increment()).then(context()).then(rejected()).when(
         increment()
-      ).then(rejected()).build()
+      ).then(rejected())
       yield* run(expected, bindings)
     }))
   it.effect("does not accept mixed domain failures and defects", () =>
     Effect.gen(function*() {
       const mixed = Cause.combine(Cause.fail("denied"), Cause.die("defect"))
-      const scenario = Scenario.make("mixed").given(setup()).when(increment()).then(rejected()).build()
+      const scenario = Scenario.make("mixed").given(setup()).when(increment()).then(rejected())
       const interpreter = Interpreter.make(
         model().bindings[0],
         Interpreter.bind(increment, { execute: () => Effect.failCause(mixed), update: () => ({ count: 0 }) }),
@@ -148,7 +149,7 @@ describe("ordered execution", () => {
     }))
   it.effect("rejects outcome mismatches and prevents unacknowledged failure from reaching another action", () =>
     Effect.gen(function*() {
-      const wrong = Scenario.make("wrong").given(setup()).when(increment()).then(rejected()).build()
+      const wrong = Scenario.make("wrong").given(setup()).when(increment()).then(rejected())
       const success = Interpreter.make(...model().bindings, Interpreter.bind(rejected, () => Effect.void))
       expect((yield* Effect.flip(run(wrong, success))).reason).toContain("expected outcome")
       let executions = 0
@@ -165,7 +166,7 @@ describe("ordered execution", () => {
         Interpreter.bind(context, () => Effect.void),
         model().bindings[2]
       )
-      const next = Scenario.make("next").given(setup()).when(increment()).then(context()).when(increment()).build()
+      const next = Scenario.make("next").given(setup()).when(increment()).then(context()).when(increment())
       expect((yield* Effect.flip(run(next, failing))).reason).toContain("not acknowledged")
       expect(executions).toBe(1)
       expect((yield* Effect.flip(run(spec, failing))).reason).toContain("expected outcome")
@@ -196,8 +197,8 @@ describe("ordered execution", () => {
   it.effect("fluent and pipe workflow fragments execute in identical authored order", () =>
     Effect.gen(function*() {
       const workflow = Steps.from(setup(), increment(), number(), increment(), number())
-      const fluent = Scenario.make("workflow").use(workflow).build()
-      const piped = Scenario.make("workflow").pipe(Scenario.use(workflow), Scenario.build)
+      const fluent = Scenario.make("workflow").use(workflow)
+      const piped = Scenario.make("workflow").pipe(Scenario.use(workflow))
       const orders: Array<Array<string>> = []
       for (const scenario of [fluent, piped]) {
         const order: Array<string> = []
@@ -275,4 +276,43 @@ describe("ordered execution", () => {
       expect(Object.isFrozen(binding.implementation)).toBe(true)
       yield* run(spec, interpreter)
     }))
+  it("keeps fluent prefixes immutable and handlers lazy through ordinary runner callbacks", async () => {
+    let implementationCalls = 0
+    const prefix = Scenario.make("fluent").given(setup())
+    const scenario = prefix.when(increment()).then(number())
+    const interpreter = Interpreter.make(
+      Interpreter.bind(setup, () =>
+        Effect.sync(() => {
+          implementationCalls++
+          return { count: 0 }
+        })),
+      Interpreter.bind(increment, {
+        execute: () =>
+          Effect.sync(() => {
+            implementationCalls++
+            return 1
+          }),
+        update: (_, outcome) => {
+          implementationCalls++
+          return { count: outcome._tag === "Success" ? outcome.value : -1 }
+        }
+      }),
+      Interpreter.bind(number, () =>
+        Effect.sync(() => {
+          implementationCalls++
+        }))
+    )
+    expect(implementationCalls).toBe(0)
+    expect(Scenario.inspect(prefix)).toHaveLength(1)
+    expect(Scenario.inspect(scenario)).toHaveLength(3)
+    expect(toGherkin(scenario)).toContain("Scenario: fluent")
+    expect(implementationCalls).toBe(0)
+    await toVitestTest(scenario, interpreter)()
+    expect(implementationCalls).toBe(4)
+    await Effect.runPromise(run(prefix, interpreter))
+    expect(implementationCalls).toBe(5)
+    expect(Scenario.inspect(prefix)).toHaveLength(1)
+    await expect(Promise.resolve(scenario)).rejects.toThrow(TypeError)
+    expect(implementationCalls).toBe(5)
+  })
 })

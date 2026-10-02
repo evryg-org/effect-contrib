@@ -5,8 +5,8 @@ import { feature, filterByTags, Given, Scenario, selectByTags } from "../index.j
 
 const one = Given.define<{}, { one: number }>()("one", () => "one")
 const two = Given.define<{}, { two: string }>()("two", () => "two")
-const a = Scenario.make("a").given(one()).build()
-const b = Scenario.make("b").given(two()).build()
+const a = Scenario.make("a").given(one())
+const b = Scenario.make("b").given(two())
 const suite = feature("heterogeneous", [a, b])
 expectTypeOf(suite.scenarios).toEqualTypeOf<ReadonlyArray<typeof a | typeof b>>()
 const selected = selectByTags(suite, ["fast"])

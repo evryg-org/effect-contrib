@@ -1,12 +1,12 @@
 /**
- * Group completed scenarios and filter their metadata while retaining operation requirements.
+ * Group immutable scenarios and filter their metadata while retaining operation requirements.
  *
  * @since 0.0.1
  */
 import type { Scenario } from "./Scenario.js"
 
 /**
- * A completed scenario accepted by metadata and grouping operations.
+ * A immutable scenario accepted by metadata and grouping operations.
  *
  * @since 0.0.1
  */
@@ -22,7 +22,7 @@ export interface Feature<S extends Scenario = Scenario> {
   readonly scenarios: ReadonlyArray<S>
 }
 /**
- * Group completed scenarios with optional descriptive metadata.
+ * Group immutable scenarios with optional descriptive metadata.
  *
  * @since 0.0.1
  */

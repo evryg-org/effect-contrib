@@ -14,7 +14,7 @@ class Unused extends Context.Service<Unused, string>()("Unused") {}
 const action = When.define<{}, number, "bad">()("action", (amount: number) => `${amount}`)
 const other = When.define<{}, string, { code: number }>()("other", () => "other")
 const check = Then.success<{}, number>()("check", () => "check")
-const spec = Scenario.make("typed").when(action(1)).then(check()).build()
+const spec = Scenario.make("typed").when(action(1)).then(check())
 it("preserves operation-specific requirements and coverage", () => {
   const bindings = Interpreter.make(
     Interpreter.bind(action, { execute: ([amount]) => Effect.map(Used, (value) => value + amount) }),

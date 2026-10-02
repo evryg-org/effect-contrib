@@ -1,5 +1,5 @@
 /**
- * Build ordered specifications using fluent methods or dual pipe combinators. Completed scenarios are immutable and have no callable then property.
+ * Build ordered specifications using fluent methods or dual pipe combinators. Scenarios are immutable and carry fluent authoring methods.
  *
  * @since 0.0.1
  */
@@ -33,7 +33,7 @@ export type Keyword = "Given" | "When" | "Then" | "And" | "But"
 declare const _scenario: unique symbol
 declare const _state: unique symbol
 /**
- * An opaque completed specification carrying its required operation definitions.
+ * An opaque immutable specification carrying its required operation definitions.
  *
  * @since 0.0.1
  */
@@ -43,7 +43,7 @@ export interface Scenario<O extends AnyDefinition = AnyDefinition> {
   readonly [_scenario]: O
 }
 /**
- * Extract the definitions required to execute a completed scenario.
+ * Extract the definitions required to execute an immutable scenario.
  *
  * @since 0.0.1
  */
@@ -118,11 +118,11 @@ export type Fold<S extends State, T extends ReadonlyArray<AnyDescriptor>> = T ex
   number extends T["length"] ? never
   : S
 /**
- * An immutable fluent builder. Call build to obtain a completed scenario.
+ * An immutable fluent scenario. Every authored prefix is inspectable and executable.
  *
  * @since 0.0.1
  */
-export interface Builder<S extends State = Initial> {
+export interface Builder<S extends State = Initial> extends Scenario<S["ops"]> {
   readonly [_state]: S
   given<D extends AnyDescriptor>(
     step: D & Compatible<S, D> & (D["kind"] extends "given" ? unknown : never)
@@ -142,7 +142,6 @@ export interface Builder<S extends State = Initial> {
   use<const T extends ReadonlyArray<AnyDescriptor>>(
     fragment: Steps<T> & (Fold<S, T> extends never ? never : unknown)
   ): Builder<Fold<S, T>>
-  build(): Scenario<S["ops"]>
   pipe(): Builder<S>
   pipe<A>(a: (self: Builder<S>) => A): A
   pipe<A, B>(a: (self: Builder<S>) => A, b: (self: A) => B): B
@@ -395,22 +394,21 @@ interface Program {
   readonly tags: ReadonlyArray<string>
   readonly steps: ReadonlyArray<ProgramStep>
 }
-const builders = new WeakMap<object, Program>()
-const scenarios = new WeakMap<object, Program>()
+const programs = new WeakMap<object, Program>()
 /**
- * Read the ordered program of a completed scenario without executing handlers.
+ * Read the ordered program of an immutable scenario without executing handlers.
  *
  * @since 0.0.1
  */
 export const inspect = (scenario: Scenario): ReadonlyArray<ProgramStep> => {
-  const program = scenarios.get(scenario)
-  if (!program) throw new TypeError("Expected a completed Scenario")
+  const program = programs.get(scenario)
+  if (!program) throw new TypeError("Expected a Scenario")
   return program.steps
 }
 const semantic = (kind: Kind): Keyword => kind === "given" ? "Given" : kind === "when" ? "When" : "Then"
 const append = (builder: object, descriptor: AnyDescriptor, keyword: Keyword): Builder<State> => {
-  const program = builders.get(builder)
-  if (!program) throw new TypeError("Expected a Scenario builder")
+  const program = programs.get(builder)
+  if (!program) throw new TypeError("Expected a Scenario")
   const last = program.steps.at(-1)
   if (
     (keyword === "And" || keyword === "But") && (!last || semantic(last.descriptor.kind) !== semantic(descriptor.kind))
@@ -422,39 +420,43 @@ const append = (builder: object, descriptor: AnyDescriptor, keyword: Keyword): B
 }
 const create = (program: Program): Builder<State> => {
   const builder = {
+    name: program.name,
+    tags: program.tags,
     given: (d: AnyDescriptor) => append(builder, d, "Given"),
     when: (d: AnyDescriptor) => append(builder, d, "When"),
-    then: (d: AnyDescriptor) => append(builder, d, "Then"),
+    then: (d: AnyDescriptor, ...extra: ReadonlyArray<unknown>) => {
+      if (typeof d === "function" || extra.length > 0) {
+        throw new TypeError("Fluent scenarios cannot be awaited or resolved as Promises; execute them with run instead")
+      }
+      return append(builder, d, "Then")
+    },
     and: (d: AnyDescriptor) => append(builder, d, "And"),
     but: (d: AnyDescriptor) => append(builder, d, "But"),
     use: (fragment: Steps) =>
       entries(fragment).reduce((b: object, d) => append(b, d, semantic(d.kind)), builder) as Builder<State>,
-    build: () => {
-      const completed = Object.freeze({ name: program.name, tags: program.tags })
-      scenarios.set(completed, program)
-      return completed
-    },
     pipe: (...fns: ReadonlyArray<(value: unknown) => unknown>) =>
       fns.reduce((value, fn) => fn(value), builder as unknown)
   }
-  builders.set(builder, program)
+  programs.set(builder, program)
   return Object.freeze(builder) as unknown as Builder<State>
 }
 /**
- * Start an empty scenario builder with optional tags.
+ * Start an immutable fluent scenario with optional tags. Every authored prefix
+ * can be inspected, rendered, grouped, or executed. The fluent then method
+ * means scenarios must not be awaited or returned directly from async functions.
  *
  * @since 0.0.1
  */
-export const make = (name: string, options?: { readonly tags?: ReadonlyArray<string> }): Builder<Initial> =>
-  create({ name, tags: Object.freeze([...(options?.tags ?? [])]), steps: Object.freeze([]) }) as unknown as Builder<
-    Initial
-  >
-/**
- * Complete a builder as an immutable, non-thenable scenario.
- *
- * @since 0.0.1
- */
-export const build = <S extends State>(builder: Builder<S>): Scenario<S["ops"]> => builder.build()
+export const make = (name: string, options?: { readonly tags?: ReadonlyArray<string> }): Builder<Initial> => {
+  if (typeof options === "function") {
+    throw new TypeError("Scenario.make accepts a name and optional tags; author steps with fluent methods")
+  }
+  return create({
+    name,
+    tags: Object.freeze([...(options?.tags ?? [])]),
+    steps: Object.freeze([])
+  }) as unknown as Builder<Initial>
+}
 type Allowed<K extends Keyword, S extends State, D extends AnyDescriptor> =
   & Compatible<S, D>
   & (K extends "Given" ? D["kind"] extends "given" ? unknown : never

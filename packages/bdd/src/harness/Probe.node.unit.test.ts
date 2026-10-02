@@ -27,7 +27,7 @@ describe("execution-scoped probes", () => {
               expect(calls).toEqual([label])
             })))
       )
-      const scenario = (label: string) => Scenario.make(label).when(ping(label)).then(recorded(label)).build()
+      const scenario = (label: string) => Scenario.make(label).when(ping(label)).then(recorded(label))
       yield* Effect.all([run(scenario("a"), interpreter), run(scenario("b"), interpreter)], {
         concurrency: "unbounded"
       })
@@ -47,7 +47,7 @@ describe("execution-scoped probes", () => {
     Effect.gen(function*() {
       const beacon = probe<string>()("beacon", Beacon, (record) => ({ ping: record }))
       let entered = false
-      const scenario = Scenario.make("reuse").when(ping("a")).then(recorded("a")).build()
+      const scenario = Scenario.make("reuse").when(ping("a")).then(recorded("a"))
       const assertion = Interpreter.bind(recorded, () =>
         Effect.flatMap(beacon.calls, (calls) =>
           Effect.sync(() => {

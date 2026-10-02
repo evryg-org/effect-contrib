@@ -9,8 +9,8 @@ class Warehouse extends Context.Service<Warehouse, {
 }>()("example/Warehouse") {}
 const warehouse = probe<string>()("warehouse", Warehouse, (record) => ({ reserve: (title) => record(title) }))
 const reserved = Then.context<{}>()("warehouse.reserved", (title: string) => `the warehouse reserved ${title}`)
-export const adding = Scenario.make("reserving a book").use(anEmptyCart).when(adds(book)).then(reserved(book.title))
-  .build()
+export const adding = Scenario.make("reserving a book")
+  .use(anEmptyCart).when(adds(book)).then(reserved(book.title))
 const [emptyBinding, , holdsBinding, costsBinding] = model.bindings
 export const system = EffectInterpreter.make(
   emptyBinding,

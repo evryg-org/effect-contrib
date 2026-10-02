@@ -13,17 +13,15 @@ const failure = Then.failure<{}, "rejected">()("fixture.failure", () => "rejecte
 const stringCheck = Then.context<{ count: string }>()("fixture.string", () => "string")
 const unrelated = When.define<{}, string, Error>()("fixture.other", () => "other")
 const fragment = Steps.from(setup(0))
-const fluent = Scenario.make("fixture").use(fragment).when(action()).then(check(1)).build()
-const piped = Scenario.make("fixture").pipe(
-  Scenario.use(fragment),
-  Scenario.when(action()),
-  Scenario.then(check(1)),
-  Scenario.build
-)
+const fluent = Scenario.make("fixture")
+  .use(fragment).when(action()).then(check(1))
+const piped = Scenario.make("fixture")
+  .pipe(Scenario.use(fragment), Scenario.when(action()), Scenario.then(check(1)))
 const same: typeof fluent = piped
 void same
-Scenario.make("replacement").use(fragment).given(rename()).then(stringCheck()).build()
-feature("heterogeneous", [fluent, Scenario.make("context").use(fragment).build()])
+Scenario.make("replacement")
+  .use(fragment).given(rename()).then(stringCheck())
+feature("heterogeneous", [fluent, Scenario.make("context").use(fragment)])
 const interpreter = EffectInterpreter.make(
   EffectInterpreter.bind(setup, ([count]) => Effect.succeed({ count })),
   EffectInterpreter.bind(action, { execute: (_args, context) => Effect.succeed(context.count + 1) }),
@@ -36,12 +34,16 @@ const interpreter = EffectInterpreter.make(
 run(fluent, interpreter)
 toTest(fluent, interpreter)
 toEffectTest(fluent, interpreter)
-// @ts-expect-error missing dependencies
-Scenario.make("missing").when(action())
-// @ts-expect-error assertion receives a number, not a string
-Scenario.make("wrong subject").use(fragment).when(action()).then(Then.success<{}, string>()("wrong", () => "wrong")())
-// @ts-expect-error failure assertion requires a matching action
-Scenario.make("no action").then(failure())
+Scenario.make("missing")
+  // @ts-expect-error missing dependencies
+  .when(action())
+Scenario.make("wrong subject")
+  .use(fragment).when(action())
+  // @ts-expect-error assertion receives a number, not a string
+  .then(Then.success<{}, string>()("wrong", () => "wrong")())
+Scenario.make("no action")
+  // @ts-expect-error failure assertion requires a matching action
+  .then(failure())
 // @ts-expect-error invalid primitive patch
 Given.define<{}, number>()("primitive", () => "primitive")
 // @ts-expect-error invalid array patch
@@ -50,8 +52,8 @@ Given.define<{}, Array<string>>()("array", () => "array")
 Given.define<{}, { count?: number }>()("optional", () => "optional")
 // @ts-expect-error incomplete interpreter
 run(fluent, EffectInterpreter.make())
-// @ts-expect-error only completed scenarios can render
-toGherkin(Scenario.make("unfinished"))
+toGherkin(Scenario.make("empty"))
+toGherkin(Scenario.make("setup prefix").given(setup(0)))
 class Port extends Context.Service<Port, { readonly count: number }>()("fixture/Port") {}
 const requiresPort = EffectInterpreter.make(
   EffectInterpreter.bind(setup, () => Effect.map(Port, (port) => ({ count: port.count }))),
@@ -62,7 +64,7 @@ const requiresPort = EffectInterpreter.make(
 toTest(fluent, requiresPort)
 const effectCallback: () => Effect.Effect<void, unknown, Port> = toEffectTest(fluent, requiresPort)
 void effectCallback
-const heterogeneous = feature("adapter suite", [fluent, Scenario.make("setup").given(setup(0)).build()])
+const heterogeneous = feature("adapter suite", [fluent, Scenario.make("setup").given(setup(0))])
 for (const scenario of heterogeneous.scenarios) {
   toTest(scenario, interpreter)
   toEffectTest(scenario, interpreter)
@@ -76,22 +78,14 @@ const equal = <A, B>(..._proof: Equal<A, B> extends true ? [] : [never]) => {}
 equal<typeof fluent, typeof piped>()
 equal<typeof setup.id, "fixture.setup">()
 
-const _dualFluent = Scenario.make("dual").given(setup(0)).and(setup(1)).but(setup(2))
-  .when(action()).then(check(1)).and(check(1)).but(check(1)).build()
-const _dualFirst = Scenario.build(Scenario.but(
+const _dualFluent = Scenario.make("dual")
+  .given(setup(0)).and(setup(1)).but(setup(2))
+  .when(action()).then(check(1)).and(check(1)).but(check(1))
+const _dualFirst = Scenario.but(
   Scenario.and(
     Scenario.then(
       Scenario.when(
-        Scenario.but(
-          Scenario.and(
-            Scenario.given(
-              Scenario.make("dual"),
-              setup(0)
-            ),
-            setup(1)
-          ),
-          setup(2)
-        ),
+        Scenario.but(Scenario.and(Scenario.given(Scenario.make("dual"), setup(0)), setup(1)), setup(2)),
         action()
       ),
       check(1)
@@ -99,29 +93,28 @@ const _dualFirst = Scenario.build(Scenario.but(
     check(1)
   ),
   check(1)
-))
-const _dualLast = Scenario.make("dual").pipe(
-  Scenario.given(setup(0)),
-  Scenario.and(setup(1)),
-  Scenario.but(setup(2)),
-  Scenario.when(action()),
-  Scenario.then(check(1)),
-  Scenario.and(check(1)),
-  Scenario.but(check(1)),
-  Scenario.build
 )
+const _dualLast = Scenario.make("dual")
+  .pipe(
+    Scenario.given(setup(0)),
+    Scenario.and(setup(1)),
+    Scenario.but(setup(2)),
+    Scenario.when(action()),
+    Scenario.then(check(1)),
+    Scenario.and(check(1)),
+    Scenario.but(check(1))
+  )
 equal<typeof _dualFluent, typeof _dualFirst>()
 equal<typeof _dualFluent, typeof _dualLast>()
 equal<typeof fluent, ReturnType<typeof _withUse>>()
 function _withUse() {
-  return Scenario.build(
-    Scenario.then(Scenario.when(Scenario.use(Scenario.make("fixture"), fragment), action()), check(1))
-  )
+  return Scenario.then(Scenario.when(Scenario.use(Scenario.make("fixture"), fragment), action()), check(1))
 }
 const workflow = Steps.concat(fragment, Steps.from(action(), check(1)))
 const _curriedWorkflow = Steps.concat(Steps.from(action(), check(1)))(fragment)
 equal<typeof workflow, typeof _curriedWorkflow>()
-const _identity = Scenario.make("_identity").use(Steps.concat(Steps.empty, workflow)).build()
+const _identity = Scenario.make("_identity")
+  .use(Steps.concat(Steps.empty, workflow))
 equal<typeof _identity, typeof fluent>()
 const _leftAssociated = Steps.concat(Steps.concat(fragment, Steps.from(action())), Steps.from(check(1)))
 const _rightAssociated = Steps.concat(fragment, Steps.concat(Steps.from(action()), Steps.from(check(1))))
@@ -129,18 +122,27 @@ equal<typeof _leftAssociated, typeof _rightAssociated>()
 
 const withExtra = Given.define<{}, { count: number; extra: boolean }>()("fixture.extra", () => "extra")
 const retainsExtra = Then.context<{ count: string; extra: boolean }>()("fixture.retains", () => "retains extra")
-Scenario.make("replacement keeps extras").use(Steps.from(withExtra())).use(Steps.from(rename(), retainsExtra())).build()
-// @ts-expect-error fragment needs are checked at the application site
-Scenario.make("fragment needs").use(Steps.from(action(), check(1)))
-// @ts-expect-error replacement changes the field type required by an action
-Scenario.make("replaced context").given(setup(0)).given(rename()).when(action())
-// @ts-expect-error fragment checks its current assertion subject
-Scenario.make("wrong fragment subject").given(setup(0)).when(unrelated()).use(Steps.from(check(1)))
+Scenario.make("replacement keeps extras")
+  .use(Steps.from(withExtra())).use(Steps.from(rename(), retainsExtra()))
+Scenario.make("fragment needs")
+  // @ts-expect-error fragment needs are checked at the application site
+  .use(Steps.from(action(), check(1)))
+Scenario.make("replaced context")
+  .given(setup(0)).given(rename())
+  // @ts-expect-error replacement changes the field type required by an action
+  .when(action())
+Scenario.make("wrong fragment subject")
+  .given(setup(0)).when(unrelated())
+  // @ts-expect-error fragment checks its current assertion subject
+  .use(Steps.from(check(1)))
 const stringSuccess = Then.success<{}, string>()("fixture.string.success", () => "string success")
-// @ts-expect-error repeated actions replace their current assertion subject
-Scenario.make("latest subject").given(setup(0)).when(unrelated()).when(action()).then(stringSuccess())
-// @ts-expect-error workflow fragments also replace their current assertion subject
-Scenario.make("latest fragment subject").use(Steps.from(setup(0), unrelated(), action(), stringSuccess()))
+Scenario.make("latest subject")
+  .given(setup(0)).when(unrelated()).when(action())
+  // @ts-expect-error repeated actions replace their current assertion subject
+  .then(stringSuccess())
+Scenario.make("latest fragment subject")
+  // @ts-expect-error workflow fragments also replace their current assertion subject
+  .use(Steps.from(setup(0), unrelated(), action(), stringSuccess()))
 // @ts-expect-error incorrect execute result
 EffectInterpreter.bind(action, { execute: () => Effect.succeed("wrong") })
 // @ts-expect-error incorrect execute domain error
@@ -188,7 +190,8 @@ const serviceInterpreter = EffectInterpreter.make(
 )
 const _usedEffect = run(fluent, serviceInterpreter)
 equal<Effect.Services<typeof _usedEffect>, Port>()
-const otherScenario = Scenario.make("other service").when(unrelated()).then(stringSuccess()).build()
+const otherScenario = Scenario.make("other service")
+  .when(unrelated()).then(stringSuccess())
 const serviceSuite = feature("services", [fluent, otherScenario])
 for (const scenario of serviceSuite.scenarios) {
   const _suiteEffect = run(scenario, serviceInterpreter)
@@ -207,9 +210,12 @@ const selectedDefinition = Math.random() > 0.5 ? setup : alternativeSetup
 EffectInterpreter.bind(selectedDefinition, () => Effect.succeed({ count: 0 }))
 equal<Parameters<typeof setup>, [count: number]>()
 const stringFailure = Then.failure<{}, Error>()("fixture.string.failure", () => "an error")
-Scenario.make("string error").when(unrelated()).then(stringFailure()).build()
-// @ts-expect-error independent commands retain distinct domain error types
-Scenario.make("different error").given(setup(0)).when(action()).then(stringFailure())
+Scenario.make("string error")
+  .when(unrelated()).then(stringFailure())
+Scenario.make("different error")
+  .given(setup(0)).when(action())
+  // @ts-expect-error independent commands retain distinct domain error types
+  .then(stringFailure())
 // @ts-expect-error descriptors with incorrect argument types cannot be authored
 setup("wrong")
 Given.define<{}, { count: number | undefined }>()("fixture.undefined", () => "required but possibly undefined")
@@ -220,9 +226,10 @@ Given.define<{}, Date>()("fixture.date", () => "date")
 // @ts-expect-error function patches are not plain named-field records
 Given.define<{}, () => void>()("fixture.function", () => "function")
 const widenedDescriptors = [action()]
-// @ts-expect-error widened fragments cannot erase ordered dependency checks
-Scenario.make("widened fragment").use(Steps.from(...widenedDescriptors))
-// @ts-expect-error completed scenarios are opaque
+Scenario.make("widened fragment")
+  // @ts-expect-error widened fragments cannot erase ordered dependency checks
+  .use(Steps.from(...widenedDescriptors))
+// @ts-expect-error scenarios are opaque
 const _counterfeit: Scenario.Scenario = { name: "counterfeit", tags: [] }
 const setupDescriptor = setup(0)
 // @ts-expect-error frozen descriptor argument tuples are read-only
@@ -242,7 +249,8 @@ EffectInterpreter.bind(emptyPatchAction, { execute: () => Effect.succeed(1), upd
 // @ts-expect-error optional empty updates still cannot produce array patches
 EffectInterpreter.bind(emptyPatchAction, { execute: () => Effect.succeed(1), update: () => [] })
 EffectInterpreter.bind(emptyPatchAction, { execute: () => Effect.succeed(1), update: () => ({}) })
-const _identityPipe = Scenario.make("pipe identity").pipe()
+const _identityPipe = Scenario.make("pipe identity")
+  .pipe()
 equal<typeof _identityPipe, ReturnType<typeof Scenario.make>>()
 // Annotation-free consumers preserve the latest result through an ordinary long pipe.
 Scenario.make("late incompatibility").pipe(
@@ -253,33 +261,33 @@ Scenario.make("late incompatibility").pipe(
   Scenario.then(check(1)),
   Scenario.and(check(1)),
   // @ts-expect-error a late assertion still requires the latest action's number result
-  Scenario.but(stringSuccess()),
-  Scenario.build
+  Scenario.but(stringSuccess())
 )
 
 // The upper ordinary pipe arity preserves inference without caller annotations.
-const _twentyStages = Scenario.make("twenty stages").pipe(
-  Scenario.given(setup(0)),
-  Scenario.and(setup(1)),
-  Scenario.but(setup(2)),
-  Scenario.when(action()),
-  Scenario.then(check(1)),
-  Scenario.and(check(1)),
-  Scenario.and(check(1)),
-  Scenario.and(check(1)),
-  Scenario.and(check(1)),
-  Scenario.and(check(1)),
-  Scenario.and(check(1)),
-  Scenario.and(check(1)),
-  Scenario.and(check(1)),
-  Scenario.and(check(1)),
-  Scenario.and(check(1)),
-  Scenario.and(check(1)),
-  Scenario.and(check(1)),
-  Scenario.and(check(1)),
-  Scenario.and(check(1)),
-  Scenario.build
-)
+const _twentyStages = Scenario.make("twenty stages")
+  .pipe(
+    Scenario.given(setup(0)),
+    Scenario.and(setup(1)),
+    Scenario.but(setup(2)),
+    Scenario.when(action()),
+    Scenario.then(check(1)),
+    Scenario.and(check(1)),
+    Scenario.and(check(1)),
+    Scenario.and(check(1)),
+    Scenario.and(check(1)),
+    Scenario.and(check(1)),
+    Scenario.and(check(1)),
+    Scenario.and(check(1)),
+    Scenario.and(check(1)),
+    Scenario.and(check(1)),
+    Scenario.and(check(1)),
+    Scenario.and(check(1)),
+    Scenario.and(check(1)),
+    Scenario.and(check(1)),
+    Scenario.and(check(1)),
+    Scenario.and(check(1))
+  )
 equal<typeof _twentyStages, typeof _dualFluent>()
 // Context patches cannot silently overwrite caller fields outside their declaration.
 // @ts-expect-error a Given implementation cannot add undeclared context fields
@@ -299,3 +307,53 @@ interface NamedPatch {
 const namedPatch: NamedPatch = { count: 1 }
 EffectInterpreter.bind(setup, () => Effect.succeed(namedPatch))
 EffectInterpreter.bind(patchAction, { execute: () => Effect.succeed(1), update: () => namedPatch })
+
+// @ts-expect-error scenario metadata is read-only
+fluent.name = "mutated"
+// @ts-expect-error scenario tag arrays are read-only
+fluent.tags.push("mutated")
+const _tagged = Scenario.make("tagged", { tags: ["public"] })
+  .use(fragment).when(action()).then(check(1))
+equal<typeof _tagged, typeof fluent>()
+// @ts-expect-error scenarios no longer require a completion combinator
+Scenario.build(fluent)
+// @ts-expect-error fluent scenarios have no completion method
+Scenario.make("no completion").build()
+const branchSetup = Given.define<{}, { label: string }>()("fixture.branch", () => "a label")
+const _branchScenario = Math.random() > 0.5 ?
+  Scenario.make("conditional author")
+    .given(setup(0)) :
+  Scenario.make("conditional author")
+    .given(branchSetup())
+type Operations<S> = S extends Scenario.Scenario<infer O> ? O : never
+equal<Operations<typeof _branchScenario>, typeof setup | typeof branchSetup>()
+const branchInterpreter = EffectInterpreter.make(
+  EffectInterpreter.bind(setup, () => Effect.succeed({ count: 0 })),
+  EffectInterpreter.bind(branchSetup, () => Effect.succeed({ label: "branch" }))
+)
+run(_branchScenario, branchInterpreter)
+// @ts-expect-error every operation from either author branch must have a binding
+run(_branchScenario, EffectInterpreter.make(EffectInterpreter.bind(setup, () => Effect.succeed({ count: 0 }))))
+
+// Fluent scenario prefixes are directly inspectable and executable.
+const prefix = Scenario.make("prefix").given(setup(0))
+toGherkin(prefix)
+feature("prefixes", [prefix, fluent])
+run(prefix, EffectInterpreter.make(EffectInterpreter.bind(setup, () => Effect.succeed({ count: 0 }))))
+// @ts-expect-error author callbacks are not part of the fluent constructor
+Scenario.make("callback removed", () => fluent)
+const _boxedScenario = Promise.resolve({ scenario: fluent })
+equal<Awaited<typeof _boxedScenario>["scenario"], typeof fluent>()
+// @ts-expect-error fluent scenarios are rejected as bare async return values
+async function _bareAsyncScenario() {
+  return fluent
+}
+// @ts-expect-error fluent scenarios cannot be awaited as if they were Promises
+async function _awaitScenario() {
+  // @ts-expect-error use a boxed scenario instead of awaiting its fluent then method
+  return await fluent
+}
+async function _boxedAsyncScenario() {
+  return { scenario: fluent }
+}
+equal<Awaited<ReturnType<typeof _boxedAsyncScenario>>["scenario"], typeof fluent>()

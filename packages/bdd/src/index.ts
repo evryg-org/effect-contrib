@@ -26,7 +26,7 @@ export * as Then from "./core/Then.js"
  */
 export * as When from "./core/When.js"
 /**
- * An opaque completed specification carrying its required operation definitions.
+ * An opaque immutable specification carrying its required operation definitions.
  *
  * @since 0.0.1
  */
@@ -38,23 +38,22 @@ export const Scenario = Object.freeze({
   and: ScenarioModule.and,
   but: ScenarioModule.but,
   use: ScenarioModule.use,
-  build: ScenarioModule.build,
   inspect: ScenarioModule.inspect
 })
 /**
- * An opaque completed specification carrying its required operation definitions.
+ * An opaque immutable specification carrying its required operation definitions.
  *
  * @since 0.0.1
  */
 export namespace Scenario {
   /**
-   * An opaque completed specification carrying its required operation definitions.
+   * An opaque immutable specification carrying its required operation definitions.
    *
    * @since 0.0.1
    */
   export type Scenario<O extends Operation = Operation> = ScenarioModule.Scenario<O>
   /**
-   * An immutable fluent builder. Call build to obtain a completed scenario.
+   * An immutable fluent scenario, usable at every authored prefix.
    *
    * @since 0.0.1
    */

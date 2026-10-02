@@ -23,7 +23,7 @@ export interface ScenarioStep {
   readonly outcome?: Outcome
 }
 /**
- * Project completed scenario steps in their authored order.
+ * Project immutable scenario steps in their authored order.
  *
  * @since 0.0.1
  */
@@ -71,7 +71,7 @@ export const ScenarioDocument = Schema.Struct({
  */
 export type ScenarioDocument = typeof ScenarioDocument.Type
 /**
- * Project a completed scenario to inspectable document metadata.
+ * Project an immutable scenario to inspectable document metadata.
  *
  * @since 0.0.1
  */

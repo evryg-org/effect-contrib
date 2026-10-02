@@ -19,14 +19,9 @@ export const costs = Then.context<Cart>()("cart.costs", (total: number) => `the 
 export const anEmptyCart = Steps.from(empty())
 export const book = { title: "The Hobbit", price: 10 }
 export const adding = Scenario.make("adding a book")
-  .use(anEmptyCart).when(adds(book)).then(holds(1)).and(costs(10)).build()
-export const equivalent = Scenario.make("adding a book").pipe(
-  Scenario.use(anEmptyCart),
-  Scenario.when(adds(book)),
-  Scenario.then(holds(1)),
-  Scenario.and(costs(10)),
-  Scenario.build
-)
+  .use(anEmptyCart).when(adds(book)).then(holds(1)).and(costs(10))
+export const equivalent = Scenario.make("adding a book")
+  .pipe(Scenario.use(anEmptyCart), Scenario.when(adds(book)), Scenario.then(holds(1)), Scenario.and(costs(10)))
 export const interpreter = EffectInterpreter.make(
   EffectInterpreter.bind(empty, () => Effect.succeed({ books: [] })),
   EffectInterpreter.bind(adds, {
