@@ -48,3 +48,26 @@ jobs:
         uses: ./.github/actions/setup
       - run: pnpm codegen
       - run: pnpm vitest
+
+  bdd-public-api:
+    name: BDD public API and packed exports
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        uses: ./.github/actions/setup
+      - name: Install independent stable TypeScript compilers
+        shell: bash
+        run: |
+          npm install --prefix "$RUNNER_TEMP/bdd-ts59" --ignore-scripts --no-package-lock typescript@5.9.3
+          npm install --prefix "$RUNNER_TEMP/bdd-ts7" --ignore-scripts --no-package-lock typescript@7.0.2
+          echo "TS59_TSC=$RUNNER_TEMP/bdd-ts59/node_modules/typescript/bin/tsc" >> "$GITHUB_ENV"
+          echo "TS7_TSC=$RUNNER_TEMP/bdd-ts7/node_modules/typescript/bin/tsc" >> "$GITHUB_ENV"
+      - name: Compile public consumer contracts without compiler plugins
+        run: pnpm --filter @evryg/effect-bdd check:compat
+      - name: Run scenario and integration regressions
+        working-directory: packages/bdd
+        run: pnpm exec vitest run --config vitest.config.ts
+      - name: Build and verify packed ESM, CJS, and public declarations
+        run: pnpm --filter @evryg/effect-bdd check:packed
