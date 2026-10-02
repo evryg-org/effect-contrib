@@ -26,10 +26,13 @@ it("preserves operation-specific requirements and coverage", () => {
   )
   expectTypeOf(run(spec, bindings)).toEqualTypeOf<Effect.Effect<void, ScenarioError, Used>>()
   // @ts-expect-error incomplete interpreter
-  run(spec, Interpreter.make(bindings.bindings[0]))
+  const incompleteRun = run(spec, Interpreter.make(bindings.bindings[0]))
+  void incompleteRun
   // @ts-expect-error operation result must be number
   Interpreter.bind(action, { execute: () => Effect.succeed("wrong") })
+  // This negative fixture deliberately returns an undeclared error to verify bind rejects it.
   // @ts-expect-error operation domain error must be literal bad
+  // @effect-diagnostics-next-line missingEffectError:off
   Interpreter.bind(action, { execute: () => Effect.fail({ code: 1 }) })
   const scoped = Interpreter.make(
     Interpreter.bind(action, {

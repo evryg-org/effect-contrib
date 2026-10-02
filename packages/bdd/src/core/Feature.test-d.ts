@@ -21,5 +21,6 @@ for (const scenario of filtered) run(scenario, complete)
 const incomplete = EffectInterpreter.make(EffectInterpreter.bind(one, () => Effect.succeed({ one: 1 })))
 for (const scenario of selected.scenarios) {
   // @ts-expect-error selection retains operation requirements from every heterogeneous member
-  run(scenario, incomplete)
+  const incompleteRun = run(scenario, incomplete)
+  void incompleteRun
 }
