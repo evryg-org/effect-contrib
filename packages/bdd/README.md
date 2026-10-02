@@ -1,151 +1,78 @@
 # @evryg/effect-bdd
 
-A runner-agnostic, inspectable Behaviour-Driven-Development DSL for [Effect](https://effect.website).
-
-Author `Given / When / Then` scenarios with a type-safe, phase-typed builder. A
-scenario is **data**, not an `Effect` — so the same value can be **run** under
-any test runner, **rendered** to Gherkin, or **inspected** as structure.
-
-- **Runner-agnostic** — the core imports no test runner. A scenario's terminal
-  is a plain `Effect`; run it with `@effect/vitest`, `node:test`, `bun:test`, or
-  `Effect.runPromise`. Assertion failures surface as a typed `ScenarioError`, not
-  via a runner's `expect`.
-- **Inspectable** — a scenario is a reified term you can render to Gherkin, list
-  the steps of, or project to a serializable document for `.feature` export.
-- **Type-safe & combinator-based** — the phase-typed builder accumulates a
-  named-key context, enforces step dependencies, and feeds each outcome
-  (`then` / `thenFails` / `thenDies`) the correct payload type. Build reusable
-  domain vocabularies on top of the `given` / `when` / `assertion` combinators.
-
-## Installation
-
-```sh
-pnpm add @evryg/effect-bdd effect
-```
-
-`effect` is a peer dependency.
-
-## Quick start
+Author typed scenarios as ordered data, then render or execute them with separately supplied implementations. The same completed scenario can run against a model and a system adapter without reconstruction. No implementation handlers execute during authoring or rendering.
 
 ```ts
-import { run, scenario } from "@evryg/effect-bdd"
+import { Given, Scenario, Steps, Then, When, toGherkin } from "@evryg/effect-bdd"
+import { EffectInterpreter, run } from "@evryg/effect-bdd/effect"
 import { Effect } from "effect"
 
-const addingAnItem = scenario("adding to an empty cart", { tags: ["cart"] })
-  .given("an empty cart", () => Effect.succeed({ items: [] as ReadonlyArray<string> }))
-  .when("the user adds a book", (context) => Effect.succeed([...context.items, "book"]))
-  .then("the cart holds one item", (items) => {
-    if (items.length !== 1) throw new Error(`expected 1 item, got ${items.length}`)
-  })
+const empty = Given.define<{}, { count: number }>()("counter.empty", () => "an empty counter")
+const adds = When.define<{ count: number }, number>()("counter.add", (amount: number) => `adding ${amount}`)
+const reads = Then.success<{}, number>()("counter.reads", (expected: number) => `the count is ${expected}`)
+const starting = Steps.from(empty())
+const scenario = Scenario.make("adding three")
+  .use(starting).when(adds(3)).then(reads(3)).build()
+
+const interpreter = EffectInterpreter.make(
+  EffectInterpreter.bind(empty, () => Effect.succeed({ count: 0 })),
+  EffectInterpreter.bind(adds, { execute: ([amount], context) => Effect.succeed(context.count + amount) }),
+  EffectInterpreter.bind(reads, ([expected], _context, actual) => Effect.sync(() => {
+    if (actual !== expected) throw new Error(`Expected ${expected}, received ${actual}`)
+  }))
+)
+console.log(toGherkin(scenario))
+await Effect.runPromise(run(scenario, interpreter))
 ```
 
-`addingAnItem` is a value. Run it under any runner:
+`Given.define<Needs, Patch>`, `When.define<Needs, A, E, Patch>`, and `Then.context<Needs>`, `Then.success<Needs, A>`, `Then.failure<Needs, E>` define vocabulary. IDs retain their literal types; description parameters determine argument tuples. Declare the domain contracts once at the vocabulary boundary. Scenario chains, fragments, binding callback parameters, and runner callbacks infer their types without caller annotations. Calling a definition creates a descriptor with arguments and text, without requiring a schema. Implementations receive `(args, context)` and assertions additionally receive their typed success value or domain error.
+
+The fluent builder and dual module combinators share their type rules:
+
+```ts
+const equivalent = Scenario.make("adding three").pipe(
+  Scenario.use(starting),
+  Scenario.when(adds(3)),
+  Scenario.then(reads(3)),
+  Scenario.build
+)
+```
+
+Combinators also accept `Scenario.when(builder, adds(3))`. Only `.build()` produces a completed, immutable, non-thenable scenario suitable for execution, rendering, or grouping. `And` and `But` inherit the preceding semantic kind; `But` does not negate an assertion. Steps execute in authored order, including repeated actions and assertion stages. Context checks may appear without an action. Prefer short scenarios describing one behavior.
+
+Compose descriptors with `Steps.from(...)`, `Steps.empty`, and dual `Steps.concat`. `.use(fragment)` checks dependencies and assertion subjects at the application site and flattens the fragment into reported steps. Compatible fragments have an identity and associative composition; changing execution order can change behavior. Context merges are right-biased: overwritten fields take their replacement type, while unrelated fields survive. Patches must be named-field records with required top-level fields; primitives, arrays, and optional top-level fields are rejected. Required fields may contain `undefined`. Inferred setup and update results reject undeclared patch fields that could overwrite unrelated caller context.
+
+An action declaring a nonempty patch must implement `update(context, outcome)`, returning that patch for both `{ _tag: "Success", value }` and `{ _tag: "Failure", error }`. Use named context fields to retain earlier outcomes when a workflow needs them. Each operation retains its own result, domain error, and service requirements. An interpreter must cover every operation used by the scenario; unused bindings do not add service requirements.
+
+`Then.failure` declares expected domain failure in the vocabulary, so specifications use ordinary `.then(rejects())`. A failed action requires a matching failure assertion before another action or completion. Context checks cannot acknowledge failures. Defects fail execution, mixed failure/defect causes cannot satisfy domain failure checks, and interruption propagates. Diagnostics retain the complete cause, step description, and original assertion errors.
+
+Each execution allocates its world, observation log, and resource scope anew, including retries. The `/effect` entry exports `probe` and execution-scoped `Observations`; implementations access probe calls as Effects. Provide probe layers inside implementations so they can access execution services. Resource finalizers run when the scenario ends.
+
+Runner adapters are explicit entry points:
+
+```ts
+import { it } from "vitest"
+import { toTest } from "@evryg/effect-bdd/vitest"
+it(scenario.name, toTest(scenario, interpreter))
+```
 
 ```ts
 import { it } from "@effect/vitest"
-
-it.effect("adding to an empty cart", () => run(addingAnItem))
-
-// …or without any runner at all:
-Effect.runPromise(run(addingAnItem))
+import { toTest } from "@evryg/effect-bdd/effect-vitest"
+it.effect(scenario.name, toTest(scenario, interpreter))
 ```
 
-## Outcomes
+The Vitest adapter returns a Promise callback and rejects unprovided services at compile time. Provide services in its bindings. The Effect adapter returns an Effect callback whose requirements can be supplied by `@effect/vitest` layers or `Effect.provide`.
 
-Choose the expected outcome with the matching method; each receives the right
-payload type:
+`feature`, `filterByTags`, and `selectByTags` retain heterogeneous scenario requirements. `steps`, `tags`, `toGherkin`, and `toDocument` inspect completed scenarios without executing handlers. Document projection is inspectable metadata, not serialization of executable specifications. Specifications remain embedded TypeScript; parameter functions and row mapping cover data-driven cases. Dedicated Rule, Background, Scenario Outline, and `.feature` parsing are outside this API.
 
-```ts
-scenario("removing from an empty cart")
-  .when("the user removes an item", () => Effect.fail({ code: "EMPTY" } as const))
-  .thenFails("it reports the cart is empty", (error) => {
-    if (error.code !== "EMPTY") throw new Error("unexpected error")
-  })
+See [cart vocabulary](examples/core/Cart.ts), [counter failures](examples/core/Counter.ts), [service interpreter](examples/harness/Counter.ts), and [probe observations](examples/harness/Cart.ts).
 
-scenario("dividing by zero")
-  .when("the calculator divides by zero", () => Effect.die(new Error("boom")))
-  .thenDies("it dies with the cause", (defect) => {
-    if (!(defect instanceof Error)) throw new Error("expected an Error defect")
-  })
+Compatibility checks use separate, unpatched compilers and a standalone configuration without compiler plugins:
+
+```sh
+TS59_TSC=/path/to/typescript-5.9.3/bin/tsc TS7_TSC=/path/to/typescript-7/bin/tsc pnpm check:compat
+TS59_TSC=/path/to/typescript-5.9.3/bin/tsc TS7_TSC=/path/to/typescript-7/bin/tsc pnpm check:packed
 ```
 
-## Inspecting a scenario
-
-```ts
-import { steps, toDocument, toGherkin } from "@evryg/effect-bdd"
-
-toGherkin(addingAnItem)
-// @cart
-// Scenario: adding to an empty cart
-//   Given an empty cart
-//   When the user adds a book
-//   Then the cart holds one item
-
-steps(addingAnItem)      // [{ keyword: "Given", text: … }, …]
-toDocument(addingAnItem) // a serializable ScenarioDocument (validate/encode via its Schema)
-```
-
-## Features
-
-Group scenarios and select a suite by tag:
-
-```ts
-import { feature, filterByTags, selectByTags } from "@evryg/effect-bdd"
-
-const storefront = feature("storefront", [addingAnItem /*, … */])
-const smoke = selectByTags(storefront, ["smoke"])
-const cartScenarios = filterByTags(storefront.scenarios, ["cart"])
-```
-
-## Domain vocabularies (core mode)
-
-The real power is building higher-level, constrained combinators on top of
-`given` / `when` / `assertion`, so scenarios read as ubiquitous language and
-misuse is a compile-time error. See [`examples/core/Cart.ts`](./examples/core/Cart.ts)
-and [`examples/core/Counter.ts`](./examples/core/Counter.ts).
-
-```ts
-scenario("adding an item to an empty cart")
-  .given(aCart().empty())
-  .when(user.adds(item("book", 10)))
-  .then(theCart.holds(1))
-  .and(theCart.costs(10))
-```
-
-Because `user.adds` declares it *needs* a cart in its context, chaining it before
-`aCart()` does not type-check.
-
-## Harness mode — reified actions, probes & a preset
-
-The `harness` layer adds what a per-domain Algebra + Interpreter buys, without
-giving up the runner-agnostic, inspectable core:
-
-- **`dispatcher`** turns a *reified command* (a tagged value) into a `When` via a
-  per-tag handler map. The command is data, so the same command type can be
-  driven by multiple dispatchers (run vs. dry-run vs. model).
-- **`probe`** wraps a service in a `Layer.mock` with a call-log, capturing which
-  methods the action invoked (indirect outputs).
-- **`makeHarness`** bundles initial preconditions + probes + a dispatcher into a
-  domain-specialized builder: `when` takes a **bare command**, `then` receives
-  the recorded calls as an **injected observation object**, and `run`
-  **auto-provides** the probe layers.
-
-See [`examples/harness/Cart.ts`](./examples/harness/Cart.ts) and
-[`examples/harness/Counter.ts`](./examples/harness/Counter.ts) — the same two
-domains as the core examples, expressed via the preset.
-
-```ts
-const cart = makeHarness({ initial, probes: { ledger }, dispatch })
-
-const adding = cart.scenario("adding an item")
-  .when(addItem("book"))                       // a bare, reified command
-  .then("the addition is recorded", ({ ledger }) => {
-    if (ledger[0] !== "+book") throw new Error("not recorded")
-  })
-
-cart.run(adding) // probe layers auto-provided; still `toGherkin`-able
-```
-
-The harness is a thin composition over the core, so a harness scenario is still a
-plain `Scenario` you can `toGherkin`, and assertion failures still surface as a
-typed `ScenarioError` under any runner.
+The same public consumer `compat/public-api.test.ts` fixture checks exact inference and expected compile errors against source and packed declarations under both compilers. The packed check also validates the export allowlist and ESM/CJS imports from the actual package archive. The BDD public API CI job repeats these checks with isolated, unpatched compiler installations.
