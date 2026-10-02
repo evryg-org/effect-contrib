@@ -58,3 +58,5 @@ export { declarationCheckedMaterializer } from "./DeclarationCheckedMaterializer
 export { formatElapsed, logPhase } from "./PhaseLog.js"
 
 export { graphOpAdapter } from "./GraphOpAdapter.js"
+
+export { refinedMaterializer, refineThenMaterialize, type Refinement } from "./RefinedMaterializer.js"
