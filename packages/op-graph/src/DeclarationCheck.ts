@@ -311,3 +311,35 @@ export const checkGraphOps =
   (index: DeclarationIndex) =>
   (ops: ReadonlyArray<GraphOp>): Result.Result<ReadonlyArray<GraphOp>, DeclarationViolationError> =>
     Result.all(ops.map(checkGraphOp(index)))
+
+/** A writer's own declarations next to the key-only vertex declarations it merely references.
+ *
+ * A vertex upsert is checked against the own declarations alone, so a referenced label can never be
+ * a write target; an edge is checked against both, so a referenced label may be an endpoint. */
+export class OwnedDeclarations {
+  private constructor(
+    readonly written: DeclarationIndex,
+    readonly endpoints: DeclarationIndex,
+  ) {}
+
+  /** Refuses with `DuplicateDeclarationError` a label declared both as own and as referenced, and
+   *  any conflict `DeclarationIndex.fromDeclarations` already refuses. */
+  static fromDeclarations(declarations: {
+    readonly own: Iterable<Declaration>
+    readonly referenced: Iterable<VertexDeclaration>
+  }): Result.Result<OwnedDeclarations, DeclarationConflictError> {
+    const own = Array.fromIterable(declarations.own)
+    return Result.flatMap(DeclarationIndex.fromDeclarations(own), (written) =>
+      Result.map(
+        DeclarationIndex.fromDeclarations([...own, ...declarations.referenced]),
+        (endpoints) => new OwnedDeclarations(written, endpoints),
+      ))
+  }
+}
+
+/** Checks a write against `owned`: a vertex upsert against the own declarations only, an edge
+ *  against own plus referenced. */
+export const checkOwnedGraphOp =
+  (owned: OwnedDeclarations) =>
+  (op: GraphOp): Result.Result<GraphOp, DeclarationViolationError> =>
+    checkGraphOp(GraphOp.guards.UpsertVertex(op) ? owned.written : owned.endpoints)(op)

@@ -49,6 +49,8 @@ export {
   checkFields,
   checkGraphOp,
   checkGraphOps,
+  OwnedDeclarations,
+  checkOwnedGraphOp,
   type Declaration,
   type DeclaredFields,
 } from "./DeclarationCheck.js"
