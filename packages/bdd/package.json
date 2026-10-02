@@ -1,6 +1,6 @@
 {
   "name": "@evryg/effect-bdd",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "license": "MIT",
   "description": "A runner-agnostic, inspectable Behaviour-Driven-Development DSL for Effect: build Given/When/Then scenarios as data, then run, render to Gherkin, or inspect them",
