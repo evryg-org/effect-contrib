@@ -1,68 +1,56 @@
 /**
- * Group scenarios into a named {@link Feature} and select them as data. Because
- * a {@link Scenario} is a value, a suite is just an array you can filter and
- * reorder — for example, to run only the scenarios carrying a given tag.
+ * Group completed scenarios and filter their metadata while retaining operation requirements.
  *
  * @since 0.0.1
  */
 import type { Scenario } from "./Scenario.js"
 
 /**
- * A scenario whose channels are not statically known — the element type of a
- * heterogeneous suite.
+ * A completed scenario accepted by metadata and grouping operations.
  *
  * @since 0.0.1
- * @category models
  */
-export type AnyScenario = Scenario<any, any, any>
-
+export type AnyScenario = Scenario
 /**
- * A named group of related scenarios.
+ * A named group retaining the operation requirements of each scenario.
  *
  * @since 0.0.1
- * @category models
  */
-export interface Feature {
+export interface Feature<S extends Scenario = Scenario> {
   readonly name: string
   readonly description?: string
-  readonly scenarios: ReadonlyArray<AnyScenario>
+  readonly scenarios: ReadonlyArray<S>
 }
-
 /**
- * Group scenarios into a {@link Feature}.
+ * Group completed scenarios with optional descriptive metadata.
  *
  * @since 0.0.1
- * @category constructors
  */
-export const feature = (
+export const feature = <S extends Scenario>(
   name: string,
-  scenarios: ReadonlyArray<AnyScenario>,
+  scenarios: ReadonlyArray<S>,
   options?: { readonly description?: string }
-): Feature => ({
-  name,
-  ...(options?.description !== undefined ? { description: options.description } : {}),
-  scenarios
-})
-
+): Feature<S> =>
+  Object.freeze({
+    name,
+    ...(options?.description !== undefined ? { description: options.description } : {}),
+    scenarios: Object.freeze([...scenarios])
+  })
 /**
- * Keep the scenarios that carry at least one of the given tags, preserving
- * order.
+ * Select scenarios matching any tag while retaining their operation types.
  *
  * @since 0.0.1
- * @category combinators
  */
-export const filterByTags = (
-  scenarios: ReadonlyArray<AnyScenario>,
+export const filterByTags = <S extends Scenario>(
+  scenarios: ReadonlyArray<S>,
   tags: ReadonlyArray<string>
-): ReadonlyArray<AnyScenario> => scenarios.filter((scenario) => scenario.tags.some((tag) => tags.includes(tag)))
-
+): ReadonlyArray<S> => scenarios.filter((scenario) => scenario.tags.some((tag) => tags.includes(tag)))
 /**
- * Narrow a feature to the scenarios carrying at least one of the given tags.
+ * Filter a feature without erasing its scenario operation requirements.
  *
  * @since 0.0.1
- * @category combinators
  */
-export const selectByTags = (source: Feature, tags: ReadonlyArray<string>): Feature => ({
+export const selectByTags = <S extends Scenario>(source: Feature<S>, tags: ReadonlyArray<string>): Feature<S> => ({
   ...source,
   scenarios: filterByTags(source.scenarios, tags)
 })

@@ -1,97 +1,139 @@
 /**
- * Self-describing combinator values for building BDD scenarios.
- *
- * A scenario is authored from `Given`, `When` and `Assertion` *values* rather
- * than from bare strings and lambdas. Each value carries its own human-readable
- * `description`, so a scenario can be rendered (to Gherkin, to a report) from
- * its structure without that text drifting from behaviour. Domain-specific
- * combinators (e.g. `aCart().empty()`) are expected to produce these values; the
- * scenario builder in `./Scenario.js` consumes them.
+ * Typed vocabulary contracts and immutable descriptors. Definitions describe operations; executable handlers live in the Effect integration.
  *
  * @since 0.0.1
  */
-import { Effect } from "effect"
-
 /**
- * A precondition. It reads the accumulated context `Needs` and contributes
- * additional, named fields `Provides` back to it. A `Given` never fails: a
- * broken precondition is a defect, not part of the asserted outcome.
+ * Semantic operation kinds, independent of authored keywords.
  *
  * @since 0.0.1
- * @category models
  */
-export interface Given<Needs, Provides, R> {
-  readonly description: string
-  readonly step: (context: Needs) => Effect.Effect<Provides, never, R>
+export type Kind = "given" | "when" | "context" | "success" | "failure"
+/**
+ * Phantom contract key used to retain vocabulary types.
+ *
+ * @since 0.0.1
+ */
+export declare const _contract: unique symbol
+/**
+ * The argument, context, patch, and outcome channels of one operation.
+ *
+ * @since 0.0.1
+ */
+export interface Contract<Id extends string, K extends Kind, Args extends ReadonlyArray<unknown>, N, P, A, E> {
+  readonly id: Id
+  readonly kind: K
+  readonly args: Readonly<Args>
+  readonly needs: N
+  readonly patch: P
+  readonly success: A
+  readonly failure: E
 }
-
 /**
- * The action under test. It reads the accumulated context `Needs` and produces
- * an `Effect` whose success `A` and failure `E` are what the scenario's
- * `then` / `thenFails` / `thenDies` assertions observe.
+ * A typed vocabulary factory producing descriptors without executable handlers.
  *
  * @since 0.0.1
- * @category models
  */
-export interface When<Needs, A, E, R> {
-  readonly description: string
-  readonly action: (context: Needs) => Effect.Effect<A, E, R>
+export interface Definition<Id extends string, K extends Kind, Args extends ReadonlyArray<unknown>, N, P, A, E> {
+  (...args: Args): Descriptor<Id, K, Args, N, P, A, E>
+  readonly id: Id
+  readonly kind: K
+  readonly [_contract]: Contract<Id, K, Args, N, P, A, E>
 }
-
 /**
- * A self-describing predicate on a payload `X`. An assertion is
- * *outcome-agnostic*: whether it is checked against a success value, a typed
- * failure or a defect is decided by the builder method it is passed to, not by
- * the assertion itself. A failed assertion is signalled by throwing or by a
- * failing `Effect`.
+ * An immutable operation invocation with typed arguments and description.
  *
  * @since 0.0.1
- * @category models
  */
-export interface Assertion<X, R> {
+export interface Descriptor<Id extends string, K extends Kind, Args extends ReadonlyArray<unknown>, N, P, A, E> {
+  readonly id: Id
+  readonly kind: K
+  readonly args: Readonly<Args>
   readonly description: string
-  readonly assert: (subject: X) => void | Effect.Effect<void, never, R>
+  readonly definition: Definition<Id, K, Args, N, P, A, E>
+  readonly [_contract]: Contract<Id, K, Args, N, P, A, E>
 }
-
 /**
- * Construct a {@link Given} from a description and a context-producing step.
+ * An erased vocabulary identity suitable for heterogeneous operation sets.
  *
  * @since 0.0.1
- * @category constructors
  */
-export const given = <Needs, Provides, R = never>(
-  description: string,
-  step: (context: Needs) => Effect.Effect<Provides, never, R>
-): Given<Needs, Provides, R> => ({ description, step })
-
+export interface AnyDefinition {
+  readonly id: string
+  readonly kind: Kind
+  readonly [_contract]: Contract<string, Kind, ReadonlyArray<unknown>, unknown, unknown, unknown, unknown>
+}
 /**
- * Construct a {@link When} from a description and the action under test.
+ * An erased inspectable descriptor that retains its vocabulary identity.
  *
  * @since 0.0.1
- * @category constructors
  */
-export const when = <Needs, A, E = never, R = never>(
-  description: string,
-  action: (context: Needs) => Effect.Effect<A, E, R>
-): When<Needs, A, E, R> => ({ description, action })
-
+export interface AnyDescriptor {
+  readonly id: string
+  readonly kind: Kind
+  readonly args: ReadonlyArray<unknown>
+  readonly description: string
+  readonly definition: AnyDefinition
+  readonly [_contract]: Contract<string, Kind, ReadonlyArray<unknown>, unknown, unknown, unknown, unknown>
+}
 /**
- * Construct an {@link Assertion} from a description and a predicate.
+ * Extract the typed contract of a definition or descriptor.
  *
  * @since 0.0.1
- * @category constructors
  */
-export const assertion = <X, R = never>(
-  description: string,
-  assert: (subject: X) => void | Effect.Effect<void, never, R>
-): Assertion<X, R> => ({ description, assert })
-
+export type ContractOf<D extends AnyDefinition | AnyDescriptor> = D[typeof _contract]
 /**
- * Normalize an assertion/observation body — which returns either nothing or an
- * `Effect` — into an `Effect`. Internal: not re-exported from the package index.
+ * Extract the vocabulary definition of a descriptor.
  *
- * @internal
+ * @since 0.0.1
  */
-export const settle = <R>(
-  result: void | Effect.Effect<void, never, R>
-): Effect.Effect<void, never, R> => (Effect.isEffect(result) ? result : Effect.void)
+export type DefinitionOf<D extends AnyDescriptor> = D["definition"]
+/**
+ * Require plain named-field contributions with required top-level fields.
+ *
+ * @since 0.0.1
+ */
+type IsUnion<T, Whole = T> = T extends Whole ? [Whole] extends [T] ? false : true : never
+/**
+ * Reject contributions without a single required named-record shape.
+ *
+ * @since 0.0.1
+ */
+export type ValidPatch<P> = IsUnion<P> extends true ? false : P extends
+  | ReadonlyArray<unknown>
+  | ((...args: Array<never>) => unknown)
+  | Date
+  | RegExp
+  | Error
+  | ReadonlyMap<unknown, unknown>
+  | ReadonlySet<unknown>
+  | Promise<unknown>
+  | ArrayBuffer
+  | ArrayBufferView ? false
+: Exclude<keyof P, string> extends never ?
+  P extends object ? { [K in keyof P]-?: {} extends Pick<P, K> ? K : never }[keyof P] extends never ? true : false
+  : false :
+false
+/**
+ * Create vocabulary with inferred argument tuples and a literal operation identity.
+ *
+ * @since 0.0.1
+ */
+export const define =
+  <N, P, A, E, K extends Kind>(kind: K) =>
+  <const Id extends string, Args extends ReadonlyArray<unknown>>(
+    id: Id,
+    describe: (...args: Args) => string,
+    ...valid: ValidPatch<P> extends true ? [] : [invalidPatch: never]
+  ): Definition<Id, K, Args, N, P, A, E> => {
+    void valid
+    const definition = Object.assign((...args: Args) =>
+      Object.freeze({
+        id,
+        kind,
+        args: Object.freeze([...args]),
+        description: describe(...args),
+        definition
+      }), { id, kind })
+    return Object.freeze(definition) as unknown as Definition<Id, K, Args, N, P, A, E>
+  }

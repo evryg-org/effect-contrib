@@ -1,67 +1,45 @@
-import { describe, expect, it } from "@effect/vitest"
-import { Effect } from "effect"
-import { scenario } from "./Scenario.js"
-import { assertion, given, when } from "./Step.js"
+import { describe, expect, it } from "vitest"
+import { Given, Scenario, Steps, steps, Then, toGherkin, When } from "../index.js"
 
-describe("scenario builder", () => {
-  it("reifies a scenario from the sugar form (description + lambda)", () => {
-    const s = scenario("adding to an empty cart", { tags: ["cart", "smoke"] })
-      .given("an empty cart", () => Effect.succeed({ cart: [] as ReadonlyArray<string> }))
-      .and("a known user", () => Effect.succeed({ user: "ada" }))
-      .when("the user adds a book", () => Effect.succeed({ items: 1 }))
-      .then("the cart holds one item", (receipt) => {
-        expect(receipt.items).toBe(1)
-      })
-
-    expect(s.name).toBe("adding to an empty cart")
-    expect(s.tags).toEqual(["cart", "smoke"])
-    expect(s.givens.map((g) => g.description)).toEqual(["an empty cart", "a known user"])
-    expect(s.when.description).toBe("the user adds a book")
-    expect(s.thens).toHaveLength(1)
-    expect(s.thens[0].outcome).toBe("success")
-    expect(s.thens[0].assertion.description).toBe("the cart holds one item")
-  })
-
-  it("reifies a scenario from combinator values and records the chosen outcome", () => {
-    const anEmptyCart = given("an empty cart", () => Effect.succeed({ cart: [] as ReadonlyArray<string> }))
-    const addsABook = when(
-      "the user adds a book",
-      (_context: { cart: ReadonlyArray<string> }) => Effect.succeed({ items: 1 })
+const initial = Given.define<{}, { count: number }>()("initial", (count: number) => `${count} items`)
+const action = When.define<{ count: number }, string>()("add", (amount: number) => `add ${amount}`)
+const check = Then.success<{ count: number }, string>()("check", () => "a result")
+const context = Then.context<{ count: number }>()("count", () => "the count")
+describe("Scenario authoring", () => {
+  it("fluent and pipe authoring preserve ordered stages and keywords", () => {
+    const fragment = Steps.from(initial(0))
+    const fluent = Scenario.make("add").use(fragment).when(action(1)).then(check()).and(context()).but(context()).when(
+      action(2)
+    ).then(check()).build()
+    const pipe = Scenario.make("add").pipe(
+      Scenario.use(fragment),
+      Scenario.when(action(1)),
+      Scenario.then(check()),
+      Scenario.and(context()),
+      Scenario.but(context()),
+      Scenario.build
     )
-    const holdsOne = assertion("the cart holds one item", (receipt: { items: number }) => {
-      expect(receipt.items).toBe(1)
-    })
-
-    const s = scenario("adding to an empty cart")
-      .given(anEmptyCart)
-      .when(addsABook)
-      .then(holdsOne)
-      .and("and is not empty", (receipt) => {
-        expect(receipt.items).toBeGreaterThan(0)
-      })
-
-    expect(s.tags).toEqual([])
-    expect(s.thens.map((t) => t.outcome)).toEqual(["success", "success"])
-    expect(s.thens.map((t) => t.assertion.description)).toEqual([
-      "the cart holds one item",
-      "and is not empty"
-    ])
+    expect(steps(fluent).map((step) => step.keyword)).toEqual(["Given", "When", "Then", "And", "But", "When", "Then"])
+    expect(steps(pipe)).toEqual(steps(fluent).slice(0, 5))
+    expect(toGherkin(pipe)).toContain("  But the count")
   })
-
-  it("records the expected outcome for failure and defect terminals", () => {
-    const failing = scenario("removing from an empty cart")
-      .when("the user removes an item", () => Effect.fail("empty" as const))
-      .thenFails("it reports the cart is empty", (error) => {
-        expect(error).toBe("empty")
-      })
-
-    const dying = scenario("dividing by zero")
-      .when("the calculator divides by zero", () => Effect.die(new Error("boom")))
-      .thenDies("it dies with the cause", (defect) => {
-        expect(defect).toBeInstanceOf(Error)
-      })
-
-    expect(failing.thens[0].outcome).toBe("failure")
-    expect(dying.thens[0].outcome).toBe("defect")
+  it("completed scenarios are immutable and never thenable", async () => {
+    const completed = Scenario.make("context").given(initial(0)).then(context()).build()
+    expect(Object.isFrozen(completed)).toBe(true)
+    expect("then" in completed).toBe(false)
+    expect(await Promise.resolve(completed)).toBe(completed)
+    expect(() => steps(Scenario.make("unfinished") as unknown as Scenario.Scenario)).toThrow("completed")
+  })
+  it("fragment identity and associativity retain order", () => {
+    const a = Steps.from(initial(0))
+    const b = Steps.from(action(1))
+    const c = Steps.from(check())
+    const render = (scenario: Scenario.Scenario) => Scenario.inspect(scenario).map((s) => s.descriptor.description)
+    const base = Scenario.make("composition")
+    expect(render(base.use(Steps.concat(Steps.empty, a)).build())).toEqual(render(base.use(a).build()))
+    expect(render(base.use(Steps.concat(a, Steps.empty)).build())).toEqual(render(base.use(a).build()))
+    expect(render(base.use(Steps.concat(Steps.concat(a, b), c)).build())).toEqual(
+      render(base.use(Steps.concat(a, Steps.concat(b, c))).build())
+    )
   })
 })

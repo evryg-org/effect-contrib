@@ -1,101 +1,172 @@
-/**
- * The `run` interpreter: give a reified {@link Scenario} meaning by executing
- * it. `run` folds the givens into a context, performs the action, classifies
- * its `Exit` (success / typed failure / defect) and checks every assertion
- * against the chosen outcome.
- *
- * A mismatched outcome, a failed precondition or a broken assertion is reported
- * as a typed {@link ScenarioError} failure — never through a test-runner's
- * `expect` — so the very same scenario runs under `@effect/vitest`, `node:test`,
- * `bun:test` or a plain `Effect.runPromise`.
- *
+/** Execute an ordered specification using separately supplied Effect implementations.
  * @since 0.0.1
  */
-import { Cause, Effect, Exit, Option, Schema } from "effect"
-import type { Outcome, Scenario } from "./Scenario.js"
-import { settle } from "./Step.js"
+import type { Scope } from "effect"
+import { Cause, Effect, Exit } from "effect"
+import type { AnyBinding, Coverage, Interpreter, Outcome, Requirements } from "../EffectInterpreter.js"
+import { Observations } from "../harness/Probe.js"
+import { inspect } from "./Scenario.js"
+import type { Ops, Scenario } from "./Scenario.js"
+import type { AnyDefinition } from "./Step.js"
 
 /**
- * The failure produced by {@link run}: the action did not match its expected
- * outcome, a precondition failed, or an assertion did not hold. `cause` carries
- * the underlying value (the unexpected payload, or the error/defect thrown).
- *
+ * A failed scenario step with its complete underlying Effect cause.
  * @since 0.0.1
- * @category errors
+ * @category models
  */
-export class ScenarioError extends Schema.TaggedErrorClass<ScenarioError>()("ScenarioError", {
-  scenario: Schema.String,
-  step: Schema.String,
-  reason: Schema.String,
-  cause: Schema.Defect()
-}) {
+export class ScenarioError extends Error {
   /**
+   * Identifies a scenario diagnostic.
    * @since 0.0.1
    */
-  override get message(): string {
-    return `${this.scenario} — ${this.step}: ${this.reason}`
+  readonly _tag = "ScenarioError"
+  constructor(
+    readonly scenario: string,
+    readonly step: string,
+    readonly reason: string,
+    override readonly cause: Cause.Cause<unknown>
+  ) {
+    super(`${scenario} — ${step}: ${reason}`)
   }
 }
-
-interface Classified {
-  readonly outcome: Outcome
-  readonly payload: unknown
+/**
+ * Required implementation services after supplying the run scope and observations.
+ * @since 0.0.1
+ * @category models
+ */
+export type RunRequirements<Ops, B extends ReadonlyArray<AnyBinding>> = Exclude<
+  Requirements<Ops, B>,
+  Scope.Scope | Observations
+>
+type Callback = (
+  args: ReadonlyArray<unknown>,
+  context: Record<string, unknown>,
+  subject?: unknown
+) => Effect.Effect<unknown, unknown, unknown>
+type Action = {
+  readonly execute: Callback
+  readonly update?: (context: Record<string, unknown>, outcome: Outcome<unknown, unknown>) => Record<string, unknown>
 }
 
-const classify = (exit: Exit.Exit<unknown, unknown>): Classified =>
-  Exit.isSuccess(exit)
-    ? { outcome: "success", payload: exit.value }
-    : Option.match(Cause.findErrorOption(exit.cause), {
-      onSome: (error): Classified => ({ outcome: "failure", payload: error }),
-      onNone: (): Classified => ({ outcome: "defect", payload: Cause.squash(exit.cause) })
-    })
+const mergePatch = (world: Record<string, unknown>, patch: unknown): Record<string, unknown> => {
+  if (
+    typeof patch !== "object" || patch === null || Array.isArray(patch) ||
+    (Object.getPrototypeOf(patch) !== Object.prototype && Object.getPrototypeOf(patch) !== null) ||
+    Object.getOwnPropertySymbols(patch).length > 0
+  ) {
+    throw new TypeError("Context contributions must be plain named-field records")
+  }
+  return { ...world, ...patch }
+}
 
 /**
- * Run a scenario, producing an `Effect` that succeeds when every assertion holds
- * and fails with a {@link ScenarioError} otherwise. The required services `R`
- * are exactly those accumulated by the scenario's givens, action and
- * assertions.
- *
+ * Execute authored steps lazily with fresh context, observations and resource scope.
  * @since 0.0.1
- * @category interpreters
+ * @category constructors
  */
-export const run = <A, E, R>(scenario: Scenario<A, E, R>): Effect.Effect<void, ScenarioError, R> =>
-  Effect.gen(function*() {
-    let context: any = {}
-    for (const given of scenario.givens) {
-      const exit = yield* Effect.exit(given.step(context))
-      if (Exit.isFailure(exit)) {
-        return yield* new ScenarioError({
-          scenario: scenario.name,
-          step: given.description,
-          reason: "the precondition failed",
-          cause: Cause.squash(exit.cause)
-        })
-      }
-      context = { ...context, ...exit.value }
-    }
-
-    const actual = classify(yield* Effect.exit(scenario.when.action(context)))
-
-    for (const then of scenario.thens) {
-      if (then.outcome !== actual.outcome) {
-        return yield* new ScenarioError({
-          scenario: scenario.name,
-          step: then.assertion.description,
-          reason: `expected outcome "${then.outcome}" but the action produced "${actual.outcome}"`,
-          cause: actual.payload
-        })
-      }
-      const assertionExit = yield* Effect.exit(
-        Effect.suspend(() => settle(then.assertion.assert(actual.payload)))
+export const run = <S extends Scenario<AnyDefinition>, const B extends ReadonlyArray<AnyBinding>>(
+  scenario: S,
+  interpreter: Interpreter<B> & Coverage<Ops<S>, B>
+): Effect.Effect<void, ScenarioError, RunRequirements<Ops<S>, B>> =>
+  Effect.suspend(() => {
+    const program = Effect.gen(function*() {
+      let world: Record<string, unknown> = {}
+      let outcome: Outcome<unknown, unknown> | undefined
+      let failureCause: Cause.Cause<unknown> | undefined
+      let failureStep = ""
+      let acknowledged = true
+      const implementations = new Map(
+        interpreter.bindings.map((binding) => [binding.definition, binding.implementation])
       )
-      if (Exit.isFailure(assertionExit)) {
-        return yield* new ScenarioError({
-          scenario: scenario.name,
-          step: then.assertion.description,
-          reason: "the assertion did not hold",
-          cause: Cause.squash(assertionExit.cause)
+      const diagnostic = (step: string, reason: string, cause: Cause.Cause<unknown>) =>
+        Effect.fail(new ScenarioError(scenario.name, step, reason, cause))
+      const capture = <A>(callback: () => Effect.Effect<A, unknown, unknown>, step: string, reason: string) =>
+        Effect.gen(function*() {
+          const exit = yield* Effect.exit(Effect.suspend(callback))
+          if (Exit.isFailure(exit)) {
+            if (exit.cause.reasons.some(Cause.isInterruptReason)) return yield* Effect.failCause(exit.cause)
+            return yield* diagnostic(step, reason, exit.cause)
+          }
+          return exit.value
         })
+      for (const { descriptor } of inspect(scenario)) {
+        const { args, definition, description, kind } = descriptor
+        if (!implementations.has(definition)) {
+          return yield* diagnostic(description, "the operation has no implementation", Cause.die(definition.id))
+        }
+        const implementation = implementations.get(definition)
+        if (kind === "given") {
+          const patch = yield* capture(
+            () => (implementation as Callback)(args, world),
+            description,
+            "the precondition failed"
+          )
+          world = yield* capture(
+            () => Effect.sync(() => mergePatch(world, patch)),
+            description,
+            "the context contribution was invalid"
+          )
+        } else if (kind === "when") {
+          if (!acknowledged) {
+            return yield* diagnostic(failureStep, "the action failure was not acknowledged", failureCause!)
+          }
+          const action = implementation as Action
+          const exit = yield* Effect.exit(Effect.suspend(() => action.execute(args, world)))
+          if (Exit.isFailure(exit)) {
+            if (exit.cause.reasons.some(Cause.isInterruptReason)) {
+              return yield* Effect.failCause(exit.cause)
+            }
+            if (exit.cause.reasons.some(Cause.isDieReason)) {
+              return yield* diagnostic(description, "the action produced a defect", exit.cause)
+            }
+            const errors = exit.cause.reasons.filter(Cause.isFailReason)
+            if (errors.length !== 1) {
+              return yield* diagnostic(description, "the action produced multiple failures", exit.cause)
+            }
+            outcome = { _tag: "Failure", error: errors[0]!.error }
+            failureCause = exit.cause
+            failureStep = description
+            acknowledged = false
+          } else {
+            outcome = { _tag: "Success", value: exit.value }
+            acknowledged = true
+            failureCause = undefined
+          }
+          if (action.update) {
+            const currentOutcome = outcome
+            const patch = yield* capture(
+              () => Effect.sync(() => action.update!(world, currentOutcome)),
+              description,
+              "the action update failed"
+            )
+            world = yield* capture(
+              () => Effect.sync(() => mergePatch(world, patch)),
+              description,
+              "the context contribution was invalid"
+            )
+          }
+        } else {
+          if (kind === "success" && outcome?._tag !== "Success" || kind === "failure" && outcome?._tag !== "Failure") {
+            return yield* diagnostic(
+              description,
+              `expected outcome "${kind}" but the action produced "${outcome?._tag ?? "none"}"`,
+              failureCause ?? Cause.fail(outcome)
+            )
+          }
+          const subject = outcome?._tag === "Success" ? outcome.value : outcome?.error
+          yield* capture(
+            () => (implementation as Callback)(args, world, subject),
+            description,
+            "the assertion did not hold"
+          )
+          if (kind === "failure") {
+            acknowledged = true
+          }
+        }
       }
-    }
-  })
+      if (!acknowledged) {
+        return yield* diagnostic(failureStep, "the action failure was not acknowledged", failureCause!)
+      }
+    })
+    return Effect.scoped(program).pipe(Effect.provideService(Observations, { logs: new Map() }))
+  }) as Effect.Effect<void, ScenarioError, RunRequirements<Ops<S>, B>>

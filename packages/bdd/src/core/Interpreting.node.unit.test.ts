@@ -1,27 +1,9 @@
-import { describe, expect, it } from "@effect/vitest"
-import { Effect } from "effect"
-import { steps, tags, toGherkin } from "./Gherkin.js"
-import { run } from "./Run.js"
-import { scenario } from "./Scenario.js"
+import { expect, it } from "vitest"
+import { Given, Scenario, toDocument } from "../index.js"
 
-// A single scenario value, authored once and interpreted three different ways.
-const cart = scenario("adding to an empty cart", { tags: ["cart"] })
-  .given("an empty cart", () => Effect.succeed({ items: [] as ReadonlyArray<string> }))
-  .when("the user adds a book", (context) => Effect.succeed([...context.items, "book"]))
-  .then("the cart holds one item", (items) => {
-    expect(items).toEqual(["book"])
-  })
-
-describe("interpreting one scenario many ways", () => {
-  it.effect("runs to a passing Effect", () => run(cart))
-
-  it("renders the same value to Gherkin", () => {
-    expect(toGherkin(cart)).toContain("Scenario: adding to an empty cart")
-    expect(toGherkin(cart)).toContain("  When the user adds a book")
-  })
-
-  it("exposes the same value as structure", () => {
-    expect(steps(cart).map((step) => step.keyword)).toEqual(["Given", "When", "Then"])
-    expect(tags(cart)).toEqual(["cart"])
-  })
+it("a specification remains stable across repeated projections", () => {
+  const setup = Given.define<{}, { n: number }>()("n", () => "a number")
+  const scenario = Scenario.make("projection").given(setup()).build()
+  expect(toDocument(scenario)).toEqual(toDocument(scenario))
+  expect(Scenario.inspect(scenario)[0].descriptor.definition).toBe(setup)
 })

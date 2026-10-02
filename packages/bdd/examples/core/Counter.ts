@@ -1,66 +1,62 @@
-/**
- * Core-mode example: a second domain vocabulary, showing a failure outcome and
- * grouping a suite into a `Feature` that can be filtered by tag (compare with
- * `../harness/Counter.ts`, the same domain via the preset harness).
- *
- * As in `./Cart.ts`, the `when` combinators declare they need a counter in
- * context, and the failure channel is part of the combinator's type — so
- * `.thenFails` receives the precise `"below-zero"` error.
- *
- * Run with: `npx tsx packages/bdd/examples/core/Counter.ts`
- */
-import { assertion, feature, filterByTags, given, run, scenario, toGherkin, when } from "@evryg/effect-bdd"
-import type { Assertion, Given, When } from "@evryg/effect-bdd"
+/** Vocabulary and specifications contain no implementation callbacks. */
+import { feature, filterByTags, Given, Scenario, Steps, Then, When } from "@evryg/effect-bdd"
+import { EffectInterpreter, run } from "@evryg/effect-bdd/effect"
 import { Effect } from "effect"
 
-interface HasCount {
+export interface Count {
   readonly count: number
 }
+export const startsAt = Given.define<{}, Count>()("counter.starts", (count: number) => `a counter at ${count}`)
+export const increment = When.define<Count, number, never, Count>()(
+  "counter.increment",
+  (amount: number) => `incremented by ${amount}`
+)
+export const decrement = When.define<Count, number, "below-zero", Count>()(
+  "counter.decrement",
+  (amount: number) => `decremented by ${amount}`
+)
+export const reads = Then.success<Count, number>()("counter.reads", (expected: number) => `the count reads ${expected}`)
+export const rejectsUnderflow = Then.failure<Count, "below-zero">()(
+  "counter.rejects",
+  () => "it refuses to go below zero"
+)
 
-const aCounterAt = (start: number): Given<{}, HasCount, never> =>
-  given(`a counter at ${start}`, () => Effect.succeed({ count: start }))
-
-const incrementedBy = (amount: number): When<HasCount, number, never, never> =>
-  when(`incremented by ${amount}`, (context: HasCount) => Effect.succeed(context.count + amount))
-
-const decrementedBy = (amount: number): When<HasCount, number, "below-zero", never> =>
-  when(
-    `decremented by ${amount}`,
-    (context: HasCount) =>
-      context.count - amount < 0 ? Effect.fail("below-zero" as const) : Effect.succeed(context.count - amount)
-  )
-
-const theCount = {
-  reads: (expected: number): Assertion<number, never> =>
-    assertion(`the count reads ${expected}`, (count: number) => {
-      if (count !== expected) throw new Error(`expected ${expected} but read ${count}`)
-    })
-}
-
-const incrementing = scenario("incrementing", { tags: ["happy"] })
-  .given(aCounterAt(0))
-  .when(incrementedBy(3))
-  .then(theCount.reads(3))
-
-const rejectingUnderflow = scenario("decrementing below zero is rejected", { tags: ["edge"] })
-  .given(aCounterAt(1))
-  .when(decrementedBy(5))
-  .thenFails("it refuses to go below zero", (error) => {
-    if (error !== "below-zero") throw new Error(`unexpected error: ${error}`)
-  })
-
+export const incrementing = Scenario.make("incrementing", { tags: ["happy"] })
+  .use(Steps.from(startsAt(0)))
+  .when(increment(3))
+  .then(reads(3))
+  .build()
+export const rejectingUnderflow = Scenario.make("decrementing below zero", { tags: ["edge"] })
+  .given(startsAt(1))
+  .when(decrement(5))
+  .then(rejectsUnderflow())
+  .build()
 export const counting = feature("counting", [incrementing, rejectingUnderflow])
+export const edgeCases = filterByTags(counting.scenarios, ["edge"])
 
-const demo = Effect.gen(function*() {
-  yield* run(incrementing)
-  yield* run(rejectingUnderflow)
-  const edgeCases = filterByTags(counting.scenarios, ["edge"])
-  yield* Effect.sync(() => {
-    console.log(`Feature: ${counting.name}`)
-    for (const spec of edgeCases) {
-      console.log(toGherkin(spec))
-    }
-  })
+export const interpreter = EffectInterpreter.make(
+  EffectInterpreter.bind(startsAt, ([count]) => Effect.succeed({ count })),
+  EffectInterpreter.bind(increment, {
+    execute: ([amount], context) => Effect.succeed(context.count + amount),
+    update: (context, outcome) => ({ count: outcome._tag === "Success" ? outcome.value : context.count })
+  }),
+  EffectInterpreter.bind(decrement, {
+    execute: ([amount], context) =>
+      context.count < amount
+        ? Effect.fail("below-zero" as const)
+        : Effect.succeed(context.count - amount),
+    update: (context, outcome) => ({ count: outcome._tag === "Success" ? outcome.value : context.count })
+  }),
+  EffectInterpreter.bind(reads, ([expected], _context, actual) =>
+    Effect.sync(() => {
+      if (actual !== expected) throw new Error(`Expected ${expected}, received ${actual}`)
+    })),
+  EffectInterpreter.bind(rejectsUnderflow, (_args, _context, error) =>
+    Effect.sync(() => {
+      if (error !== "below-zero") throw new Error(`Unexpected error: ${error}`)
+    }))
+)
+export const demo = Effect.gen(function*() {
+  yield* run(incrementing, interpreter)
+  yield* run(rejectingUnderflow, interpreter)
 })
-
-void Effect.runPromise(demo)

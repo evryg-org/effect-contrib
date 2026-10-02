@@ -1,27 +1,10 @@
-import { Effect } from "effect"
-import { describe, expectTypeOf, it } from "vitest"
-import type { When } from "../index.js"
-import { given, scenario, when } from "../index.js"
+import { expectTypeOf } from "vitest"
+import { Given, When } from "../index.js"
 
-interface HasCart {
-  readonly cart: { readonly items: ReadonlyArray<string> }
-}
-
-const aCart = () => given("a cart", () => Effect.succeed({ cart: { items: [] as ReadonlyArray<string> } }))
-
-const adds = (name: string): When<HasCart, ReadonlyArray<string>, never, never> =>
-  when(`the user adds ${name}`, (context: HasCart) => Effect.succeed([...context.cart.items, name]))
-
-describe("specialised type safety of a domain combinator", () => {
-  it("accepts a context-requiring combinator once its precondition is given", () => {
-    const built = scenario("ok").given(aCart()).when(adds("book"))
-    built.then("holds something", (items) => {
-      expectTypeOf(items).toEqualTypeOf<ReadonlyArray<string>>()
-    })
-  })
-
-  it("rejects a context-requiring combinator before its precondition", () => {
-    // @ts-expect-error `adds` declares Needs = HasCart, absent from the empty context
-    scenario("bad").when(adds("book"))
-  })
-})
+const cart = Given.define<{}, { books: ReadonlyArray<string> }>()("cart.empty", () => "an empty cart")
+const add = When.define<{ books: ReadonlyArray<string> }, { title: string }, "missing">()(
+  "cart.add",
+  (title: string, price: number) => `${title} costs ${price}`
+)
+expectTypeOf(cart.id).toEqualTypeOf<"cart.empty">()
+expectTypeOf(add("Book", 10).args).toEqualTypeOf<readonly [title: string, price: number]>()
