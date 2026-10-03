@@ -1,10 +1,11 @@
 import * as path from "node:path"
 import type { ViteUserConfig } from "vitest/config"
 
+const target = process.env.TEST_DIST !== undefined ? "dist/dist/esm" : "src"
+
 const alias = (pkg: string, folder?: string) => {
   const dir = folder ?? pkg
   const name = `@evryg/${pkg}`
-  const target = process.env.TEST_DIST !== undefined ? "dist/dist/esm" : "src"
   return ({
     [`${name}/test`]: path.join(__dirname, "packages", dir, "test"),
     [`${name}`]: path.join(__dirname, "packages", dir, target)
@@ -38,7 +39,17 @@ const config: ViteUserConfig = {
       ...alias("effect-testcontainers-neo4j", "testcontainers-neo4j"),
       ...alias("effect-neo4j-schema", "neo4j-schema"),
       ...alias("cypher-codegen"),
-      ...alias("effect-bdd", "bdd")
+      ...alias("effect-bdd", "bdd"),
+      "@evryg/effect-op-graph/contract/laws": path.join(__dirname, "packages", "op-graph", target, "GraphOpMaterializerLaws"),
+      "@evryg/effect-op-graph/contract": path.join(
+        __dirname,
+        "packages",
+        "op-graph",
+        target,
+        "_testing",
+        "GraphOpMaterializerContract"
+      ),
+      ...alias("effect-op-graph", "op-graph")
     }
   }
 }
