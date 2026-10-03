@@ -9,7 +9,6 @@ import { UpsertVertex } from "./GraphOp.js"
  */
 // A generic Neo4j property bag spread-merged with a vertex's own properties and reduced across
 // labels via Record.makeReducerUnion — the record IS the domain here.
-// ast-grep-ignore: typescript/no-exported-collection-alias-tsx
 export type VertexAttribution = Record<string, string>
 
 /**

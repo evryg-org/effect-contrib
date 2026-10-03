@@ -8,7 +8,6 @@ import { UpsertEdge, UpsertVertex, VertexRef } from "./GraphOp.js"
  */
 // Spread-merged into a vertex/edge-endpoint's own MERGE key; callers project their own richer
 // partition key down to this generic bag before it reaches this library.
-// ast-grep-ignore: typescript/no-exported-collection-alias-tsx
 export type PartitionKey = Record<string, string>
 
 /**
