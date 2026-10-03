@@ -74,7 +74,7 @@ export function compileToGraphSchema(schemas: Array<Schema.Top>): GraphSchema {
     }
 
     // Index names are store-global, so same-named annotations merge their labels but must
-    // declare identical field lists — consistent with compileToCypherDDL's merge in Neo4jSchemaDDL.ts.
+    // declare identical field lists, as assembleGraphSchema requires of them.
     if (label) {
       const fullTextIndexesAnno = annotations.fullTextIndexes as
         | Array<{ name: string; fields: Array<string> }>

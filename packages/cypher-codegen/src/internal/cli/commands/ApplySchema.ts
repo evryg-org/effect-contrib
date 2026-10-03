@@ -1,8 +1,7 @@
 /** @since 0.0.1 */
 import { Neo4jClient } from "@evryg/effect-neo4j"
-import { compileToCypherDDL } from "@evryg/effect-neo4j-schema"
+import type { AssembledGraphSchema } from "@evryg/effect-neo4j-schema"
 import { Console, Effect } from "effect"
-import type { Schema } from "effect"
 import { Command } from "effect/unstable/cli"
 import { neo4jLayer, neo4jOptions } from "./Shared.js"
 
@@ -10,14 +9,13 @@ import { neo4jLayer, neo4jOptions } from "./Shared.js"
  * @since 0.0.1
  * @category cli
  */
-export const makeApplySchemaCommand = (allSchemas: Array<Schema.Top>) =>
+export const makeApplySchemaCommand = (schema: AssembledGraphSchema) =>
   Command.make(
     "apply-schema",
     { ...neo4jOptions },
     (opts) =>
       Effect.gen(function*() {
-        const ddl = compileToCypherDDL(allSchemas)
-        const statements = ddl.split("\n").filter((s) => s.trim())
+        const statements = schema.ddlModel().statements()
         yield* Console.log(`Applying ${statements.length} DDL statements...`)
         const neo4j = yield* Neo4jClient
         yield* Effect.forEach(statements, (stmt) =>

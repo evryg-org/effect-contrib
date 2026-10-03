@@ -1,7 +1,9 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Schema } from "effect"
+import { Result, Schema } from "effect"
+import { assembleGraphSchema } from "./AssembledGraphSchema.js"
+import { AnnotatedGraphSchemas, GraphSchemaContribution } from "./GraphSchemaContribution.js"
+import { ContributingModule } from "./GraphVocabulary.js"
 import { neo4jIndexed, neo4jUnique, neo4jVertex } from "./Neo4jSchemaAnnotations.js"
-import { compileToCypherDDL } from "./Neo4jSchemaDDL.js"
 import { neo4jKeyGroup, neo4jPartition, neo4jProperties, neo4jVertexStruct } from "./Neo4jSchemaVertex.js"
 
 // ── DDL parity: the primary assurance that neo4jVertexStruct is a pure
@@ -9,8 +11,16 @@ import { neo4jKeyGroup, neo4jPartition, neo4jProperties, neo4jVertexStruct } fro
 // same shape. ──
 
 describe("neo4jVertexStruct", () => {
-  const assertSameDDL = (newWay: Schema.Top, oldWay: Schema.Top) =>
-    expect(compileToCypherDDL([newWay])).toBe(compileToCypherDDL([oldWay]))
+  const ddlOf = (vertex: Schema.Struct<Schema.Struct.Fields>): string =>
+    Result.getOrThrow(assembleGraphSchema([
+      new GraphSchemaContribution({
+        owner: ContributingModule.make("parity"),
+        schemas: new AnnotatedGraphSchemas({ members: [vertex] })
+      })
+    ])).ddl()
+
+  const assertSameDDL = (newWay: Schema.Struct<Schema.Struct.Fields>, oldWay: Schema.Struct<Schema.Struct.Fields>) =>
+    expect(ddlOf(newWay)).toBe(ddlOf(oldWay))
 
   const hasAnnotation = (struct: Schema.Top, key: string) =>
     Object.prototype.hasOwnProperty.call(struct.ast.annotations ?? {}, key)
@@ -200,8 +210,7 @@ describe("neo4jVertexStruct", () => {
 
       expect(hasAnnotation(NewWay, "compositeKey")).toBe(false)
 
-      const ddl = compileToCypherDDL([NewWay])
-      expect(ddl).not.toContain("REQUIRE ()")
+      expect(ddlOf(NewWay)).not.toContain("REQUIRE ()")
     })
   })
 

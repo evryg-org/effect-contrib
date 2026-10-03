@@ -165,6 +165,9 @@ importers:
       '@evryg/effect-neo4j-schema':
         specifier: workspace:^
         version: link:../neo4j-schema
+      '@evryg/effect-op-graph':
+        specifier: workspace:^
+        version: link:../op-graph
       antlr4ng:
         specifier: ^3.0.16
         version: 3.0.16
@@ -251,6 +254,9 @@ importers:
       '@evryg/effect-neo4j':
         specifier: workspace:^
         version: link:../neo4j
+      '@evryg/effect-op-graph':
+        specifier: workspace:^
+        version: link:../op-graph
       '@evryg/effect-vitest-neo4j':
         specifier: workspace:^
         version: link:../vitest-neo4j
