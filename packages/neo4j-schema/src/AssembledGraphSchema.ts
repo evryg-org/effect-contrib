@@ -370,8 +370,8 @@ export class AssembledGraphSchema extends Schema.Class<AssembledGraphSchema>("As
    *
    * @since 0.8.0
    */
-  writeCheck(
-    markers: ReadonlyArray<VertexMarker<Schema.Struct.Fields>>
+  writeCheck<const KeyFields extends ReadonlyArray<Schema.Struct.Fields>>(
+    markers: { readonly [I in keyof KeyFields]: VertexMarker<KeyFields[I]> }
   ): (op: GraphOp) => Result.Result<GraphOp, DeclarationViolationError> {
     return checkOwnedGraphOp(Result.getOrThrow(OwnedDeclarations.fromDeclarations({
       own: this.declarations(),
