@@ -1,6 +1,6 @@
 {
   "name": "@evryg/effect-op-graph",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "license": "MIT",
   "description": "Graph mutations as data for Effect: vertex and edge upserts, declaration checks, a materializer port and its contract laws",
