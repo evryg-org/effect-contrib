@@ -1,0 +1,25 @@
+import { describe, expect, it } from "@effect/vitest"
+import { Schema } from "effect"
+import { GraphOp, UpsertVertex } from "./GraphOp.js"
+import { graphOpAdapter, ONE_WAY_ENCODE_MESSAGE } from "./GraphOpAdapter.js"
+
+describe("graphOpAdapter", () => {
+  type Result = { readonly fqcn: string }
+  const toOps = (r: Result): ReadonlyArray<GraphOp> => [
+    new UpsertVertex({ label: "Class", key: { fqcn: r.fqcn }, properties: {} })
+  ]
+
+  it("decode applies the mapper (A -> readonly GraphOp[])", () => {
+    const adapter = graphOpAdapter(toOps)
+    const ops = Schema.decodeSync(adapter)({ fqcn: "App\\Foo" })
+    expect(ops).toHaveLength(1)
+    expect(GraphOp.guards.UpsertVertex(ops[0])).toBe(true)
+    expect(ops[0]).toMatchObject({ label: "Class", key: { fqcn: "App\\Foo" } })
+  })
+
+  it("is one-way: encode fails with SchemaIssue.Forbidden", () => {
+    expect(ONE_WAY_ENCODE_MESSAGE).toBe("graphOpAdapter is a one-way (decode-only) codec")
+    const adapter = graphOpAdapter(toOps)
+    expect(() => Schema.encodeSync(adapter)(toOps({ fqcn: "App\\Foo" }))).toThrow(ONE_WAY_ENCODE_MESSAGE)
+  })
+})
