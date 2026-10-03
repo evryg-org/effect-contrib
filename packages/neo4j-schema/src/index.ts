@@ -79,6 +79,14 @@ export {
    */
   type KeyEligibleFieldName,
   /**
+   * @since 0.7.0
+   */
+  type KeyGroup,
+  /**
+   * @since 0.7.0
+   */
+  neo4jKeyGroup,
+  /**
    * @since 0.5.0
    */
   neo4jPartition,
