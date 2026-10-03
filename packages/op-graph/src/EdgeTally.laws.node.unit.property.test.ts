@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import fc from "fast-check"
+import { FastCheck as fc } from "effect/testing"
 import { Array } from "effect"
 import { EdgeDropped, EdgeMaterialized, EdgeShape, EdgeTally, type EdgeOutcome } from "./EdgeTally.js"
 

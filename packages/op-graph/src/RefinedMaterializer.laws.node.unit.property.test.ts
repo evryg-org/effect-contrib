@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import fc from "fast-check"
+import { FastCheck as fc } from "effect/testing"
 import { Array, Effect, Function, Layer, Ref, Result, Schema, Stream } from "effect"
 import { UpsertVertex, type GraphOp } from "./GraphOp.js"
 import { GraphOpMaterializer, MaterializeProgress } from "./GraphOpMaterializer.js"
