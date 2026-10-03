@@ -46,8 +46,15 @@ interface OptionalKeyFieldError<Name extends string> {
  * totality of the partition's equivalence relation and escapes Neo4j's
  * composite `IS UNIQUE` constraint (which binds only nodes that possess all
  * constrained properties).
+ *
+ * It is the element type of `ownKey`, so a constructor that is generic over
+ * a vertex's own fields can name the key it forwards to
+ * {@link neo4jVertexStruct}.
+ *
+ * @since 0.7.0
+ * @category models
  */
-type KeyEligibleFieldName<Fields extends Schema.Struct.Fields> =
+export type KeyEligibleFieldName<Fields extends Schema.Struct.Fields> =
   & {
     [K in keyof Fields]: Fields[K]["~type.optionality"] extends "optional" ? never
       : undefined extends Fields[K]["Type"] ? never
@@ -224,7 +231,15 @@ interface VertexStructCommonOptions<
   }>
 }
 
-type VertexStructOptions<
+/**
+ * The options {@link neo4jVertexStruct} takes, named so a constructor built on
+ * it can accept them, or a narrowing of them, and forward them unchanged. The
+ * key-shape union and the shadowing guard on `fields` travel with the type.
+ *
+ * @since 0.7.0
+ * @category models
+ */
+export type VertexStructOptions<
   OwnFields extends Schema.Struct.Fields,
   PartitionFields extends Schema.Struct.Fields = {},
   PropertiesFields extends Schema.Struct.Fields = {}

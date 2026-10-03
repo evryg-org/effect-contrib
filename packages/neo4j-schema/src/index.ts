@@ -75,6 +75,10 @@ export {
  */
 export {
   /**
+   * @since 0.7.0
+   */
+  type KeyEligibleFieldName,
+  /**
    * @since 0.5.0
    */
   neo4jPartition,
@@ -93,7 +97,11 @@ export {
   /**
    * @since 0.5.0
    */
-  type Properties
+  type Properties,
+  /**
+   * @since 0.7.0
+   */
+  type VertexStructOptions
 } from "./Neo4jSchemaVertex.js"
 /**
  * @since 0.0.1
