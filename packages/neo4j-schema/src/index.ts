@@ -169,15 +169,6 @@ export {
   neo4jVertex
 } from "./Neo4jSchemaAnnotations.js"
 /**
- * @since 0.0.1
- */
-export {
-  /**
-   * @since 0.0.1
-   */
-  compileToCypherDDL
-} from "./Neo4jSchemaDDL.js"
-/**
  * @since 0.5.0
  */
 export {

@@ -2,7 +2,6 @@ import { describe, expect, it } from "@effect/vitest"
 import { Schema } from "effect"
 import { FullTextIndex } from "../../GraphSchemaModel.js"
 import { neo4jEdge, neo4jIndexed, neo4jUnique, neo4jVertex } from "../../Neo4jSchemaAnnotations.js"
-import { compileToCypherDDL } from "../../Neo4jSchemaDDL.js"
 import { compileToGraphSchema } from "./AnnotationGraphSchemaResolver.js"
 
 // ── Test schemas ──
@@ -195,37 +194,5 @@ describe("compileToGraphSchema", () => {
 
       expect(() => compileToGraphSchema([BookVertex, AuthorVertex])).toThrow(/content_search/)
     })
-  })
-})
-
-// ── compileToCypherDDL ──
-
-describe("compileToCypherDDL", () => {
-  it("does not generate DDL for unannotated schemas", () => {
-    const ddl = compileToCypherDDL([UnannotatedSchema])
-    expect(ddl.trim()).toBe("")
-  })
-
-  it("does not generate DDL for edge schemas", () => {
-    const ddl = compileToCypherDDL([KnowsEdge])
-    expect(ddl.trim()).toBe("")
-  })
-
-  it("throws when same-named fullTextIndexes entries declare different field lists", () => {
-    const BookVertex = Schema.Struct({
-      title: Schema.String,
-      summary: Schema.optional(Schema.String)
-    }).annotate(neo4jVertex("Book", {
-      fullTextIndexes: [{ name: "content_search", fields: ["title", "summary"] }]
-    }))
-
-    const AuthorVertex = Schema.Struct({
-      name: Schema.String
-    }).annotate(neo4jVertex("Author", {
-      fullTextIndexes: [{ name: "content_search", fields: ["name"] }]
-    }))
-
-    expect(() => compileToCypherDDL([BookVertex, AuthorVertex])).toThrow(/content_search/)
-    expect(() => compileToCypherDDL([BookVertex, AuthorVertex])).toThrow(/Author/)
   })
 })

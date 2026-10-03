@@ -305,9 +305,7 @@ export class AssembledGraphSchema extends Schema.Class<AssembledGraphSchema>("As
 
   /**
    * The canonical Cypher DDL, one statement per line, in declaration-rank
-   * order. It refines `compileToCypherDDL`: both render the same DDL from the
-   * declared vertices in that order, whatever order the contributions arrived
-   * in.
+   * order, whatever order the contributions arrived in.
    *
    * @since 0.8.0
    */

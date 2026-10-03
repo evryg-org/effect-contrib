@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest"
-import { Array, Equal, Function, HashMap, Option, Predicate, Result, Schema } from "effect"
+import { Array, Equal, Function, HashMap, Option, Result, Schema } from "effect"
 import { FastCheck as fc } from "effect/testing"
 import {
   binaryIdempotenceLaw,
@@ -30,21 +30,11 @@ import {
 } from "../test/SyntheticContributions.js"
 import { AssembledGraphSchema, assembleGraphSchema } from "./AssembledGraphSchema.js"
 import { DdlModel } from "./DdlModel.js"
-import { markerLabel } from "./DeclaredGrammar.js"
-import { DeclaredVertex } from "./DeclaredVertex.js"
 import { EdgeEnds } from "./EdgeSlot.js"
 import type { GraphSchemaContribution } from "./GraphSchemaContribution.js"
 import { FullTextIndex } from "./GraphSchemaModel.js"
-import {
-  ContributingModule,
-  ContributingModules,
-  DeclarationRank,
-  EdgeType,
-  MemberOrdinal,
-  VertexLabel
-} from "./GraphVocabulary.js"
+import { ContributingModule, ContributingModules, EdgeType, VertexLabel } from "./GraphVocabulary.js"
 import { GraphWriters } from "./GraphWriters.js"
-import { compileToCypherDDL } from "./Neo4jSchemaDDL.js"
 import { SchemaConflict } from "./SchemaConflict.js"
 
 const RivalSpec = Schema.Struct({ owner: SyntheticOwner, pick: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)) })
@@ -187,32 +177,6 @@ confluenceLaw({
   eq: (a, b) => {
     expect(Result.getOrThrow(assembleGraphSchema(a)).ddl()).toBe(Result.getOrThrow(assembleGraphSchema(b)).ddl())
   }
-})
-
-const declaredVertices = ({ owner, schemas }: GraphSchemaContribution): ReadonlyArray<DeclaredVertex> =>
-  Array.filterMap(schemas.members, (member, ordinal) =>
-    Predicate.isString(member.ast.annotations?.neo4jLabel)
-      ? Result.succeed(
-        new DeclaredVertex({
-          label: VertexLabel.make(markerLabel(member)),
-          rank: new DeclarationRank({ owner, ordinal: MemberOrdinal.make(ordinal) }),
-          declaration: member.ast
-        })
-      )
-      : Result.failVoid)
-
-const inDeclarationRank = (contributions: ReadonlyArray<GraphSchemaContribution>): Array<Schema.Top> =>
-  Array.dedupeWith(
-    Array.sort(contributions.flatMap(declaredVertices), DeclaredVertex.order),
-    (a: DeclaredVertex, b: DeclaredVertex) => a.label === b.label
-  ).map((vertex) => Schema.make(vertex.declaration))
-
-it("L10 refinement: the canonical render is compileToCypherDDL over the declared vertices in declaration-rank order", () => {
-  fc.assert(fc.property(fc.oneof(agreeingContributions, anyContributions), (contributions) => {
-    const assembled = assembleGraphSchema(contributions)
-    fc.pre(Result.isSuccess(assembled))
-    expect(Result.getOrThrow(assembled).ddl()).toBe(compileToCypherDDL(inDeclarationRank(contributions)))
-  }))
 })
 
 const fullTextWithin = (
