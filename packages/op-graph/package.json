@@ -1,0 +1,20 @@
+{
+  "name": "@evryg/effect-op-graph",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contract": "./src/_testing/GraphOpMaterializerContract.ts",
+    "./contract/laws": "./src/GraphOpMaterializerLaws.ts"
+  },
+  "dependencies": {
+    "effect": "4.0.0-beta.78"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.0.0-beta.78",
+    "@evryg/effect-algebraic-laws": "workspace:*",
+    "fast-check": "^4.8.0",
+    "vitest": "^4.1.11"
+  }
+}
