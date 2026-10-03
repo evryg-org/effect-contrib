@@ -99,6 +99,17 @@ describe("checkGraphOp over vertices", () => {
     expect(message).toContain("a1")
     expect(message).toContain("category")
   })
+
+  it("renders every key field and the reason in the violation message", () => {
+    const messageOf = (op: GraphOp) => violationOf(op)?.message
+    expect(messageOf(new UpsertVertex({ label: "Alpha", key: { id: "a1", ordinal: 2 }, properties: { category: null } }))).toBe(
+      "UpsertVertex Alpha {id=a1, ordinal=2} writes null to required property \"category\"",
+    )
+    expect(messageOf(new UpsertVertex({ label: "Alpha", key: { id: "a1" }, properties: { colour: "red" } }))).toBe(
+      "UpsertVertex Alpha {id=a1} carries undeclared property \"colour\"",
+    )
+    expect(messageOf(new UpsertVertex({ label: "Gamma", key: { id: "g1" }, properties: {} }))).toBe("UpsertVertex Gamma {id=g1} is not declared")
+  })
 })
 
 describe("checkGraphOp over edges", () => {
@@ -113,6 +124,18 @@ describe("checkGraphOp over edges", () => {
       to: new VertexRef({ label: "Alpha", key: { id: "a1" } }),
     })
     expect(reasonOf(op)).toEqual(Option.some(new UndeclaredConnectivity({ from: "Beta", to: "Alpha" })))
+    expect(violationOf(op)?.message).toBe("UpsertEdge LINKS {ordinal=1} connects the undeclared pair Beta -> Alpha")
+  })
+
+  it("refuses an edge that matches a declared pair at one end only", () => {
+    const alphaRef = new VertexRef({ label: "Alpha", key: { id: "a1" } })
+    const betaRef = new VertexRef({ label: "Beta", key: { id: "b1" } })
+    expect(reasonOf(new UpsertEdge({ ...validEdge(), from: alphaRef, to: alphaRef }))).toEqual(
+      Option.some(new UndeclaredConnectivity({ from: "Alpha", to: "Alpha" })),
+    )
+    expect(reasonOf(new UpsertEdge({ ...validEdge(), from: betaRef, to: betaRef }))).toEqual(
+      Option.some(new UndeclaredConnectivity({ from: "Beta", to: "Beta" })),
+    )
   })
 
   it("refuses an undeclared edge key property", () => {
@@ -146,7 +169,11 @@ describe("the index and the batch", () => {
   })
 
   it("refuses two declarations of the same vertex label", () => {
-    expect(Result.isFailure(DeclarationIndex.fromDeclarations([alpha(), alpha()]))).toBe(true)
+    const outcome = DeclarationIndex.fromDeclarations([alpha(), alpha()])
+    expect(Result.isFailure(outcome)).toBe(true)
+    expect(Result.match(outcome, { onFailure: (error) => error.message, onSuccess: Function.constNull })).toBe(
+      "Duplicate vertex declaration for \"Alpha\"",
+    )
   })
 
   it("merges same-type edge declarations, so each contributing context adds its own share", () => {
@@ -216,6 +243,9 @@ describe("the index and the batch", () => {
     expect(Result.isFailure(outcome)).toBe(true)
     expect(Result.match(outcome, { onFailure: Function.identity, onSuccess: Function.constNull })).toEqual(
       new ConflictingEdgeDeclarationError({ label: "LINKS", pair: new EndpointPair({ from: "Alpha", to: "Beta" }) }),
+    )
+    expect(Result.match(outcome, { onFailure: (error) => error.message, onSuccess: Function.constNull })).toBe(
+      "Conflicting field declarations for edge \"LINKS\" on Alpha -> Beta: declare each pair's fields once",
     )
   })
 

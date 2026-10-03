@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./contract": "./src/GraphOpMaterializerContract.ts",
+    "./contract": "./src/_testing/GraphOpMaterializerContract.ts",
     "./contract/laws": "./src/GraphOpMaterializerLaws.ts"
   },
   "dependencies": {

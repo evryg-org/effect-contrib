@@ -2,8 +2,8 @@
 // cached test importing this file can never reach a property generator.
 import { layer, expect } from "@effect/vitest"
 import { Context, Effect, Layer, Record, Ref, Result, Schema, Stream } from "effect"
-import { GraphOpMaterializer, materialize, summarize, type MaterializeProgress } from "./GraphOpMaterializer.js"
-import { PropertyMap, UpsertEdge, UpsertVertex, VertexRef } from "./GraphOp.js"
+import { GraphOpMaterializer, materialize, summarize, type MaterializeProgress } from "../GraphOpMaterializer.js"
+import { PropertyMap, UpsertEdge, UpsertVertex, VertexRef } from "../GraphOp.js"
 
 /** One materialized vertex, read back through the probe rather than the port (`materialize` returns
  * only op counts, never a graph). */

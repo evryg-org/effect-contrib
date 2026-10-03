@@ -13,7 +13,7 @@ import {
   sortedEntries,
   sortedVertices,
   vertex,
-} from "./GraphOpMaterializerContract.js"
+} from "./_testing/GraphOpMaterializerContract.js"
 import { GraphOpMaterializer, materialize, type MaterializeProgress } from "./GraphOpMaterializer.js"
 import { PropertyMap, UpsertEdge, UpsertVertex } from "./GraphOp.js"
 

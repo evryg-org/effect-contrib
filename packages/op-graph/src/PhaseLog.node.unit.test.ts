@@ -53,6 +53,7 @@ describe("formatElapsed", () => {
   })
 
   it("rounds to whole seconds from one second on", () => {
+    expect(formatElapsed(Duration.seconds(1))).toBe("1s")
     expect(formatElapsed(Duration.millis(45300))).toBe("45s")
     expect(formatElapsed(Duration.millis(65000))).toBe("1m 5s")
   })

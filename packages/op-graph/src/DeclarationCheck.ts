@@ -268,8 +268,7 @@ const declarationOfPair = (
   declarations: ReadonlyArray<PreparedDeclaration<EdgeDeclaration>>,
   edge: UpsertEdge,
 ): Option.Option<PreparedDeclaration<EdgeDeclaration>> =>
-  Array.findFirst(declarations, (prepared) =>
-    Array.some(prepared.declaration.connectivity, (pair) => pair.from === edge.from.label && pair.to === edge.to.label))
+  Array.findFirst(declarations, ({ declaration: { connectivity: [pair] } }) => pair.from === edge.from.label && pair.to === edge.to.label)
 
 const checkEndpoints = (index: DeclarationIndex, edge: UpsertEdge): Option.Option<DeclarationViolationError> =>
   Option.orElse(checkEndpoint(index, edge.from), () => checkEndpoint(index, edge.to))
