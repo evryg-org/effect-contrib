@@ -7,10 +7,5 @@
   },
   "include": ["src/**/*.test.ts"],
   "exclude": [],
-  "references": [
-    {
-      "path": "../effect-algebraic-laws/tsconfig.src.json"
-    },
-    { "path": "./tsconfig.src.json" }
-  ]
+  "references": [{ "path": "./tsconfig.src.json" }]
 }

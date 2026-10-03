@@ -1,7 +1,6 @@
-import { expect } from "@effect/vitest"
+import { describe, expect, it } from "@effect/vitest"
 import fc from "fast-check"
 import { Array } from "effect"
-import { commutativeMonoidLaws, homomorphismLaw, identityPreservingLaw, invariantPreservationLaw } from "@evryg/effect-algebraic-laws"
 import { EdgeDropped, EdgeMaterialized, EdgeShape, EdgeTally, type EdgeOutcome } from "./EdgeTally.js"
 
 // EdgeTally is a COUNTER, not a dedup carrier like SetMap: combine adds, so it is a commutative
@@ -13,6 +12,16 @@ const tallyEq = (a: EdgeTally, b: EdgeTally): boolean => {
     const ca = a.entries.get(shape) ?? { written: 0, dropped: 0 }
     const cb = b.entries.get(shape) ?? { written: 0, dropped: 0 }
     return ca.written === cb.written && ca.dropped === cb.dropped
+  })
+}
+
+const expectTallyEq = (a: EdgeTally, b: EdgeTally): void => {
+  expect(tallyEq(a, b)).toBe(true)
+}
+
+const law = <Ts extends Array<unknown>>(suite: string, statement: string, property: fc.IProperty<Ts>): void => {
+  describe(suite, () => {
+    it(statement, () => fc.assert(property))
   })
 }
 
@@ -29,56 +38,49 @@ const arbTally: fc.Arbitrary<EdgeTally> = fc.array(arbOutcome).map(EdgeTally.of)
 
 // Laws are stated against the exposed `EdgeTally.Reducer` instance, not the `combine` instance
 // method it wraps -- proving the NATIVE surface consumers reach for (e.g. `.combineAll`) is lawful.
-commutativeMonoidLaws({
-  name: "EdgeTally.Reducer",
-  arb: arbTally,
-  arbCtx: fc.constant(null),
-  op: (a, b) => EdgeTally.Reducer.combine(a, b),
-  id: EdgeTally.Reducer.initialValue,
-  eq: (a, b) => {
-    expect(tallyEq(a, b)).toBe(true)
-  },
+const op = (a: EdgeTally, b: EdgeTally): EdgeTally => EdgeTally.Reducer.combine(a, b)
+const id = EdgeTally.Reducer.initialValue
+
+law(
+  "Associativity: EdgeTally.Reducer",
+  "op(op(a, b), c) = op(a, op(b, c))",
+  fc.property(arbTally, arbTally, arbTally, (a, b, c) => expectTallyEq(op(op(a, b), c), op(a, op(b, c)))),
+)
+law("Left Identity: EdgeTally.Reducer", "op(id, a) = a", fc.property(arbTally, (a) => expectTallyEq(op(id, a), a)))
+law("Right Identity: EdgeTally.Reducer", "op(a, id) = a", fc.property(arbTally, (a) => expectTallyEq(op(a, id), a)))
+law(
+  "Commutativity: EdgeTally.Reducer",
+  "op(a, b) = op(b, a)",
+  fc.property(arbTally, arbTally, (a, b) => expectTallyEq(op(a, b), op(b, a))),
+)
+
+law(
+  "Homomorphism: EdgeTally.of is an accounting homomorphism",
+  "h(opA(a, b)) = opB(h(a), h(b))",
+  fc.property(fc.array(arbOutcome), fc.array(arbOutcome), (a, b) =>
+    expectTallyEq(EdgeTally.of(Array.appendAll(a, b)), EdgeTally.of(a).combine(EdgeTally.of(b)))),
+)
+
+law(
+  "Homomorphism: opCount is a counting homomorphism into (number, +, 0)",
+  "h(opA(a, b)) = opB(h(a), h(b))",
+  fc.property(arbTally, arbTally, (a, b) => {
+    expect(a.combine(b).opCount()).toBe(a.opCount() + b.opCount())
+  }),
+)
+
+describe("Identity-preserving: EdgeTally.of([]) is EdgeTally.empty", () => {
+  it("h(idA) = idB", () => expectTallyEq(EdgeTally.of([]), EdgeTally.empty))
 })
 
-homomorphismLaw({
-  name: "EdgeTally.of is an accounting homomorphism",
-  arb: fc.array(arbOutcome),
-  arbCtx: fc.constant(null),
-  h: EdgeTally.of,
-  opA: (a, b) => Array.appendAll(a, b),
-  opB: (a, b) => a.combine(b),
-  eq: (a, b) => {
-    expect(tallyEq(a, b)).toBe(true)
-  },
-})
+const nonNegative = (t: EdgeTally): boolean =>
+  Array.every(Array.fromIterable(t.entries.values()), (count) => count.written >= 0 && count.dropped >= 0)
 
-homomorphismLaw({
-  name: "opCount is a counting homomorphism into (number, +, 0)",
-  arb: arbTally,
-  arbCtx: fc.constant(null),
-  h: (t) => t.opCount(),
-  opA: (a, b) => a.combine(b),
-  opB: (a, b) => a + b,
-  eq: (a, b) => {
-    expect(a).toBe(b)
-  },
-})
-
-identityPreservingLaw({
-  name: "EdgeTally.of([]) is EdgeTally.empty",
-  arbCtx: fc.constant(null),
-  h: EdgeTally.of,
-  idA: [],
-  idB: EdgeTally.empty,
-  eq: (a, b) => {
-    expect(tallyEq(a, b)).toBe(true)
-  },
-})
-
-invariantPreservationLaw({
-  name: "combine never produces a negative count",
-  arbState: arbTally,
-  arbAction: arbTally,
-  inv: (t) => Array.every(Array.fromIterable(t.entries.values()), (count) => count.written >= 0 && count.dropped >= 0),
-  step: (s, a) => s.combine(a),
-})
+law(
+  "Invariant Preservation: combine never produces a negative count",
+  "∀s. inv(s) ⟹ ∀a. inv(step(s, a))",
+  fc.property(arbTally, arbTally, (s, a) => {
+    fc.pre(nonNegative(s))
+    expect(nonNegative(s.combine(a))).toBe(true)
+  }),
+)
