@@ -5,6 +5,7 @@ const { exclude: _unitOnlyExclude, ...sharedTest } = shared.test ?? {}
 
 export default mergeConfig(shared, defineConfig({
   test: {
+    sequence: { concurrent: false },
     projects: [
       {
         ...shared,
