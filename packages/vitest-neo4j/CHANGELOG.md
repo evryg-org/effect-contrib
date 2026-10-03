@@ -1,5 +1,13 @@
 # @evryg/effect-vitest-neo4j
 
+## 0.5.0
+
+### Minor Changes
+
+- [#242](https://github.com/evryg-org/effect-contrib/pull/242) [`addf695`](https://github.com/evryg-org/effect-contrib/commit/addf6950a006192f9f6df04b969f55b9985ed30c) Thanks @jbmusso! - Add `CleanNeo4jSchema`, a scoped test resource that leaves a Neo4j database with no constraints and no indexes.
+
+  It drops every constraint and every non-LOOKUP index on acquire and again on release, so schema objects created by a test do not leak into the next one. `CleanNeo4jGraph` only deletes nodes and relationships and leaves the schema in place.
+
 ## 0.4.0
 
 ### Patch Changes
