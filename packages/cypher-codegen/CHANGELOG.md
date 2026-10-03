@@ -1,5 +1,32 @@
 # @evryg/effect-cypher-codegen
 
+## 0.8.0
+
+### Minor Changes
+
+- [#249](https://github.com/evryg-org/effect-contrib/pull/249) [`d3f4c1e`](https://github.com/evryg-org/effect-contrib/commit/d3f4c1e20656f0ee18209a9894dc900c0607ba01) Thanks @jbmusso! - `runCodegenCli` takes an assembled graph schema instead of a list of schemas: `runCodegenCli(schema: AssembledGraphSchema)`.
+
+  `apply-schema` now applies the canonical DDL of the assembled schema (`schema.ddlModel().statements()`), which does not depend on the order the schemas were declared in. It used `compileToCypherDDL`, which `@evryg/effect-neo4j-schema` no longer exports. `generate annotations` reads the same assembled schema (`schema.graphSchema()`), so both subcommands work from one source, and a conflict between schemas surfaces as a typed `SchemaConflict` when you assemble them, before the CLI runs.
+
+  To migrate, assemble the schemas first:
+
+  ```ts
+  const schema = Result.getOrThrow(
+    assembleGraphSchema([
+      new GraphSchemaContribution({
+        owner: ContributingModule.make("app"),
+        schemas: new AnnotatedGraphSchemas({ members: allSchemas })
+      })
+    ])
+  )
+  runCodegenCli(schema)
+  ```
+
+### Patch Changes
+
+- Updated dependencies [[`d3f4c1e`](https://github.com/evryg-org/effect-contrib/commit/d3f4c1e20656f0ee18209a9894dc900c0607ba01)]:
+  - @evryg/effect-neo4j-schema@0.8.0
+
 ## 0.7.4
 
 ### Patch Changes
