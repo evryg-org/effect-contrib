@@ -1,7 +1,7 @@
 import { Schema } from "effect"
 import { describe, expectTypeOf, it } from "vitest"
-import type { KeyEligibleFieldName, Partition, VertexStructOptions } from "./Neo4jSchemaVertex.js"
-import { neo4jPartition, neo4jProperties, neo4jVertexStruct } from "./Neo4jSchemaVertex.js"
+import type { KeyEligibleFieldName, KeyGroup, Partition, VertexStructOptions } from "./Neo4jSchemaVertex.js"
+import { neo4jKeyGroup, neo4jPartition, neo4jProperties, neo4jVertexStruct } from "./Neo4jSchemaVertex.js"
 
 const partition = neo4jPartition({ region: Schema.String, tenant: Schema.String })
 const properties = neo4jProperties({ nickname: Schema.String })
@@ -171,5 +171,114 @@ describe("VertexStructOptions and KeyEligibleFieldName", () => {
 
   it("a generic constructor keeps the own key restricted to key-eligible fields", () => {
     expectTypeOf<Parameters<typeof keyedServer<typeof mixedFields, {}>>[3][number]>().toEqualTypeOf<"serverId">()
+  })
+})
+
+// ── key groups: an ordered, reusable own key, checked once at construction ──
+
+const serverKey = neo4jKeyGroup({ serverId: Schema.String })
+
+const keyedByGroup = <
+  const KeyFields extends Schema.Struct.Fields,
+  const OwnFields extends Schema.Struct.Fields,
+  const PartitionFields extends Schema.Struct.Fields,
+  const PropertiesFields extends Schema.Struct.Fields = {}
+>(
+  label: string,
+  key: KeyGroup<KeyFields>,
+  partition: Partition<PartitionFields>,
+  opts: Pick<VertexStructOptions<OwnFields, PartitionFields, PropertiesFields, KeyFields>, "fields" | "properties">
+) => neo4jVertexStruct<OwnFields, PartitionFields, PropertiesFields, KeyFields>(label, { ...opts, partition, key })
+
+describe("neo4jVertexStruct with a key group — valid usage typechecks", () => {
+  it("partition + key group, mode omitted defaults to unique", () => {
+    expectTypeOf(neo4jVertexStruct("Server", { partition, key: serverKey, fields: { hostname: Schema.String } }))
+      .not.toBeNever()
+  })
+
+  it("a key group alone keys the vertex", () => {
+    expectTypeOf(neo4jVertexStruct("Server", { key: serverKey, fields: {}, mode: "unique" })).not.toBeNever()
+  })
+
+  it("partition + key group + own key + properties", () => {
+    expectTypeOf(
+      neo4jVertexStruct("Server", {
+        partition,
+        key: serverKey,
+        properties,
+        fields: { slot: Schema.Number, bio: Schema.optional(Schema.String) },
+        ownKey: ["slot"],
+        compositeIndexes: [["serverId", "nickname", "slot"]]
+      })
+    ).not.toBeNever()
+  })
+
+  it("a generic constructor forwards a key group it did not build", () => {
+    expectTypeOf(keyedByGroup("Server", serverKey, partition, { fields: { hostname: Schema.String } })).not.toBeNever()
+  })
+
+  it("the merged struct carries the key group's fields", () => {
+    expectTypeOf(neo4jVertexStruct("Server", { key: serverKey, fields: {} }).fields.serverId)
+      .toEqualTypeOf<typeof Schema.String>()
+  })
+})
+
+describe("neo4jVertexStruct with a key group — illegal states are unrepresentable", () => {
+  it("row 11a: an optional field in a key group", () => {
+    // @ts-expect-error "id" is optional; a key member must be required and non-nullable
+    neo4jKeyGroup({ id: Schema.optional(Schema.String) })
+  })
+
+  it("row 11b: a nullable field in a key group", () => {
+    // @ts-expect-error "id" admits null; a key member must be required and non-nullable
+    neo4jKeyGroup({ id: Schema.NullOr(Schema.String) })
+  })
+
+  it("row 11c: an optional-key field in a key group", () => {
+    // @ts-expect-error "id" has an optional key; a key member must be required and non-nullable
+    neo4jKeyGroup({ id: Schema.optionalKey(Schema.String) })
+  })
+
+  it("row 12: a key group built by hand, skipping the check", () => {
+    const handBuilt = { fields: { id: Schema.String }, keyFields: ["id"] as const }
+    // @ts-expect-error only neo4jKeyGroup builds a KeyGroup
+    neo4jVertexStruct("X12", { key: handBuilt, fields: {} })
+  })
+
+  it("row 13: a partition passed where a key group belongs", () => {
+    // @ts-expect-error a Partition is not a KeyGroup
+    neo4jVertexStruct("X13", { key: partition, fields: {} })
+  })
+
+  it("row 14: a vertex's own field shadows a key group's field", () => {
+    // @ts-expect-error "serverId" is already declared by the key group
+    neo4jVertexStruct("X14", { key: serverKey, fields: { serverId: Schema.Number } })
+  })
+
+  it("row 15: a key group overlaps the partition", () => {
+    // @ts-expect-error "region" is declared by both the partition and the key group
+    neo4jVertexStruct("X15", { partition, key: neo4jKeyGroup({ region: Schema.String }), fields: {} })
+  })
+
+  it("row 16a: a properties group overlaps the key group", () => {
+    const overlapping = neo4jProperties({ serverId: Schema.String })
+    // @ts-expect-error "serverId" is declared by both the key group and properties
+    neo4jVertexStruct("X16a", { key: serverKey, properties: overlapping, fields: {} })
+  })
+
+  it("row 16b: a properties group overlaps the partition", () => {
+    const overlapping = neo4jProperties({ tenant: Schema.String })
+    // @ts-expect-error "tenant" is declared by both the partition and properties
+    neo4jVertexStruct("X16b", { partition, properties: overlapping, fields: {} })
+  })
+
+  it("row 17a: through a generic constructor, an own field still cannot shadow the key group", () => {
+    // @ts-expect-error "serverId" is already declared by the key group
+    keyedByGroup("X17a", serverKey, partition, { fields: { serverId: Schema.Number } })
+  })
+
+  it("row 17b: through a generic constructor, the key group still cannot overlap the partition", () => {
+    // @ts-expect-error "region" is declared by both the partition and the key group
+    keyedByGroup("X17b", neo4jKeyGroup({ region: Schema.String }), partition, { fields: {} })
   })
 })

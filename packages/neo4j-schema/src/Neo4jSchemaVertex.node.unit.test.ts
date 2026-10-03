@@ -2,7 +2,7 @@ import { describe, expect, it } from "@effect/vitest"
 import { Schema } from "effect"
 import { neo4jIndexed, neo4jUnique, neo4jVertex } from "./Neo4jSchemaAnnotations.js"
 import { compileToCypherDDL } from "./Neo4jSchemaDDL.js"
-import { neo4jPartition, neo4jProperties, neo4jVertexStruct } from "./Neo4jSchemaVertex.js"
+import { neo4jKeyGroup, neo4jPartition, neo4jProperties, neo4jVertexStruct } from "./Neo4jSchemaVertex.js"
 
 // ── DDL parity: the primary assurance that neo4jVertexStruct is a pure
 // convenience layer over neo4jVertex, never a second construction of the
@@ -130,6 +130,64 @@ describe("neo4jVertexStruct", () => {
       })
 
       assertSameDDL(NewWay, OldWay)
+    })
+  })
+
+  describe("key group", () => {
+    it("keys by the partition, then the key group, then ownKey, with fields merged in that order", () => {
+      const OldWay = Schema.Struct({
+        region: Schema.String.annotate(neo4jIndexed),
+        tenant: Schema.String,
+        serverId: Schema.String.annotate(neo4jIndexed),
+        rack: Schema.String,
+        displayName: Schema.String.annotate(neo4jIndexed),
+        slot: Schema.Number.annotate(neo4jIndexed)
+      }).annotate(neo4jVertex("Server7", { compositeKey: ["region", "tenant", "serverId", "rack", "slot"] }))
+
+      const NewWay = neo4jVertexStruct("Server7", {
+        partition: neo4jPartition({ region: Schema.String.annotate(neo4jIndexed), tenant: Schema.String }),
+        key: neo4jKeyGroup({ serverId: Schema.String.annotate(neo4jIndexed), rack: Schema.String }),
+        properties: neo4jProperties({ displayName: Schema.String.annotate(neo4jIndexed) }),
+        fields: { slot: Schema.Number.annotate(neo4jIndexed) },
+        ownKey: ["slot"]
+      })
+
+      assertSameDDL(NewWay, OldWay)
+      expect(Object.keys(NewWay.fields)).toEqual(["region", "tenant", "serverId", "rack", "displayName", "slot"])
+    })
+
+    it("index mode: the key group joins the key-derived composite index", () => {
+      const OldWay = Schema.Struct({
+        region: Schema.String,
+        tenant: Schema.String,
+        serverId: Schema.String,
+        hostname: Schema.String
+      }).annotate(neo4jVertex("Server8", { compositeIndexes: [["region", "tenant", "serverId"]] }))
+
+      const NewWay = neo4jVertexStruct("Server8", {
+        partition: neo4jPartition({ region: Schema.String, tenant: Schema.String }),
+        key: neo4jKeyGroup({ serverId: Schema.String }),
+        fields: { hostname: Schema.String },
+        mode: "index"
+      })
+
+      assertSameDDL(NewWay, OldWay)
+    })
+
+    it("a key group alone keys the vertex, mode defaulting to unique", () => {
+      const OldWay = Schema.Struct({ serverId: Schema.String, hostname: Schema.String })
+        .annotate(neo4jVertex("Server9", { compositeKey: ["serverId"] }))
+
+      const NewWay = neo4jVertexStruct("Server9", {
+        key: neo4jKeyGroup({ serverId: Schema.String }),
+        fields: { hostname: Schema.String }
+      })
+
+      assertSameDDL(NewWay, OldWay)
+    })
+
+    it("a key group's key order is its fields' declaration order", () => {
+      expect(neo4jKeyGroup({ rack: Schema.String, serverId: Schema.String }).keyFields).toEqual(["rack", "serverId"])
     })
   })
 
