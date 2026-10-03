@@ -1,6 +1,71 @@
 /**
  * @since 0.0.1
  */
+
+/**
+ * @since 0.8.0
+ */
+export {
+  /**
+   * @since 0.8.0
+   */
+  AssembledGraphSchema,
+  /**
+   * @since 0.8.0
+   */
+  assembleGraphSchema
+} from "./AssembledGraphSchema.js"
+/**
+ * @since 0.8.0
+ */
+export {
+  /**
+   * @since 0.8.0
+   */
+  DdlModel
+} from "./DdlModel.js"
+/**
+ * @since 0.8.0
+ */
+export {
+  /**
+   * @since 0.8.0
+   */
+  declarationOf,
+  /**
+   * @since 0.8.0
+   */
+  markerLabel
+} from "./DeclaredGrammar.js"
+/**
+ * @since 0.8.0
+ */
+export {
+  /**
+   * @since 0.8.0
+   */
+  EdgeEnds,
+  /**
+   * @since 0.8.0
+   */
+  EdgeSlot
+} from "./EdgeSlot.js"
+/**
+ * @since 0.8.0
+ */
+export {
+  /**
+   * @since 0.8.0
+   */
+  AnnotatedGraphSchemas,
+  /**
+   * @since 0.8.0
+   */
+  GraphSchemaContribution
+} from "./GraphSchemaContribution.js"
+/**
+ * @since 0.0.1
+ */
 export {
   /**
    * @since 0.0.1
@@ -40,6 +105,48 @@ export {
    */
   GraphSchemaResolver
 } from "./GraphSchemaResolver.js"
+/**
+ * @since 0.8.0
+ */
+export {
+  /**
+   * @since 0.8.0
+   */
+  ContributingModule,
+  /**
+   * @since 0.8.0
+   */
+  ContributingModules,
+  /**
+   * @since 0.8.0
+   */
+  EdgeType,
+  /**
+   * @since 0.8.0
+   */
+  FullTextIndexName,
+  /**
+   * @since 0.8.0
+   */
+  PropertyName,
+  /**
+   * @since 0.8.0
+   */
+  PropertyNames,
+  /**
+   * @since 0.8.0
+   */
+  VertexLabel
+} from "./GraphVocabulary.js"
+/**
+ * @since 0.8.0
+ */
+export {
+  /**
+   * @since 0.8.0
+   */
+  GraphWriters
+} from "./GraphWriters.js"
 /**
  * @since 0.0.1
  */
@@ -111,6 +218,37 @@ export {
    */
   type VertexStructOptions
 } from "./Neo4jSchemaVertex.js"
+/**
+ * @since 0.8.0
+ */
+export {
+  /**
+   * @since 0.8.0
+   */
+  SchemaConflict
+} from "./SchemaConflict.js"
+/**
+ * @since 0.8.0
+ */
+export {
+  /**
+   * @since 0.8.0
+   */
+  VertexAnnotations
+} from "./VertexAnnotations.js"
+/**
+ * @since 0.8.0
+ */
+export {
+  /**
+   * @since 0.8.0
+   */
+  neo4jVertexMarker,
+  /**
+   * @since 0.8.0
+   */
+  type VertexMarker
+} from "./VertexMarker.js"
 /**
  * @since 0.0.1
  */

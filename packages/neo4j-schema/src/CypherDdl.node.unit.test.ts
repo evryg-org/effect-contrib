@@ -1,13 +1,20 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Result, Schema } from "effect"
-import { AnnotatedGraphSchemas, GraphSchemaContribution } from "./GraphSchemaContribution.js"
-import { ContributingModule, FullTextIndexName, PropertyName, PropertyNames } from "./GraphVocabulary.js"
-import { neo4jUnique, neo4jVertex } from "./Neo4jSchemaAnnotations.js"
-import { compileToCypherDDL } from "./Neo4jSchemaDDL.js"
-import { SchemaConflict } from "./SchemaConflict.js"
+import {
+  AnnotatedGraphSchemas,
+  assembleGraphSchema,
+  ContributingModule,
+  FullTextIndexName,
+  GraphSchemaContribution,
+  neo4jUnique,
+  neo4jVertex,
+  PropertyName,
+  PropertyNames,
+  SchemaConflict
+} from "./index.js"
 
-const ddlOf = (contributions: ReadonlyArray<GraphSchemaContribution>): Result.Result<string, unknown> =>
-  Result.try(() => compileToCypherDDL(contributions.flatMap((contribution) => [...contribution.schemas.members])))
+const ddlOf = (contributions: ReadonlyArray<GraphSchemaContribution>): Result.Result<string, SchemaConflict> =>
+  Result.map(assembleGraphSchema(contributions), (schema) => schema.ddl())
 
 const contribution = (owner: string, ...members: ReadonlyArray<Schema.Struct<Schema.Struct.Fields>>) =>
   new GraphSchemaContribution({

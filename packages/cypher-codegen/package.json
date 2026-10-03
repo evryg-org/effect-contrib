@@ -39,6 +39,7 @@
   "dependencies": {
     "@evryg/effect-neo4j": "workspace:^",
     "@evryg/effect-neo4j-schema": "workspace:^",
+    "@evryg/effect-op-graph": "workspace:^",
     "antlr4ng": "^3.0.16"
   },
   "peerDependencies": {
