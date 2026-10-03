@@ -1,5 +1,6 @@
 import { Schema } from "effect"
 import { describe, expectTypeOf, it } from "vitest"
+import type { KeyEligibleFieldName, Partition, VertexStructOptions } from "./Neo4jSchemaVertex.js"
 import { neo4jPartition, neo4jProperties, neo4jVertexStruct } from "./Neo4jSchemaVertex.js"
 
 const partition = neo4jPartition({ region: Schema.String, tenant: Schema.String })
@@ -132,5 +133,43 @@ describe("neo4jVertexStruct — illegal states are unrepresentable", () => {
   it("row 10b: a nullable own field named in ownKey", () => {
     // @ts-expect-error "id" admits null, so it is not nameable in a key
     neo4jVertexStruct("X10b", { fields: { id: Schema.NullOr(Schema.String) }, ownKey: ["id"] })
+  })
+})
+
+// ── generic constructors name the options and the own key instead of re-deriving them ──
+
+const mixedFields = {
+  serverId: Schema.String,
+  bio: Schema.optional(Schema.String),
+  alias: Schema.optionalKey(Schema.String),
+  notes: Schema.NullOr(Schema.String)
+}
+
+const keyedServer = <
+  const OwnFields extends Schema.Struct.Fields,
+  const PartitionFields extends Schema.Struct.Fields
+>(
+  label: string,
+  partition: Partition<PartitionFields>,
+  fields: VertexStructOptions<OwnFields, PartitionFields>["fields"],
+  ownKey: readonly [KeyEligibleFieldName<OwnFields>, ...ReadonlyArray<KeyEligibleFieldName<OwnFields>>]
+) => neo4jVertexStruct<OwnFields, PartitionFields>(label, { partition, fields, ownKey })
+
+describe("VertexStructOptions and KeyEligibleFieldName", () => {
+  it("VertexStructOptions is exactly the options neo4jVertexStruct takes", () => {
+    expectTypeOf<VertexStructOptions<typeof mixedFields, { region: typeof Schema.String }>>()
+      .toEqualTypeOf<Parameters<typeof neo4jVertexStruct<typeof mixedFields, { region: typeof Schema.String }>>[1]>()
+  })
+
+  it("KeyEligibleFieldName names only the required, non-nullable fields", () => {
+    expectTypeOf<KeyEligibleFieldName<typeof mixedFields>>().toEqualTypeOf<"serverId">()
+  })
+
+  it("a generic constructor forwards its own key without re-deriving the option types", () => {
+    expectTypeOf(keyedServer("Server", partition, mixedFields, ["serverId"])).not.toBeNever()
+  })
+
+  it("a generic constructor keeps the own key restricted to key-eligible fields", () => {
+    expectTypeOf<Parameters<typeof keyedServer<typeof mixedFields, {}>>[3][number]>().toEqualTypeOf<"serverId">()
   })
 })
