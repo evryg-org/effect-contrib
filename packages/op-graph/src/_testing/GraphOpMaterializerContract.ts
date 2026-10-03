@@ -1,19 +1,30 @@
-// Deterministic contract only — the property law suite lives in GraphOpMaterializerLaws.ts, so a
-// cached test importing this file can never reach a property generator.
+/**
+ * The deterministic contract every `GraphOpMaterializer` implementation must pass. The property
+ * laws live in `GraphOpMaterializerLaws.ts`, so a cached test importing this module can never
+ * reach a property generator.
+ *
+ * @since 0.0.1
+ */
 import { expect, layer } from "@effect/vitest"
 import { Array, Context, Effect, type Layer, Order, Record, Ref, Result, Schema, Stream } from "effect"
 import { PropertyMap, UpsertEdge, UpsertVertex, VertexRef } from "../GraphOp.js"
 import { type GraphOpMaterializer, materialize, type MaterializeProgress, summarize } from "../GraphOpMaterializer.js"
 
 /** One materialized vertex, read back through the probe rather than the port (`materialize` returns
- * only op counts, never a graph). */
+ * only op counts, never a graph).
+ *
+ * @since 0.0.1
+ */
 export class MaterializedVertex extends Schema.Class<MaterializedVertex>("MaterializedVertex")({
   label: Schema.String,
   properties: PropertyMap
 }) {}
 
 /** One materialized edge, both endpoints' full stored properties — never a per-field lookup, so a
- * probe can't quietly hide the very divergence the contract exists to catch. */
+ * probe can't quietly hide the very divergence the contract exists to catch.
+ *
+ * @since 0.0.1
+ */
 export class MaterializedEdge extends Schema.Class<MaterializedEdge>("MaterializedEdge")({
   label: Schema.String,
   from: PropertyMap,
@@ -21,7 +32,11 @@ export class MaterializedEdge extends Schema.Class<MaterializedEdge>("Materializ
   properties: PropertyMap
 }) {}
 
-/** The read-back capability the contract needs and the port deliberately does not have. */
+/**
+ * The read-back capability the contract needs and the port deliberately does not have.
+ *
+ * @since 0.0.1
+ */
 export class MaterializedGraph extends Context.Service<MaterializedGraph, {
   readonly clear: () => Effect.Effect<void>
   readonly vertices: (label: string) => Effect.Effect<ReadonlyArray<MaterializedVertex>>
@@ -30,11 +45,20 @@ export class MaterializedGraph extends Context.Service<MaterializedGraph, {
 
 // ── Fixture builders — neutral vocabulary only ("Alpha", "Beta", "LINKS", key field "id"),
 // string-valued properties only. Every op goes through these constructors; no `_tag` literal.
+/**
+ * @since 0.0.1
+ */
 export const vertex = (label: string, key: PropertyMap, properties: PropertyMap = {}): UpsertVertex =>
   new UpsertVertex({ label, key, properties })
 
+/**
+ * @since 0.0.1
+ */
 export const ref = (label: string, key: PropertyMap): VertexRef => new VertexRef({ label, key })
 
+/**
+ * @since 0.0.1
+ */
 export const edge = (
   label: string,
   from: VertexRef,
@@ -44,10 +68,16 @@ export const edge = (
 ): UpsertEdge => new UpsertEdge({ label, from, to, key, properties })
 
 // ── Assertion projection — both sides project to sorted plain records before comparing.
+/**
+ * @since 0.0.1
+ */
 export const sortedEntries = (fields: PropertyMap): ReadonlyArray<readonly [string, unknown]> =>
   Array.sortWith(Record.toEntries(fields), ([name]) => name, Order.String)
 
 const EntriesJson = Schema.fromJsonString(Schema.Array(Schema.Tuple([Schema.String, Schema.Unknown])))
+/**
+ * @since 0.0.1
+ */
 export const entriesKey = (entries: ReadonlyArray<readonly [string, unknown]>): string =>
   Schema.encodeSync(EntriesJson)(entries)
 
@@ -75,9 +105,15 @@ const projectEdge = (e: MaterializedEdge): ProjectedEdge => ({
   properties: sortedEntries(e.properties)
 })
 
+/**
+ * @since 0.0.1
+ */
 export const sortedVertices = (vs: ReadonlyArray<MaterializedVertex>): ReadonlyArray<ProjectedVertex> =>
   Array.sortWith(vs.map(projectVertex), (v) => `${v.label} ${entriesKey(v.properties)}`, Order.String)
 
+/**
+ * @since 0.0.1
+ */
 export const sortedEdges = (es: ReadonlyArray<MaterializedEdge>): ReadonlyArray<ProjectedEdge> =>
   Array.sortWith(
     es.map(projectEdge),
@@ -85,6 +121,9 @@ export const sortedEdges = (es: ReadonlyArray<MaterializedEdge>): ReadonlyArray<
     Order.String
   )
 
+/**
+ * @since 0.0.1
+ */
 export const snapshotOf = (probe: MaterializedGraph["Service"]) =>
   Effect.gen(function*() {
     const vertices = yield* probe.vertices("Alpha")
@@ -92,6 +131,9 @@ export const snapshotOf = (probe: MaterializedGraph["Service"]) =>
     return { vertices: sortedVertices(vertices), edges: sortedEdges(edges) }
   })
 
+/**
+ * @since 0.0.1
+ */
 export const graphOpMaterializerContract = (
   implementationName: string,
   under: Layer.Layer<GraphOpMaterializer | MaterializedGraph>

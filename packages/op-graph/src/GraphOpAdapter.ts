@@ -1,8 +1,14 @@
+/**
+ * @since 0.0.1
+ */
 import { Schema, SchemaGetter, SchemaTransformation } from "effect"
 import { GraphOp } from "./GraphOp.js"
 
 const graphOpArray = Schema.Array(GraphOp)
 
+/**
+ * @since 0.0.1
+ */
 export const ONE_WAY_ENCODE_MESSAGE = "graphOpAdapter is a one-way (decode-only) codec"
 
 /**
@@ -12,6 +18,8 @@ export const ONE_WAY_ENCODE_MESSAGE = "graphOpAdapter is a one-way (decode-only)
  *
  * GraphOps are derived, never re-read, so the codec is decode-only; `encode`
  * throws to make the one-way intent explicit.
+ *
+ * @since 0.0.1
  */
 export const graphOpAdapter = <A>(
   toOps: (a: A) => ReadonlyArray<GraphOp>

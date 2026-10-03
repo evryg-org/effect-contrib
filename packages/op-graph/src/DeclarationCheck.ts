@@ -1,51 +1,88 @@
+/**
+ * @since 0.0.1
+ */
 import { Array, Data, Equal, Match, Option, Predicate, Record, Result, Schema, SchemaAST } from "effect"
 import { GraphOp, PropertyMap, type UpsertEdge, type UpsertVertex, type VertexRef } from "./GraphOp.js"
 
 /** The field map of a declaring `Schema.Struct`, read structurally so this package keeps
- *  depending on `effect` alone. Partition fields are already merged in by the declarer. */
+ *  depending on `effect` alone. Partition fields are already merged in by the declarer.
+ *
+ * @since 0.0.1
+ */
 export type DeclaredFields = { readonly [key: string]: Schema.Top }
 
-/** An ordered endpoint pair an edge type is declared to connect, by vertex label. */
+/**
+ * An ordered endpoint pair an edge type is declared to connect, by vertex label.
+ *
+ * @since 0.0.1
+ */
 export class EndpointPair extends Schema.Class<EndpointPair>("EndpointPair")({
   from: Schema.String,
   to: Schema.String
 }) {}
 
+/**
+ * @since 0.0.1
+ */
 export class VertexDeclaration extends Data.TaggedClass("VertexDeclaration")<{
   readonly label: string
   readonly fields: DeclaredFields
 }> {}
 
 /** An edge type's fields over the endpoint pairs it names: at least one, since an edge declared
- *  over no pair would either connect nothing or claim every pair. */
+ *  over no pair would either connect nothing or claim every pair.
+ *
+ * @since 0.0.1
+ */
 export class EdgeDeclaration extends Data.TaggedClass("EdgeDeclaration")<{
   readonly label: string
   readonly fields: DeclaredFields
   readonly connectivity: Array.NonEmptyReadonlyArray<EndpointPair>
 }> {}
 
+/**
+ * @since 0.0.1
+ */
 export type Declaration = VertexDeclaration | EdgeDeclaration
 
+/**
+ * @since 0.0.1
+ */
 export class UndeclaredLabel extends Schema.TaggedClass<UndeclaredLabel>()("UndeclaredLabel", {}) {}
 
+/**
+ * @since 0.0.1
+ */
 export class UndeclaredProperty extends Schema.TaggedClass<UndeclaredProperty>()("UndeclaredProperty", {
   property: Schema.String
 }) {}
 
+/**
+ * @since 0.0.1
+ */
 export class NullOnRequired extends Schema.TaggedClass<NullOnRequired>()("NullOnRequired", {
   property: Schema.String
 }) {}
 
+/**
+ * @since 0.0.1
+ */
 export class UndecodableProperty extends Schema.TaggedClass<UndecodableProperty>()("UndecodableProperty", {
   property: Schema.String,
   issue: Schema.String
 }) {}
 
+/**
+ * @since 0.0.1
+ */
 export class UndeclaredConnectivity extends Schema.TaggedClass<UndeclaredConnectivity>()("UndeclaredConnectivity", {
   from: Schema.String,
   to: Schema.String
 }) {}
 
+/**
+ * @since 0.0.1
+ */
 export const ViolationReason = Schema.Union([
   UndeclaredLabel,
   UndeclaredProperty,
@@ -53,6 +90,9 @@ export const ViolationReason = Schema.Union([
   UndecodableProperty,
   UndeclaredConnectivity
 ]).pipe(Schema.toTaggedUnion("_tag"))
+/**
+ * @since 0.0.1
+ */
 export type ViolationReason = typeof ViolationReason.Type
 
 const describeReason = (reason: ViolationReason): string =>
@@ -65,7 +105,10 @@ const describeReason = (reason: ViolationReason): string =>
   })
 
 /** A write that does not match its declaration. An `Error`, so it fits the materializer port's
- *  `Stream<MaterializeProgress, Error>` without the port widening its failure channel. */
+ *  `Stream<MaterializeProgress, Error>` without the port widening its failure channel.
+ *
+ * @since 0.0.1
+ */
 export class DeclarationViolationError
   extends Schema.TaggedErrorClass<DeclarationViolationError>()("DeclarationViolationError", {
     op: Schema.Literals(["UpsertVertex", "UpsertEdge"]),
@@ -80,6 +123,9 @@ export class DeclarationViolationError
   }
 }
 
+/**
+ * @since 0.0.1
+ */
 export class DuplicateDeclarationError
   extends Schema.TaggedErrorClass<DuplicateDeclarationError>()("DuplicateDeclarationError", {
     label: Schema.String
@@ -95,7 +141,10 @@ const perPair = (edge: EdgeDeclaration): ReadonlyArray<EdgeDeclaration> =>
   edge.connectivity.map((pair) => new EdgeDeclaration({ label: edge.label, fields: edge.fields, connectivity: [pair] }))
 
 /** Two declarations of one edge type on one endpoint pair that disagree on its fields: which one a
- *  write should be checked against is a contradiction, never a merge. */
+ *  write should be checked against is a contradiction, never a merge.
+ *
+ * @since 0.0.1
+ */
 export class ConflictingEdgeDeclarationError extends Schema.TaggedErrorClass<ConflictingEdgeDeclarationError>()(
   "ConflictingEdgeDeclarationError",
   {
@@ -165,13 +214,19 @@ const declaringPair = (
  *
  * A vertex label has exactly one declaration: two are a contradiction about what that node is. An
  * edge TYPE is graph-wide and several contexts declare their own share of it, so the index keeps
- * one declaration per endpoint pair: the fields a write may carry are those of ITS pair. */
+ * one declaration per endpoint pair: the fields a write may carry are those of ITS pair.
+ *
+ * @since 0.0.1
+ */
 export class DeclarationIndex {
   private constructor(
     private readonly vertices: ReadonlyMap<string, PreparedDeclaration<VertexDeclaration>>,
     private readonly edges: ReadonlyMap<string, ReadonlyArray<PreparedDeclaration<EdgeDeclaration>>>
   ) {}
 
+  /**
+   * @since 0.0.1
+   */
   static fromDeclarations(
     declarations: Iterable<Declaration>
   ): Result.Result<DeclarationIndex, DeclarationConflictError> {
@@ -185,6 +240,9 @@ export class DeclarationIndex {
     )
   }
 
+  /**
+   * @ignore
+   */
   private declaring(declaration: Declaration): Result.Result<DeclarationIndex, DeclarationConflictError> {
     return Match.valueTags(declaration, {
       VertexDeclaration: (vertex) =>
@@ -204,27 +262,46 @@ export class DeclarationIndex {
     })
   }
 
+  /**
+   * @since 0.0.1
+   */
   vertex(label: string): Option.Option<VertexDeclaration> {
     return Option.map(this.preparedVertex(label), (prepared) => prepared.declaration)
   }
 
-  /** One declaration per endpoint pair the edge type connects, empty for an undeclared type. */
+  /**
+   * One declaration per endpoint pair the edge type connects, empty for an undeclared type.
+   *
+   * @since 0.0.1
+   */
   edgeDeclarations(label: string): ReadonlyArray<EdgeDeclaration> {
     return this.preparedEdges(label).map((prepared) => prepared.declaration)
   }
 
+  /**
+   * @since 0.0.1
+   */
   preparedVertex(label: string): Option.Option<PreparedDeclaration<VertexDeclaration>> {
     return Option.fromNullishOr(this.vertices.get(label))
   }
 
+  /**
+   * @since 0.0.1
+   */
   preparedEdges(label: string): ReadonlyArray<PreparedDeclaration<EdgeDeclaration>> {
     return this.edges.get(label) ?? []
   }
 
+  /**
+   * @since 0.0.1
+   */
   vertexLabels(): ReadonlyArray<string> {
     return [...this.vertices.keys()]
   }
 
+  /**
+   * @since 0.0.1
+   */
   edgeLabels(): ReadonlyArray<string> {
     return [...this.edges.keys()]
   }
@@ -247,7 +324,11 @@ const reasonOfEntry =
 const checkPrepared = (fields: PreparedFields, values: PropertyMap): Option.Option<ViolationReason> =>
   Array.findFirst(Record.toEntries(values), reasonOfEntry(fields))
 
-/** Prepares `fields` on every call: hold a `DeclarationIndex` to check many writes. */
+/**
+ * Prepares `fields` on every call: hold a `DeclarationIndex` to check many writes.
+ *
+ * @since 0.0.1
+ */
 export const checkFields = (fields: DeclaredFields, values: PropertyMap): Option.Option<ViolationReason> =>
   checkPrepared(prepareFields(fields), values)
 
@@ -310,6 +391,9 @@ const checkEdge = (index: DeclarationIndex, edge: UpsertEdge): Option.Option<Dec
     })
 }
 
+/**
+ * @since 0.0.1
+ */
 export const checkGraphOp =
   (index: DeclarationIndex) => (op: GraphOp): Result.Result<GraphOp, DeclarationViolationError> =>
     Option.match(
@@ -320,6 +404,9 @@ export const checkGraphOp =
       { onNone: () => Result.succeed(op), onSome: Result.fail }
     )
 
+/**
+ * @since 0.0.1
+ */
 export const checkGraphOps =
   (index: DeclarationIndex) =>
   (ops: ReadonlyArray<GraphOp>): Result.Result<ReadonlyArray<GraphOp>, DeclarationViolationError> =>
@@ -328,7 +415,10 @@ export const checkGraphOps =
 /** A writer's own declarations next to the key-only vertex declarations it merely references.
  *
  * A vertex upsert is checked against the own declarations alone, so a referenced label can never be
- * a write target; an edge is checked against both, so a referenced label may be an endpoint. */
+ * a write target; an edge is checked against both, so a referenced label may be an endpoint.
+ *
+ * @since 0.0.1
+ */
 export class OwnedDeclarations {
   private constructor(
     readonly written: DeclarationIndex,
@@ -336,7 +426,10 @@ export class OwnedDeclarations {
   ) {}
 
   /** Refuses with `DuplicateDeclarationError` a label declared both as own and as referenced, and
-   *  any conflict `DeclarationIndex.fromDeclarations` already refuses. */
+   *  any conflict `DeclarationIndex.fromDeclarations` already refuses.
+   *
+   * @since 0.0.1
+   */
   static fromDeclarations(declarations: {
     readonly own: Iterable<Declaration>
     readonly referenced: Iterable<VertexDeclaration>
@@ -351,7 +444,10 @@ export class OwnedDeclarations {
 }
 
 /** Checks a write against `owned`: a vertex upsert against the own declarations only, an edge
- *  against own plus referenced. */
+ *  against own plus referenced.
+ *
+ * @since 0.0.1
+ */
 export const checkOwnedGraphOp =
   (owned: OwnedDeclarations) => (op: GraphOp): Result.Result<GraphOp, DeclarationViolationError> =>
     checkGraphOp(GraphOp.guards.UpsertVertex(op) ? owned.written : owned.endpoints)(op)

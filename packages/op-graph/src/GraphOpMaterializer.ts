@@ -1,11 +1,20 @@
+/**
+ * @since 0.0.1
+ */
 import { Context, Effect, Schema, Stream } from "effect"
 import type { GraphOp } from "./GraphOp.js"
 
+/**
+ * @since 0.0.1
+ */
 export class MaterializeSummary extends Schema.Class<MaterializeSummary>("MaterializeSummary")({
   total: Schema.Number,
   details: Schema.Array(Schema.Struct({ key: Schema.String, count: Schema.Number }))
 }) {}
 
+/**
+ * @since 0.0.1
+ */
 export class MaterializeProgress extends Schema.Class<MaterializeProgress>("MaterializeProgress")({
   processed: Schema.Number,
   total: Schema.Number,
@@ -19,6 +28,9 @@ export class MaterializeProgress extends Schema.Class<MaterializeProgress>("Mate
   dropped: Schema.ReadonlyMap(Schema.String, Schema.Number)
 }) {}
 
+/**
+ * @since 0.0.1
+ */
 export function summarize(progress: MaterializeProgress): MaterializeSummary {
   return new MaterializeSummary({
     total: progress.total,
@@ -26,6 +38,9 @@ export function summarize(progress: MaterializeProgress): MaterializeSummary {
   })
 }
 
+/**
+ * @since 0.0.1
+ */
 export class GraphOpMaterializer extends Context.Service<
   GraphOpMaterializer,
   {
@@ -33,6 +48,9 @@ export class GraphOpMaterializer extends Context.Service<
   }
 >()("GraphOpMaterializer") {}
 
+/**
+ * @since 0.0.1
+ */
 export function materialize(
   ops: ReadonlyArray<GraphOp>
 ): Stream.Stream<MaterializeProgress, Error, GraphOpMaterializer> {

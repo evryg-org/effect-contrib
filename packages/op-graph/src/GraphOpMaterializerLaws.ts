@@ -1,6 +1,10 @@
-// The property law suite GraphOpMaterializerContract.ts's deterministic contract deliberately
-// excludes, so a cached test importing that file can never reach a property generator. Only
-// property tests import this one.
+/**
+ * The property law suite that `GraphOpMaterializerContract.ts`'s deterministic contract
+ * deliberately excludes, so a cached test importing that module can never reach a property
+ * generator. Only property tests import this one.
+ *
+ * @since 0.0.1
+ */
 import { expect, layer } from "@effect/vitest"
 import { Array, Effect, type Layer, Order, Record, Ref, Result, Schema, Stream } from "effect"
 import { FastCheck } from "effect/testing"
@@ -91,6 +95,9 @@ const ConservationDraw = Schema.Struct({
 
 const conservationArbitrary = Schema.toArbitrary(ConservationDraw)
 
+/**
+ * @since 0.0.1
+ */
 export const graphOpMaterializerLaws = (
   implementationName: string,
   under: Layer.Layer<GraphOpMaterializer | MaterializedGraph>,

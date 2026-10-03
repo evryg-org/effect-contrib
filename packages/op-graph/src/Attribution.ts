@@ -1,3 +1,6 @@
+/**
+ * @since 0.0.1
+ */
 import { Match } from "effect"
 import type { GraphOp } from "./GraphOp.js"
 import { UpsertVertex } from "./GraphOp.js"
@@ -6,6 +9,8 @@ import { UpsertVertex } from "./GraphOp.js"
  * Extra properties a vertex carries as attribution — who or what produced it. NOT part of the MERGE
  * key, which is the whole difference from a {@link PartitionKey}: attribution says where a node came
  * from without saying which node it is, so re-attributing never mints a second node.
+ *
+ * @since 0.0.1
  */
 // A generic Neo4j property bag spread-merged with a vertex's own properties and reduced across
 // labels via Record.makeReducerUnion — the record IS the domain here.
@@ -14,6 +19,8 @@ export type VertexAttribution = Record<string, string>
 /**
  * An attribution policy: the attribution a given vertex label carries. An empty record means the
  * label is attributed nothing, which is how a policy declines a label rather than inventing one.
+ *
+ * @since 0.0.1
  */
 export type VertexAttributionFor = (label: string) => VertexAttribution
 
@@ -23,6 +30,8 @@ export type VertexAttributionFor = (label: string) => VertexAttribution
  *
  * Edges are left alone: an `UpsertEdge`'s endpoints are refs carrying identity only, so there is no
  * vertex there to attribute — the endpoint's own `UpsertVertex` is where its attribution lands.
+ *
+ * @since 0.0.1
  */
 export const enrichVertexPropertiesBy = (attributionFor: VertexAttributionFor) => (op: GraphOp): GraphOp =>
   Match.valueTags(op, {

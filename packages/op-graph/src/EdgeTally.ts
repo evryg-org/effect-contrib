@@ -1,17 +1,38 @@
+/**
+ * @since 0.0.1
+ */
 import { Array, Number, Record, Reducer, Schema } from "effect"
 
+/**
+ * @since 0.0.1
+ */
 export const EdgeShape = Schema.String.pipe(Schema.brand("EdgeShape"))
+/**
+ * @since 0.0.1
+ */
 export type EdgeShape = typeof EdgeShape.Type
 
+/**
+ * @since 0.0.1
+ */
 export class EdgeMaterialized extends Schema.TaggedClass<EdgeMaterialized>()("EdgeMaterialized", {
   shape: EdgeShape
 }) {}
 
+/**
+ * @since 0.0.1
+ */
 export class EdgeDropped extends Schema.TaggedClass<EdgeDropped>()("EdgeDropped", {
   shape: EdgeShape
 }) {}
 
+/**
+ * @since 0.0.1
+ */
 export const EdgeOutcome = Schema.Union([EdgeMaterialized, EdgeDropped]).pipe(Schema.toTaggedUnion("_tag"))
+/**
+ * @since 0.0.1
+ */
 export type EdgeOutcome = typeof EdgeOutcome.Type
 
 class ShapeCount extends Schema.Class<ShapeCount>("ShapeCount")({
@@ -44,6 +65,8 @@ const classify = (outcome: EdgeOutcome): { readonly shape: string; readonly drop
  * A count of materialized vs. dropped edges, per edge shape. `of` is the only introduction
  * form: a count can only ever arise by counting outcomes, so a negative is unrepresentable and
  * no subtraction exists anywhere in this type.
+ *
+ * @since 0.0.1
  */
 export class EdgeTally extends Schema.Class<EdgeTally>("EdgeTally")({
   entries: Schema.ReadonlyMap(EdgeShape, ShapeCount)
@@ -53,6 +76,9 @@ export class EdgeTally extends Schema.Class<EdgeTally>("EdgeTally")({
   /** The native Reducer for the per-shape accounting monoid — `combine` is the instance-method form. */
   static readonly Reducer: Reducer.Reducer<EdgeTally> = Reducer.make((a, b) => a.combine(b), EdgeTally.empty)
 
+  /**
+   * @since 0.0.1
+   */
   static of(outcomes: ReadonlyArray<EdgeOutcome>): EdgeTally {
     const byShape = Array.groupBy(outcomes.map(classify), (c) => c.shape)
     const counts = Record.map(byShape, (group) =>
@@ -65,6 +91,9 @@ export class EdgeTally extends Schema.Class<EdgeTally>("EdgeTally")({
     })
   }
 
+  /**
+   * @since 0.0.1
+   */
   combine(other: EdgeTally): EdgeTally {
     const shapes = Array.union(this.entries.keys(), other.entries.keys())
     return new EdgeTally({
@@ -82,6 +111,9 @@ export class EdgeTally extends Schema.Class<EdgeTally>("EdgeTally")({
     })
   }
 
+  /**
+   * @since 0.0.1
+   */
   opCount(): number {
     return Array.reduce(
       Array.fromIterable(this.entries.values()),
@@ -90,14 +122,23 @@ export class EdgeTally extends Schema.Class<EdgeTally>("EdgeTally")({
     )
   }
 
+  /**
+   * @since 0.0.1
+   */
   droppedCount(): number {
     return Number.sumAll(Array.fromIterable(this.entries.values()).map((count) => (count.dropped)))
   }
 
+  /**
+   * @since 0.0.1
+   */
   droppedByShape(): ReadonlyMap<string, number> {
     return new Map(this.#droppedEntries().map(([shape, count]) => [shape, count.dropped]))
   }
 
+  /**
+   * @since 0.0.1
+   */
   droppedShapes(): ReadonlyArray<{ readonly shape: string; readonly dropped: number; readonly total: number }> {
     return this.#droppedEntries().map(([shape, count]) => ({
       shape,
@@ -106,6 +147,9 @@ export class EdgeTally extends Schema.Class<EdgeTally>("EdgeTally")({
     }))
   }
 
+  /**
+   * @ignore
+   */
   #droppedEntries(): ReadonlyArray<readonly [string, ShapeCount]> {
     return Array.fromIterable(this.entries).filter(([, count]) => count.dropped > 0)
   }
