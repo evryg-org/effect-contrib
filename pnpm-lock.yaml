@@ -251,6 +251,9 @@ importers:
       '@evryg/effect-neo4j':
         specifier: workspace:^
         version: link:../neo4j
+      '@evryg/effect-op-graph':
+        specifier: workspace:^
+        version: link:../op-graph
       '@evryg/effect-vitest-neo4j':
         specifier: workspace:^
         version: link:../vitest-neo4j

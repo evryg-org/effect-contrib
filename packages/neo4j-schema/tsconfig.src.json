@@ -17,6 +17,9 @@
   "references": [
     {
       "path": "../neo4j/tsconfig.src.json"
+    },
+    {
+      "path": "../op-graph/tsconfig.src.json"
     }
   ]
 }
