@@ -1,12 +1,12 @@
-import { describe, it, expect } from "@effect/vitest"
+import { describe, expect, it } from "@effect/vitest"
 import { Schema } from "effect"
+import { GraphOp, UpsertVertex } from "./GraphOp.js"
 import { graphOpAdapter, ONE_WAY_ENCODE_MESSAGE } from "./GraphOpAdapter.js"
-import { UpsertVertex, GraphOp } from "./GraphOp.js"
 
 describe("graphOpAdapter", () => {
   type Result = { readonly fqcn: string }
   const toOps = (r: Result): ReadonlyArray<GraphOp> => [
-    new UpsertVertex({ label: "Class", key: { fqcn: r.fqcn }, properties: {} }),
+    new UpsertVertex({ label: "Class", key: { fqcn: r.fqcn }, properties: {} })
   ]
 
   it("decode applies the mapper (A -> readonly GraphOp[])", () => {

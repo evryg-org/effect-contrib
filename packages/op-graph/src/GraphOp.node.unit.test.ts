@@ -1,6 +1,6 @@
-import { describe, it, expect } from "@effect/vitest"
-import { Schema, Record, Array, Order } from "effect"
-import { UpsertVertex, UpsertEdge, VertexRef, GraphOp } from "./GraphOp.js"
+import { describe, expect, it } from "@effect/vitest"
+import { Array, Order, Record, Schema } from "effect"
+import { GraphOp, UpsertEdge, UpsertVertex, VertexRef } from "./GraphOp.js"
 
 describe("GraphOp Schema types", () => {
   it("UpsertVertex constructs with the expected fields", () => {
@@ -24,7 +24,7 @@ describe("GraphOp Schema types", () => {
       from: new VertexRef({ label: "Class", key: { fqcn: "A" } }),
       to: new VertexRef({ label: "Class", key: { fqcn: "B" } }),
       key: { kind: "calls" },
-      properties: { confidence: "high" },
+      properties: { confidence: "high" }
     })
     expect(GraphOp.guards.UpsertEdge(e)).toBe(true)
     expect(e.from.label).toBe("Class")
@@ -42,8 +42,8 @@ describe("GraphOp Schema types", () => {
         from: new VertexRef({ label: "Class", key: { fqcn: "A" } }),
         to: new VertexRef({ label: "Class", key: { fqcn: "B" } }),
         key: { kind: "calls" },
-        properties: {},
-      }),
+        properties: {}
+      })
     ]
 
     const json = Schema.encodeSync(Schema.fromJsonString(Schema.Array(GraphOp)))(ops)
@@ -63,9 +63,9 @@ describe("GraphOp Schema types", () => {
         from: new VertexRef({ label: "A", key: { id: "0" } }),
         to: new VertexRef({ label: "C", key: { id: "2" } }),
         key: {},
-        properties: {},
+        properties: {}
       }),
-      new UpsertVertex({ label: "C", key: { id: "2" }, properties: {} }),
+      new UpsertVertex({ label: "C", key: { id: "2" }, properties: {} })
     ]
 
     const encoded = Schema.encodeSync(Schema.Array(GraphOp))(ops)

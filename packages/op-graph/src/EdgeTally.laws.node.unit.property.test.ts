@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
-import { FastCheck as fc } from "effect/testing"
 import { Array } from "effect"
-import { EdgeDropped, EdgeMaterialized, EdgeShape, EdgeTally, type EdgeOutcome } from "./EdgeTally.js"
+import { FastCheck as fc } from "effect/testing"
+import { EdgeDropped, EdgeMaterialized, type EdgeOutcome, EdgeShape, EdgeTally } from "./EdgeTally.js"
 
 // EdgeTally is a COUNTER, not a dedup carrier like SetMap: combine adds, so it is a commutative
 // monoid but not idempotent (combining a tally with itself doubles every count).
@@ -30,7 +30,7 @@ const arbShape: fc.Arbitrary<string> = fc.constantFrom("Alpha-[:LINKS]->Beta", "
 
 const arbOutcome: fc.Arbitrary<EdgeOutcome> = fc.oneof(
   arbShape.map((shape) => new EdgeMaterialized({ shape: EdgeShape.make(shape) })),
-  arbShape.map((shape) => new EdgeDropped({ shape: EdgeShape.make(shape) })),
+  arbShape.map((shape) => new EdgeDropped({ shape: EdgeShape.make(shape) }))
 )
 
 // Built only through EdgeTally.of — the same restriction production code lives under.
@@ -44,21 +44,24 @@ const id = EdgeTally.Reducer.initialValue
 law(
   "Associativity: EdgeTally.Reducer",
   "op(op(a, b), c) = op(a, op(b, c))",
-  fc.property(arbTally, arbTally, arbTally, (a, b, c) => expectTallyEq(op(op(a, b), c), op(a, op(b, c)))),
+  fc.property(arbTally, arbTally, arbTally, (a, b, c) => expectTallyEq(op(op(a, b), c), op(a, op(b, c))))
 )
 law("Left Identity: EdgeTally.Reducer", "op(id, a) = a", fc.property(arbTally, (a) => expectTallyEq(op(id, a), a)))
 law("Right Identity: EdgeTally.Reducer", "op(a, id) = a", fc.property(arbTally, (a) => expectTallyEq(op(a, id), a)))
 law(
   "Commutativity: EdgeTally.Reducer",
   "op(a, b) = op(b, a)",
-  fc.property(arbTally, arbTally, (a, b) => expectTallyEq(op(a, b), op(b, a))),
+  fc.property(arbTally, arbTally, (a, b) => expectTallyEq(op(a, b), op(b, a)))
 )
 
 law(
   "Homomorphism: EdgeTally.of is an accounting homomorphism",
   "h(opA(a, b)) = opB(h(a), h(b))",
-  fc.property(fc.array(arbOutcome), fc.array(arbOutcome), (a, b) =>
-    expectTallyEq(EdgeTally.of(Array.appendAll(a, b)), EdgeTally.of(a).combine(EdgeTally.of(b)))),
+  fc.property(
+    fc.array(arbOutcome),
+    fc.array(arbOutcome),
+    (a, b) => expectTallyEq(EdgeTally.of(Array.appendAll(a, b)), EdgeTally.of(a).combine(EdgeTally.of(b)))
+  )
 )
 
 law(
@@ -66,7 +69,7 @@ law(
   "h(opA(a, b)) = opB(h(a), h(b))",
   fc.property(arbTally, arbTally, (a, b) => {
     expect(a.combine(b).opCount()).toBe(a.opCount() + b.opCount())
-  }),
+  })
 )
 
 describe("Identity-preserving: EdgeTally.of([]) is EdgeTally.empty", () => {
@@ -82,5 +85,5 @@ law(
   fc.property(arbTally, arbTally, (s, a) => {
     fc.pre(nonNegative(s))
     expect(nonNegative(s.combine(a))).toBe(true)
-  }),
+  })
 )

@@ -1,15 +1,15 @@
 // Deterministic contract only — the property law suite lives in GraphOpMaterializerLaws.ts, so a
 // cached test importing this file can never reach a property generator.
-import { layer, expect } from "@effect/vitest"
-import { Array, Context, Effect, Layer, Order, Record, Ref, Result, Schema, Stream } from "effect"
-import { GraphOpMaterializer, materialize, summarize, type MaterializeProgress } from "../GraphOpMaterializer.js"
+import { expect, layer } from "@effect/vitest"
+import { Array, Context, Effect, type Layer, Order, Record, Ref, Result, Schema, Stream } from "effect"
 import { PropertyMap, UpsertEdge, UpsertVertex, VertexRef } from "../GraphOp.js"
+import { type GraphOpMaterializer, materialize, type MaterializeProgress, summarize } from "../GraphOpMaterializer.js"
 
 /** One materialized vertex, read back through the probe rather than the port (`materialize` returns
  * only op counts, never a graph). */
 export class MaterializedVertex extends Schema.Class<MaterializedVertex>("MaterializedVertex")({
   label: Schema.String,
-  properties: PropertyMap,
+  properties: PropertyMap
 }) {}
 
 /** One materialized edge, both endpoints' full stored properties — never a per-field lookup, so a
@@ -18,7 +18,7 @@ export class MaterializedEdge extends Schema.Class<MaterializedEdge>("Materializ
   label: Schema.String,
   from: PropertyMap,
   to: PropertyMap,
-  properties: PropertyMap,
+  properties: PropertyMap
 }) {}
 
 /** The read-back capability the contract needs and the port deliberately does not have. */
@@ -40,7 +40,7 @@ export const edge = (
   from: VertexRef,
   to: VertexRef,
   key: PropertyMap = {},
-  properties: PropertyMap = {},
+  properties: PropertyMap = {}
 ): UpsertEdge => new UpsertEdge({ label, from, to, key, properties })
 
 // ── Assertion projection — both sides project to sorted plain records before comparing.
@@ -48,7 +48,8 @@ export const sortedEntries = (fields: PropertyMap): ReadonlyArray<readonly [stri
   Array.sortWith(Record.toEntries(fields), ([name]) => name, Order.String)
 
 const EntriesJson = Schema.fromJsonString(Schema.Array(Schema.Tuple([Schema.String, Schema.Unknown])))
-export const entriesKey = (entries: ReadonlyArray<readonly [string, unknown]>): string => Schema.encodeSync(EntriesJson)(entries)
+export const entriesKey = (entries: ReadonlyArray<readonly [string, unknown]>): string =>
+  Schema.encodeSync(EntriesJson)(entries)
 
 interface ProjectedVertex {
   readonly label: string
@@ -62,13 +63,16 @@ interface ProjectedEdge {
   readonly properties: ReadonlyArray<readonly [string, unknown]>
 }
 
-const projectVertex = (v: MaterializedVertex): ProjectedVertex => ({ label: v.label, properties: sortedEntries(v.properties) })
+const projectVertex = (v: MaterializedVertex): ProjectedVertex => ({
+  label: v.label,
+  properties: sortedEntries(v.properties)
+})
 
 const projectEdge = (e: MaterializedEdge): ProjectedEdge => ({
   label: e.label,
   from: sortedEntries(e.from),
   to: sortedEntries(e.to),
-  properties: sortedEntries(e.properties),
+  properties: sortedEntries(e.properties)
 })
 
 export const sortedVertices = (vs: ReadonlyArray<MaterializedVertex>): ReadonlyArray<ProjectedVertex> =>
@@ -78,11 +82,11 @@ export const sortedEdges = (es: ReadonlyArray<MaterializedEdge>): ReadonlyArray<
   Array.sortWith(
     es.map(projectEdge),
     (e) => `${e.label} ${entriesKey(e.from)} ${entriesKey(e.to)} ${entriesKey(e.properties)}`,
-    Order.String,
+    Order.String
   )
 
 export const snapshotOf = (probe: MaterializedGraph["Service"]) =>
-  Effect.gen(function* () {
+  Effect.gen(function*() {
     const vertices = yield* probe.vertices("Alpha")
     const edges = yield* probe.edges("LINKS")
     return { vertices: sortedVertices(vertices), edges: sortedEdges(edges) }
@@ -90,25 +94,25 @@ export const snapshotOf = (probe: MaterializedGraph["Service"]) =>
 
 export const graphOpMaterializerContract = (
   implementationName: string,
-  under: Layer.Layer<GraphOpMaterializer | MaterializedGraph>,
+  under: Layer.Layer<GraphOpMaterializer | MaterializedGraph>
 ): void => {
   layer(under, { timeout: "120 seconds" })(implementationName, (it) => {
     it.effect("P1 — vertices MERGE by (label, key); properties accumulate", () =>
-      Effect.gen(function* () {
+      Effect.gen(function*() {
         const probe = yield* MaterializedGraph
         yield* probe.clear()
         yield* materialize([
           vertex("Alpha", { id: "1" }, { name: "first" }),
-          vertex("Alpha", { id: "1" }, { role: "primary" }),
+          vertex("Alpha", { id: "1" }, { role: "primary" })
         ]).pipe(Stream.runDrain)
         const vertices = yield* probe.vertices("Alpha")
         expect(sortedVertices(vertices)).toEqual([
-          { label: "Alpha", properties: sortedEntries({ id: "1", name: "first", role: "primary" }) },
+          { label: "Alpha", properties: sortedEntries({ id: "1", name: "first", role: "primary" }) }
         ])
       }))
 
     it.effect("P3 — edges MERGE by (endpoints, key); a different key is a distinct edge", () =>
-      Effect.gen(function* () {
+      Effect.gen(function*() {
         const probe = yield* MaterializedGraph
         yield* probe.clear()
         yield* materialize([
@@ -116,7 +120,7 @@ export const graphOpMaterializerContract = (
           vertex("Beta", { id: "2" }),
           edge("LINKS", ref("Alpha", { id: "1" }), ref("Beta", { id: "2" }), { kind: "a" }, { weight: "1" }),
           edge("LINKS", ref("Alpha", { id: "1" }), ref("Beta", { id: "2" }), { kind: "a" }, { weight: "2" }),
-          edge("LINKS", ref("Alpha", { id: "1" }), ref("Beta", { id: "2" }), { kind: "b" }, {}),
+          edge("LINKS", ref("Alpha", { id: "1" }), ref("Beta", { id: "2" }), { kind: "b" }, {})
         ]).pipe(Stream.runDrain)
         const edges = yield* probe.edges("LINKS")
         expect(sortedEdges(edges)).toEqual(
@@ -126,29 +130,29 @@ export const graphOpMaterializerContract = (
                 label: "LINKS",
                 from: sortedEntries({ id: "1" }),
                 to: sortedEntries({ id: "2" }),
-                properties: sortedEntries({ kind: "a", weight: "2" }),
+                properties: sortedEntries({ kind: "a", weight: "2" })
               },
               {
                 label: "LINKS",
                 from: sortedEntries({ id: "1" }),
                 to: sortedEntries({ id: "2" }),
-                properties: sortedEntries({ kind: "b" }),
-              },
+                properties: sortedEntries({ kind: "b" })
+              }
             ],
             (e) => `${e.label} ${entriesKey(e.from)} ${entriesKey(e.to)} ${entriesKey(e.properties)}`,
-            Order.String,
-          ),
+            Order.String
+          )
         )
       }))
 
     it.effect("P5 — a caller-ordered vertices-then-edges list materializes every edge", () =>
-      Effect.gen(function* () {
+      Effect.gen(function*() {
         const probe = yield* MaterializedGraph
         yield* probe.clear()
         const events = yield* materialize([
           vertex("Alpha", { id: "1" }),
           vertex("Beta", { id: "2" }),
-          edge("LINKS", ref("Alpha", { id: "1" }), ref("Beta", { id: "2" })),
+          edge("LINKS", ref("Alpha", { id: "1" }), ref("Beta", { id: "2" }))
         ]).pipe(Stream.runCollect)
         const last = events[events.length - 1]
         expect(last.dropped.size).toBe(0)
@@ -157,13 +161,13 @@ export const graphOpMaterializerContract = (
       }))
 
     it.effect("P6 — an edge before its endpoint vertex in the same list is dropped (arrival order is honoured)", () =>
-      Effect.gen(function* () {
+      Effect.gen(function*() {
         const probe = yield* MaterializedGraph
         yield* probe.clear()
         const result = yield* materialize([
           edge("LINKS", ref("Alpha", { id: "1" }), ref("Beta", { id: "2" })),
           vertex("Alpha", { id: "1" }),
-          vertex("Beta", { id: "2" }),
+          vertex("Beta", { id: "2" })
         ]).pipe(Stream.runDrain, Effect.result)
         expect(Result.isFailure(result)).toBe(true)
         const edges = yield* probe.edges("LINKS")
@@ -171,7 +175,7 @@ export const graphOpMaterializerContract = (
       }))
 
     it.effect("P7 — a dropped edge fails the stream but the prior progress carries the tally, and a surviving edge in the same apply is still written", () =>
-      Effect.gen(function* () {
+      Effect.gen(function*() {
         const probe = yield* MaterializedGraph
         yield* probe.clear()
         const lastProgress = yield* Ref.make<MaterializeProgress | undefined>(undefined)
@@ -179,7 +183,7 @@ export const graphOpMaterializerContract = (
           vertex("Alpha", { id: "1" }),
           vertex("Beta", { id: "2" }),
           edge("LINKS", ref("Alpha", { id: "1" }), ref("Beta", { id: "2" })),
-          edge("LINKS", ref("Alpha", { id: "1" }), ref("Beta", { id: "missing" })),
+          edge("LINKS", ref("Alpha", { id: "1" }), ref("Beta", { id: "missing" }))
         ]).pipe(Stream.runForEach((p) => Ref.set(lastProgress, p)), Effect.result)
         expect(Result.isFailure(result)).toBe(true)
         const last = yield* Ref.get(lastProgress)
@@ -189,14 +193,14 @@ export const graphOpMaterializerContract = (
       }))
 
     it.effect("P8 — counts is keyed by vertex label and edge shape, and summarize(last).details agrees", () =>
-      Effect.gen(function* () {
+      Effect.gen(function*() {
         const probe = yield* MaterializedGraph
         yield* probe.clear()
         const events = yield* materialize([
           vertex("Alpha", { id: "1" }),
           vertex("Alpha", { id: "2" }),
           vertex("Beta", { id: "3" }),
-          edge("LINKS", ref("Alpha", { id: "1" }), ref("Beta", { id: "3" })),
+          edge("LINKS", ref("Alpha", { id: "1" }), ref("Beta", { id: "3" }))
         ]).pipe(Stream.runCollect)
         const last = events[events.length - 1]
         expect(last.counts.get("Alpha")).toBe(2)
@@ -206,13 +210,13 @@ export const graphOpMaterializerContract = (
           expect.arrayContaining([
             { key: "Alpha", count: 2 },
             { key: "Beta", count: 1 },
-            { key: "Alpha-[:LINKS]->Beta", count: 1 },
-          ]),
+            { key: "Alpha-[:LINKS]->Beta", count: 1 }
+          ])
         )
       }))
 
     it.effect("P9 — an empty op list emits exactly one zero progress and never fails", () =>
-      Effect.gen(function* () {
+      Effect.gen(function*() {
         const probe = yield* MaterializedGraph
         yield* probe.clear()
         const events = yield* materialize([]).pipe(Stream.runCollect)

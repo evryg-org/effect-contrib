@@ -1,5 +1,5 @@
+import { describe, expect, it } from "@effect/vitest"
 import { Array, Equal, Order } from "effect"
-import { describe, it, expect } from "@effect/vitest"
 import { SetMap } from "./SetMap.js"
 
 describe("SetMap", () => {
@@ -12,7 +12,7 @@ describe("SetMap", () => {
       ["a", "1"],
       ["a", "2"],
       ["a", "1"],
-      ["b", "3"],
+      ["b", "3"]
     ])
     expect(new Set(m.values("a"))).toEqual(new Set(["1", "2"]))
     expect(new Set(m.values("b"))).toEqual(new Set(["3"]))

@@ -17,8 +17,8 @@ export const refineThenMaterialize =
       Effect.sync(() => refine(ops)).pipe(
         Effect.flatMap(Result.match({ onFailure: Effect.fail, onSuccess: Effect.succeed })),
         Predicate.isUndefined(phase) ? Function.identity : logPhase(phase),
-        Effect.map(materialize),
-      ),
+        Effect.map(materialize)
+      )
     )
 
 /** The refine-then-materialize Layer decorator: every batch passes `refine` before the base
@@ -30,6 +30,6 @@ export const refinedMaterializer =
     Layer.effect(
       GraphOpMaterializer,
       Effect.map(GraphOpMaterializer, (inner) => ({
-        materialize: refineThenMaterialize(refine, phase)(inner.materialize),
-      })),
+        materialize: refineThenMaterialize(refine, phase)(inner.materialize)
+      }))
     ).pipe(Layer.provide(base))

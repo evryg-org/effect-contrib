@@ -1,5 +1,6 @@
 import { Match } from "effect"
-import { GraphOp, UpsertVertex } from "./GraphOp.js"
+import type { GraphOp } from "./GraphOp.js"
+import { UpsertVertex } from "./GraphOp.js"
 
 /**
  * Extra properties a vertex carries as attribution — who or what produced it. NOT part of the MERGE
@@ -24,14 +25,13 @@ export type VertexAttributionFor = (label: string) => VertexAttribution
  * Edges are left alone: an `UpsertEdge`'s endpoints are refs carrying identity only, so there is no
  * vertex there to attribute — the endpoint's own `UpsertVertex` is where its attribution lands.
  */
-export const enrichVertexPropertiesBy = (attributionFor: VertexAttributionFor) =>
-  (op: GraphOp): GraphOp =>
-    Match.valueTags(op, {
-      UpsertVertex: (v) =>
-        new UpsertVertex({
-          label: v.label,
-          key: v.key,
-          properties: { ...v.properties, ...attributionFor(v.label) },
-        }),
-      UpsertEdge: (e): GraphOp => e,
-    })
+export const enrichVertexPropertiesBy = (attributionFor: VertexAttributionFor) => (op: GraphOp): GraphOp =>
+  Match.valueTags(op, {
+    UpsertVertex: (v) =>
+      new UpsertVertex({
+        label: v.label,
+        key: v.key,
+        properties: { ...v.properties, ...attributionFor(v.label) }
+      }),
+    UpsertEdge: (e): GraphOp => e
+  })

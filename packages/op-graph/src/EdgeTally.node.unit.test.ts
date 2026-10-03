@@ -23,7 +23,7 @@ describe("EdgeTally", () => {
     const tally = EdgeTally.of([
       new EdgeMaterialized({ shape: links() }),
       new EdgeDropped({ shape: links() }),
-      new EdgeMaterialized({ shape: owns() }),
+      new EdgeMaterialized({ shape: owns() })
     ])
     expect(tally.opCount()).toBe(3)
     expect(tally.droppedShapes()).toEqual([{ shape: links(), dropped: 1, total: 2 }])

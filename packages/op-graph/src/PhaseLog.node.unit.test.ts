@@ -1,12 +1,14 @@
-import { describe, it, expect } from "@effect/vitest"
+import { describe, expect, it } from "@effect/vitest"
 import { Duration, Effect, Logger, Predicate } from "effect"
 import { TestClock } from "effect/testing"
 import { formatElapsed, logPhase } from "./PhaseLog.js"
 
 const capturingLogger = () => {
-  const lines: string[] = []
+  const lines: Array<string> = []
   const layer = Logger.layer([Logger.make(({ message }) => {
-    lines.push(Predicate.isString(message) ? message : globalThis.Array.isArray(message) ? message.join(" ") : String(message))
+    lines.push(
+      Predicate.isString(message) ? message : globalThis.Array.isArray(message) ? message.join(" ") : String(message)
+    )
   })])
   return { lines, layer }
 }
@@ -16,8 +18,8 @@ const phaseTaking = (duration: Duration.Input) =>
 
 describe("logPhase", () => {
   it.effect("logs the phase with its op count and elapsed when it reaches the threshold", () => {
-    const { lines, layer } = capturingLogger()
-    return Effect.gen(function* () {
+    const { layer, lines } = capturingLogger()
+    return Effect.gen(function*() {
       const items = yield* phaseTaking("2 seconds")
       expect(items).toEqual(["a", "b", "c"])
       expect(lines).toEqual(["decoded 3 ops (2s)"])
@@ -25,21 +27,21 @@ describe("logPhase", () => {
   })
 
   it.effect("logs nothing for a phase faster than the threshold", () => {
-    const { lines, layer } = capturingLogger()
-    return Effect.gen(function* () {
+    const { layer, lines } = capturingLogger()
+    return Effect.gen(function*() {
       yield* phaseTaking("200 millis")
       expect(lines).toEqual([])
     }).pipe(Effect.provide(layer))
   })
 
   it.effect("logs nothing for a failing phase and propagates its failure", () => {
-    const { lines, layer } = capturingLogger()
-    return Effect.gen(function* () {
+    const { layer, lines } = capturingLogger()
+    return Effect.gen(function*() {
       const failure = yield* TestClock.adjust("2 seconds").pipe(
         Effect.andThen(Effect.fail("boom")),
         Effect.as([] as ReadonlyArray<never>),
         logPhase("decoded"),
-        Effect.flip,
+        Effect.flip
       )
       expect(failure).toBe("boom")
       expect(lines).toEqual([])

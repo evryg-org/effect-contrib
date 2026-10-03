@@ -1,6 +1,8 @@
-import { describe, it, expect } from "@effect/vitest"
+import { describe, expect, it } from "@effect/vitest"
 import { Function, Option, Result, Schema } from "effect"
 import {
+  checkGraphOp,
+  checkGraphOps,
   ConflictingEdgeDeclarationError,
   DeclarationIndex,
   EdgeDeclaration,
@@ -9,16 +11,14 @@ import {
   UndeclaredConnectivity,
   UndeclaredLabel,
   UndeclaredProperty,
-  VertexDeclaration,
-  checkGraphOp,
-  checkGraphOps,
+  VertexDeclaration
 } from "./DeclarationCheck.js"
-import { UpsertEdge, UpsertVertex, VertexRef, type GraphOp } from "./GraphOp.js"
+import { type GraphOp, UpsertEdge, UpsertVertex, VertexRef } from "./GraphOp.js"
 
 const alpha = () =>
   new VertexDeclaration({
     label: "Alpha",
-    fields: { id: Schema.String, category: Schema.String, note: Schema.optional(Schema.String), ordinal: Schema.Number },
+    fields: { id: Schema.String, category: Schema.String, note: Schema.optional(Schema.String), ordinal: Schema.Number }
   })
 
 const beta = () => new VertexDeclaration({ label: "Beta", fields: { id: Schema.String } })
@@ -27,12 +27,13 @@ const links = () =>
   new EdgeDeclaration({
     label: "LINKS",
     fields: { ordinal: Schema.Number },
-    connectivity: [new EndpointPair({ from: "Alpha", to: "Beta" })],
+    connectivity: [new EndpointPair({ from: "Alpha", to: "Beta" })]
   })
 
 const indexed = () => Result.getOrThrow(DeclarationIndex.fromDeclarations([alpha(), beta(), links()]))
 const check = (op: GraphOp) => checkGraphOp(indexed())(op)
-const violationOf = (op: GraphOp) => Result.match(check(op), { onFailure: Function.identity, onSuccess: Function.constNull })
+const violationOf = (op: GraphOp) =>
+  Result.match(check(op), { onFailure: Function.identity, onSuccess: Function.constNull })
 const reasonOf = (op: GraphOp) => Option.map(Option.fromNullishOr(violationOf(op)), (v) => v.reason)
 
 const validEdge = () =>
@@ -41,7 +42,7 @@ const validEdge = () =>
     from: new VertexRef({ label: "Alpha", key: { id: "a1" } }),
     to: new VertexRef({ label: "Beta", key: { id: "b1" } }),
     key: { ordinal: 1 },
-    properties: {},
+    properties: {}
   })
 
 describe("checkGraphOp over vertices", () => {
@@ -49,7 +50,7 @@ describe("checkGraphOp over vertices", () => {
     const op = new UpsertVertex({
       label: "Alpha",
       key: { id: "a1" },
-      properties: { category: "core", note: "hi", ordinal: 3 },
+      properties: { category: "core", note: "hi", ordinal: 3 }
     })
     expect(violationOf(op)).toBeNull()
   })
@@ -102,13 +103,17 @@ describe("checkGraphOp over vertices", () => {
 
   it("renders every key field and the reason in the violation message", () => {
     const messageOf = (op: GraphOp) => violationOf(op)?.message
-    expect(messageOf(new UpsertVertex({ label: "Alpha", key: { id: "a1", ordinal: 2 }, properties: { category: null } }))).toBe(
-      "UpsertVertex Alpha {id=a1, ordinal=2} writes null to required property \"category\"",
+    expect(
+      messageOf(new UpsertVertex({ label: "Alpha", key: { id: "a1", ordinal: 2 }, properties: { category: null } }))
+    ).toBe(
+      "UpsertVertex Alpha {id=a1, ordinal=2} writes null to required property \"category\""
     )
     expect(messageOf(new UpsertVertex({ label: "Alpha", key: { id: "a1" }, properties: { colour: "red" } }))).toBe(
-      "UpsertVertex Alpha {id=a1} carries undeclared property \"colour\"",
+      "UpsertVertex Alpha {id=a1} carries undeclared property \"colour\""
     )
-    expect(messageOf(new UpsertVertex({ label: "Gamma", key: { id: "g1" }, properties: {} }))).toBe("UpsertVertex Gamma {id=g1} is not declared")
+    expect(messageOf(new UpsertVertex({ label: "Gamma", key: { id: "g1" }, properties: {} }))).toBe(
+      "UpsertVertex Gamma {id=g1} is not declared"
+    )
   })
 })
 
@@ -121,7 +126,7 @@ describe("checkGraphOp over edges", () => {
     const op = new UpsertEdge({
       ...validEdge(),
       from: new VertexRef({ label: "Beta", key: { id: "b1" } }),
-      to: new VertexRef({ label: "Alpha", key: { id: "a1" } }),
+      to: new VertexRef({ label: "Alpha", key: { id: "a1" } })
     })
     expect(reasonOf(op)).toEqual(Option.some(new UndeclaredConnectivity({ from: "Beta", to: "Alpha" })))
     expect(violationOf(op)?.message).toBe("UpsertEdge LINKS {ordinal=1} connects the undeclared pair Beta -> Alpha")
@@ -131,16 +136,16 @@ describe("checkGraphOp over edges", () => {
     const alphaRef = new VertexRef({ label: "Alpha", key: { id: "a1" } })
     const betaRef = new VertexRef({ label: "Beta", key: { id: "b1" } })
     expect(reasonOf(new UpsertEdge({ ...validEdge(), from: alphaRef, to: alphaRef }))).toEqual(
-      Option.some(new UndeclaredConnectivity({ from: "Alpha", to: "Alpha" })),
+      Option.some(new UndeclaredConnectivity({ from: "Alpha", to: "Alpha" }))
     )
     expect(reasonOf(new UpsertEdge({ ...validEdge(), from: betaRef, to: betaRef }))).toEqual(
-      Option.some(new UndeclaredConnectivity({ from: "Beta", to: "Beta" })),
+      Option.some(new UndeclaredConnectivity({ from: "Beta", to: "Beta" }))
     )
   })
 
   it("refuses an undeclared edge key property", () => {
     expect(reasonOf(new UpsertEdge({ ...validEdge(), key: { weight: 2 } }))).toEqual(
-      Option.some(new UndeclaredProperty({ property: "weight" })),
+      Option.some(new UndeclaredProperty({ property: "weight" }))
     )
   })
 
@@ -160,7 +165,10 @@ describe("checkGraphOp over edges", () => {
 describe("the index and the batch", () => {
   it("keeps edge types and vertex labels in separate namespaces", () => {
     const shared = Result.getOrThrow(
-      DeclarationIndex.fromDeclarations([new VertexDeclaration({ label: "LINKS", fields: { id: Schema.String } }), links()]),
+      DeclarationIndex.fromDeclarations([
+        new VertexDeclaration({ label: "LINKS", fields: { id: Schema.String } }),
+        links()
+      ])
     )
     expect(Option.isSome(shared.vertex("LINKS"))).toBe(true)
     expect(shared.edgeDeclarations("LINKS")).toHaveLength(1)
@@ -172,7 +180,7 @@ describe("the index and the batch", () => {
     const outcome = DeclarationIndex.fromDeclarations([alpha(), alpha()])
     expect(Result.isFailure(outcome)).toBe(true)
     expect(Result.match(outcome, { onFailure: (error) => error.message, onSuccess: Function.constNull })).toBe(
-      "Duplicate vertex declaration for \"Alpha\"",
+      "Duplicate vertex declaration for \"Alpha\""
     )
   })
 
@@ -185,9 +193,9 @@ describe("the index and the batch", () => {
         new EdgeDeclaration({
           label: "LINKS",
           fields: { role: Schema.String },
-          connectivity: [new EndpointPair({ from: "Beta", to: "Alpha" })],
-        }),
-      ]),
+          connectivity: [new EndpointPair({ from: "Beta", to: "Alpha" })]
+        })
+      ])
     )
     const checkMerged = (op: GraphOp) =>
       Result.match(checkGraphOp(merged)(op), { onFailure: Function.identity, onSuccess: Function.constNull })
@@ -196,7 +204,7 @@ describe("the index and the batch", () => {
       from: new VertexRef({ label: "Beta", key: { id: "b1" } }),
       to: new VertexRef({ label: "Alpha", key: { id: "a1" } }),
       key: { role: "owner" },
-      properties: {},
+      properties: {}
     })
     expect(checkMerged(reversed)).toBeNull()
     expect(checkMerged(validEdge())).toBeNull()
@@ -210,25 +218,25 @@ describe("the index and the batch", () => {
         new EdgeDeclaration({
           label: "RELATES",
           fields: { weight: Schema.Number },
-          connectivity: [new EndpointPair({ from: "Alpha", to: "Beta" })],
+          connectivity: [new EndpointPair({ from: "Alpha", to: "Beta" })]
         }),
         new EdgeDeclaration({
           label: "RELATES",
           fields: { weight: Schema.Number, reason: Schema.optional(Schema.String) },
-          connectivity: [new EndpointPair({ from: "Beta", to: "Alpha" })],
-        }),
-      ]),
+          connectivity: [new EndpointPair({ from: "Beta", to: "Alpha" })]
+        })
+      ])
     )
     const carryingTheOtherPairsField = new UpsertEdge({
       label: "RELATES",
       from: new VertexRef({ label: "Alpha", key: { id: "a1" } }),
       to: new VertexRef({ label: "Beta", key: { id: "b1" } }),
       key: {},
-      properties: { weight: 1, reason: "borrowed" },
+      properties: { weight: 1, reason: "borrowed" }
     })
     const reason = Result.match(checkGraphOp(perPair)(carryingTheOtherPairsField), {
       onFailure: (violation) => Option.some(violation.reason),
-      onSuccess: () => Option.none(),
+      onSuccess: () => Option.none()
     })
     expect(reason).toEqual(Option.some(new UndeclaredProperty({ property: "reason" })))
   })
@@ -237,15 +245,15 @@ describe("the index and the batch", () => {
     const disagreeing = new EdgeDeclaration({
       label: "LINKS",
       fields: { ordinal: Schema.String },
-      connectivity: [new EndpointPair({ from: "Alpha", to: "Beta" })],
+      connectivity: [new EndpointPair({ from: "Alpha", to: "Beta" })]
     })
     const outcome = DeclarationIndex.fromDeclarations([alpha(), beta(), links(), disagreeing])
     expect(Result.isFailure(outcome)).toBe(true)
     expect(Result.match(outcome, { onFailure: Function.identity, onSuccess: Function.constNull })).toEqual(
-      new ConflictingEdgeDeclarationError({ label: "LINKS", pair: new EndpointPair({ from: "Alpha", to: "Beta" }) }),
+      new ConflictingEdgeDeclarationError({ label: "LINKS", pair: new EndpointPair({ from: "Alpha", to: "Beta" }) })
     )
     expect(Result.match(outcome, { onFailure: (error) => error.message, onSuccess: Function.constNull })).toBe(
-      "Conflicting field declarations for edge \"LINKS\" on Alpha -> Beta: declare each pair's fields once",
+      "Conflicting field declarations for edge \"LINKS\" on Alpha -> Beta: declare each pair's fields once"
     )
   })
 
@@ -253,12 +261,12 @@ describe("the index and the batch", () => {
     const agreeing = new EdgeDeclaration({
       label: "LINKS",
       fields: { ordinal: Schema.Number },
-      connectivity: [new EndpointPair({ from: "Alpha", to: "Beta" }), new EndpointPair({ from: "Beta", to: "Alpha" })],
+      connectivity: [new EndpointPair({ from: "Alpha", to: "Beta" }), new EndpointPair({ from: "Beta", to: "Alpha" })]
     })
     const index = Result.getOrThrow(DeclarationIndex.fromDeclarations([alpha(), beta(), links(), agreeing]))
     expect(index.edgeDeclarations("LINKS").flatMap((edge) => edge.connectivity)).toEqual([
       new EndpointPair({ from: "Alpha", to: "Beta" }),
-      new EndpointPair({ from: "Beta", to: "Alpha" }),
+      new EndpointPair({ from: "Beta", to: "Alpha" })
     ])
   })
 
@@ -266,17 +274,18 @@ describe("the index and the batch", () => {
     const ops: ReadonlyArray<GraphOp> = [
       new UpsertVertex({ label: "Alpha", key: { id: "a1" }, properties: {} }),
       new UpsertVertex({ label: "Alpha", key: { id: "a2" }, properties: { category: null } }),
-      new UpsertVertex({ label: "Gamma", key: { id: "g1" }, properties: {} }),
+      new UpsertVertex({ label: "Gamma", key: { id: "g1" }, properties: {} })
     ]
     const outcome = Result.match(checkGraphOps(indexed())(ops), {
       onFailure: Function.identity,
-      onSuccess: Function.constNull,
+      onSuccess: Function.constNull
     })
     expect(outcome?.reason).toEqual(new NullOnRequired({ property: "category" }))
   })
 
   it("returns the ops unchanged when the whole batch is declared", () => {
     const ops: ReadonlyArray<GraphOp> = [new UpsertVertex({ label: "Alpha", key: { id: "a1" }, properties: {} })]
-    expect(Result.match(checkGraphOps(indexed())(ops), { onFailure: Function.constNull, onSuccess: Function.identity })).toEqual(ops)
+    expect(Result.match(checkGraphOps(indexed())(ops), { onFailure: Function.constNull, onSuccess: Function.identity }))
+      .toEqual(ops)
   })
 })

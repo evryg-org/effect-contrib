@@ -6,5 +6,4 @@ import { enrichVertexKeysBy, type PartitionKey } from "./Partition.js"
  * edge included) — the uniform special case of `enrichVertexKeysBy`, one partition for all labels. For a
  * per-label partition, use `enrichVertexKeysBy` directly.
  */
-export const enrichVertexKeys = (extra: PartitionKey): ((op: GraphOp) => GraphOp) =>
-  enrichVertexKeysBy(() => extra)
+export const enrichVertexKeys = (extra: PartitionKey): (op: GraphOp) => GraphOp => enrichVertexKeysBy(() => extra)

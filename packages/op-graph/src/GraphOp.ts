@@ -8,13 +8,13 @@ export type PropertyMap = typeof PropertyMap.Type
 
 export class VertexRef extends Schema.Class<VertexRef>("VertexRef")({
   label: Schema.String,
-  key: PropertyMap,
+  key: PropertyMap
 }) {}
 
 export class UpsertVertex extends Schema.TaggedClass<UpsertVertex>()("UpsertVertex", {
   label: Schema.String,
   key: PropertyMap,
-  properties: PropertyMap,
+  properties: PropertyMap
 }) {}
 
 export class UpsertEdge extends Schema.TaggedClass<UpsertEdge>()("UpsertEdge", {
@@ -22,7 +22,7 @@ export class UpsertEdge extends Schema.TaggedClass<UpsertEdge>()("UpsertEdge", {
   from: VertexRef,
   to: VertexRef,
   key: PropertyMap,
-  properties: PropertyMap,
+  properties: PropertyMap
 }) {}
 
 // The eDSL is append-only AND idempotent by construction: there are no destructive terms and

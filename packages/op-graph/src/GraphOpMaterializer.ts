@@ -3,7 +3,7 @@ import type { GraphOp } from "./GraphOp.js"
 
 export class MaterializeSummary extends Schema.Class<MaterializeSummary>("MaterializeSummary")({
   total: Schema.Number,
-  details: Schema.Array(Schema.Struct({ key: Schema.String, count: Schema.Number })),
+  details: Schema.Array(Schema.Struct({ key: Schema.String, count: Schema.Number }))
 }) {}
 
 export class MaterializeProgress extends Schema.Class<MaterializeProgress>("MaterializeProgress")({
@@ -16,13 +16,13 @@ export class MaterializeProgress extends Schema.Class<MaterializeProgress>("Mate
    * reach the graph, so this tally — accumulated across the run and complete on the final
    * progress — is the only place a caller can observe the loss.
    */
-  dropped: Schema.ReadonlyMap(Schema.String, Schema.Number),
+  dropped: Schema.ReadonlyMap(Schema.String, Schema.Number)
 }) {}
 
 export function summarize(progress: MaterializeProgress): MaterializeSummary {
   return new MaterializeSummary({
     total: progress.total,
-    details: [...progress.counts.entries()].map(([key, count]) => ({ key, count })),
+    details: [...progress.counts.entries()].map(([key, count]) => ({ key, count }))
   })
 }
 
@@ -34,7 +34,7 @@ export class GraphOpMaterializer extends Context.Service<
 >()("GraphOpMaterializer") {}
 
 export function materialize(
-  ops: ReadonlyArray<GraphOp>,
+  ops: ReadonlyArray<GraphOp>
 ): Stream.Stream<MaterializeProgress, Error, GraphOpMaterializer> {
   return Stream.unwrap(Effect.map(GraphOpMaterializer, (m) => m.materialize(ops)))
 }

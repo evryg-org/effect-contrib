@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
-import { FastCheck as fc } from "effect/testing"
 import { Equal } from "effect"
+import { FastCheck as fc } from "effect/testing"
 import { SetMap } from "./SetMap.js"
 
 const law = <Ts extends Array<unknown>>(suite: string, statement: string, property: fc.IProperty<Ts>): void => {
@@ -21,7 +21,7 @@ const boundedSemilatticeLaws = <A>(opts: {
   law(
     `Associativity: ${name}`,
     "op(op(a, b), c) = op(a, op(b, c))",
-    fc.property(arb, arb, arb, (a, b, c) => eq(op(op(a, b), c), op(a, op(b, c)))),
+    fc.property(arb, arb, arb, (a, b, c) => eq(op(op(a, b), c), op(a, op(b, c))))
   )
   law(`Binary Idempotence: ${name}`, "op(a, a) = a", fc.property(arb, (a) => eq(op(a, a), a)))
   law(`Commutativity: ${name}`, "op(a, b) = op(b, a)", fc.property(arb, arb, (a, b) => eq(op(a, b), op(b, a))))
@@ -45,7 +45,7 @@ boundedSemilatticeLaws({
   id: SetMap.Reducer.initialValue,
   eq: (a, b) => {
     expect(Equal.equals(a, b)).toBe(true)
-  },
+  }
 })
 
 // The product reducer is a per-key struct fold over SetMap.Reducer -- same bounded
@@ -62,5 +62,5 @@ boundedSemilatticeLaws({
   eq: (a, b) => {
     expect(Equal.equals(a.x, b.x)).toBe(true)
     expect(Equal.equals(a.y, b.y)).toBe(true)
-  },
+  }
 })
