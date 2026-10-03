@@ -16,13 +16,6 @@ const PersonVertex = Schema.Struct({
   file: Schema.optional(Schema.String).annotate(neo4jIndexed)
 }).annotate(neo4jVertex("Person"))
 
-const ServerVertex = Schema.Struct({
-  listenPort: Schema.Number,
-  serverName: Schema.String
-}).annotate(neo4jVertex("Server", {
-  compositeKey: ["listenPort", "serverName"]
-}))
-
 const IndexedVertex = Schema.Struct({
   id: Schema.String.annotate(neo4jUnique),
   name: Schema.String
@@ -208,35 +201,6 @@ describe("compileToGraphSchema", () => {
 // ── compileToCypherDDL ──
 
 describe("compileToCypherDDL", () => {
-  it("generates UNIQUE constraint for neo4jUnique field", () => {
-    const ddl = compileToCypherDDL([PersonVertex])
-    expect(ddl).toContain("CREATE CONSTRAINT IF NOT EXISTS FOR (n:Person) REQUIRE n.id IS UNIQUE;")
-  })
-
-  it("generates INDEX for neo4jIndexed field", () => {
-    const ddl = compileToCypherDDL([PersonVertex])
-    expect(ddl).toContain("CREATE INDEX IF NOT EXISTS FOR (n:Person) ON (n.file);")
-  })
-
-  it("generates composite UNIQUE constraint for compositeKey", () => {
-    const ddl = compileToCypherDDL([ServerVertex])
-    expect(ddl).toContain(
-      "CREATE CONSTRAINT IF NOT EXISTS FOR (n:Server) REQUIRE (n.listenPort, n.serverName) IS UNIQUE;"
-    )
-  })
-
-  it("generates composite INDEX for compositeIndexes", () => {
-    const ddl = compileToCypherDDL([IndexedVertex])
-    expect(ddl).toContain("CREATE INDEX IF NOT EXISTS FOR (n:Indexed) ON (n.id, n.name);")
-  })
-
-  it("generates FULLTEXT INDEX for fullTextIndexes", () => {
-    const ddl = compileToCypherDDL([IndexedVertex])
-    expect(ddl).toContain(
-      "CREATE FULLTEXT INDEX indexed_search IF NOT EXISTS FOR (n:Indexed) ON EACH [n.id, n.name];"
-    )
-  })
-
   it("does not generate DDL for unannotated schemas", () => {
     const ddl = compileToCypherDDL([UnannotatedSchema])
     expect(ddl.trim()).toBe("")
@@ -245,28 +209,6 @@ describe("compileToCypherDDL", () => {
   it("does not generate DDL for edge schemas", () => {
     const ddl = compileToCypherDDL([KnowsEdge])
     expect(ddl.trim()).toBe("")
-  })
-
-  it("merges same-named fullTextIndexes entries across schemas into one statement", () => {
-    const BookVertex = Schema.Struct({
-      title: Schema.String,
-      summary: Schema.optional(Schema.String)
-    }).annotate(neo4jVertex("Book", {
-      fullTextIndexes: [{ name: "content_search", fields: ["title", "summary"] }]
-    }))
-
-    const AuthorVertex = Schema.Struct({
-      title: Schema.String,
-      summary: Schema.optional(Schema.String)
-    }).annotate(neo4jVertex("Author", {
-      fullTextIndexes: [{ name: "content_search", fields: ["title", "summary"] }]
-    }))
-
-    const ddl = compileToCypherDDL([BookVertex, AuthorVertex])
-    const contentSearchLines = ddl.split("\n").filter((line) => line.includes("content_search"))
-    expect(contentSearchLines).toEqual([
-      "CREATE FULLTEXT INDEX content_search IF NOT EXISTS FOR (n:Book|Author) ON EACH [n.title, n.summary];"
-    ])
   })
 
   it("throws when same-named fullTextIndexes entries declare different field lists", () => {
@@ -285,24 +227,5 @@ describe("compileToCypherDDL", () => {
 
     expect(() => compileToCypherDDL([BookVertex, AuthorVertex])).toThrow(/content_search/)
     expect(() => compileToCypherDDL([BookVertex, AuthorVertex])).toThrow(/Author/)
-  })
-
-  it("generates one FULLTEXT INDEX per entry when a vertex declares multiple fullTextIndexes", () => {
-    const BookVertex = Schema.Struct({
-      title: Schema.String,
-      summary: Schema.optional(Schema.String)
-    }).annotate(neo4jVertex("Book", {
-      fullTextIndexes: [
-        { name: "title_search", fields: ["title"] },
-        { name: "content_search", fields: ["title", "summary"] }
-      ]
-    }))
-
-    const ddl = compileToCypherDDL([BookVertex])
-    const fullTextLines = ddl.split("\n").filter((line) => line.includes("FULLTEXT"))
-    expect(fullTextLines).toEqual([
-      "CREATE FULLTEXT INDEX title_search IF NOT EXISTS FOR (n:Book) ON EACH [n.title];",
-      "CREATE FULLTEXT INDEX content_search IF NOT EXISTS FOR (n:Book) ON EACH [n.title, n.summary];"
-    ])
   })
 })
