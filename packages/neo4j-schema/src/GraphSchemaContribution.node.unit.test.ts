@@ -3,6 +3,7 @@ import { Result, Schema } from "effect"
 import { AnnotatedGraphSchemas, GraphSchemaContribution } from "./GraphSchemaContribution.js"
 import { ContributingModule } from "./GraphVocabulary.js"
 import { neo4jEdge, neo4jVertex } from "./Neo4jSchemaAnnotations.js"
+import { neo4jKeyGroup } from "./Neo4jSchemaVertex.js"
 import { neo4jVertexMarker } from "./VertexMarker.js"
 
 const vertex = Schema.Struct({ id: Schema.String }).annotate(neo4jVertex("SyntheticVertex"))
@@ -45,7 +46,7 @@ describe("GraphSchemaContribution", () => {
   })
 
   it("rejects, as a typed decoding failure, a vertex marker: a marker is a reference, never a declaration", () => {
-    const marker = neo4jVertexMarker("SyntheticMarker", { id: Schema.String })
+    const marker = neo4jVertexMarker("SyntheticMarker", neo4jKeyGroup({ id: Schema.String }))
     expect(Result.isFailure(Schema.decodeUnknownResult(AnnotatedGraphSchemas)({ members: [vertex, marker] }))).toBe(
       true
     )
