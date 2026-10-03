@@ -1,7 +1,7 @@
 // Deterministic contract only — the property law suite lives in GraphOpMaterializerLaws.ts, so a
 // cached test importing this file can never reach a property generator.
 import { layer, expect } from "@effect/vitest"
-import { Context, Effect, Layer, Record, Ref, Result, Schema, Stream } from "effect"
+import { Array, Context, Effect, Layer, Order, Record, Ref, Result, Schema, Stream } from "effect"
 import { GraphOpMaterializer, materialize, summarize, type MaterializeProgress } from "../GraphOpMaterializer.js"
 import { PropertyMap, UpsertEdge, UpsertVertex, VertexRef } from "../GraphOp.js"
 
@@ -44,14 +44,8 @@ export const edge = (
 ): UpsertEdge => new UpsertEdge({ label, from, to, key, properties })
 
 // ── Assertion projection — both sides project to sorted plain records before comparing.
-const byKey = <T>(keyOf: (t: T) => string) => (a: T, b: T): number => {
-  const ka = keyOf(a)
-  const kb = keyOf(b)
-  return ka < kb ? -1 : ka > kb ? 1 : 0
-}
-
 export const sortedEntries = (fields: PropertyMap): ReadonlyArray<readonly [string, unknown]> =>
-  Record.toEntries(fields).toSorted(byKey(([name]) => name))
+  Array.sortWith(Record.toEntries(fields), ([name]) => name, Order.String)
 
 const EntriesJson = Schema.fromJsonString(Schema.Array(Schema.Tuple([Schema.String, Schema.Unknown])))
 export const entriesKey = (entries: ReadonlyArray<readonly [string, unknown]>): string => Schema.encodeSync(EntriesJson)(entries)
@@ -78,10 +72,14 @@ const projectEdge = (e: MaterializedEdge): ProjectedEdge => ({
 })
 
 export const sortedVertices = (vs: ReadonlyArray<MaterializedVertex>): ReadonlyArray<ProjectedVertex> =>
-  vs.map(projectVertex).toSorted(byKey((v) => `${v.label} ${entriesKey(v.properties)}`))
+  Array.sortWith(vs.map(projectVertex), (v) => `${v.label} ${entriesKey(v.properties)}`, Order.String)
 
 export const sortedEdges = (es: ReadonlyArray<MaterializedEdge>): ReadonlyArray<ProjectedEdge> =>
-  es.map(projectEdge).toSorted(byKey((e) => `${e.label} ${entriesKey(e.from)} ${entriesKey(e.to)} ${entriesKey(e.properties)}`))
+  Array.sortWith(
+    es.map(projectEdge),
+    (e) => `${e.label} ${entriesKey(e.from)} ${entriesKey(e.to)} ${entriesKey(e.properties)}`,
+    Order.String,
+  )
 
 export const snapshotOf = (probe: MaterializedGraph["Service"]) =>
   Effect.gen(function* () {
@@ -122,20 +120,24 @@ export const graphOpMaterializerContract = (
         ]).pipe(Stream.runDrain)
         const edges = yield* probe.edges("LINKS")
         expect(sortedEdges(edges)).toEqual(
-          [
-            {
-              label: "LINKS",
-              from: sortedEntries({ id: "1" }),
-              to: sortedEntries({ id: "2" }),
-              properties: sortedEntries({ kind: "a", weight: "2" }),
-            },
-            {
-              label: "LINKS",
-              from: sortedEntries({ id: "1" }),
-              to: sortedEntries({ id: "2" }),
-              properties: sortedEntries({ kind: "b" }),
-            },
-          ].toSorted(byKey((e) => `${e.label} ${entriesKey(e.from)} ${entriesKey(e.to)} ${entriesKey(e.properties)}`)),
+          Array.sortWith(
+            [
+              {
+                label: "LINKS",
+                from: sortedEntries({ id: "1" }),
+                to: sortedEntries({ id: "2" }),
+                properties: sortedEntries({ kind: "a", weight: "2" }),
+              },
+              {
+                label: "LINKS",
+                from: sortedEntries({ id: "1" }),
+                to: sortedEntries({ id: "2" }),
+                properties: sortedEntries({ kind: "b" }),
+              },
+            ],
+            (e) => `${e.label} ${entriesKey(e.from)} ${entriesKey(e.to)} ${entriesKey(e.properties)}`,
+            Order.String,
+          ),
         )
       }))
 

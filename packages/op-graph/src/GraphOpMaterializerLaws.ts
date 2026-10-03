@@ -2,7 +2,7 @@
 // excludes, so a cached test importing that file can never reach a property generator. Only
 // property tests import this one.
 import { layer, expect } from "@effect/vitest"
-import { Array, Effect, Layer, Record, Ref, Result, Schema, Stream } from "effect"
+import { Array, Effect, Layer, Order, Record, Ref, Result, Schema, Stream } from "effect"
 import { FastCheck } from "effect/testing"
 import {
   edge,
@@ -30,12 +30,6 @@ const FixtureDraw = Schema.Struct({
 })
 
 const fixtureArbitrary = Schema.toArbitrary(FixtureDraw)
-
-const byKey = <T>(keyOf: (t: T) => string) => (a: T, b: T): number => {
-  const ka = keyOf(a)
-  const kb = keyOf(b)
-  return ka < kb ? -1 : ka > kb ? 1 : 0
-}
 
 const distinctById = <T extends { readonly id: number }>(items: ReadonlyArray<T>): ReadonlyArray<T> =>
   Record.toEntries(Record.map(Array.groupBy(items, (item) => String(item.id)), (group) => group[group.length - 1])).map(([, item]) => item)
@@ -115,10 +109,14 @@ export const graphOpMaterializerLaws = (
           yield* materialize([vertex("Alpha", key1), vertex("Alpha", key2)]).pipe(Stream.runDrain)
           const vertices = yield* probe.vertices("Alpha")
           expect(sortedVertices(vertices)).toEqual(
-            [
-              { label: "Alpha", properties: sortedEntries(key1) },
-              { label: "Alpha", properties: sortedEntries(key2) },
-            ].toSorted(byKey((v) => `${v.label} ${entriesKey(v.properties)}`)),
+            Array.sortWith(
+              [
+                { label: "Alpha", properties: sortedEntries(key1) },
+                { label: "Alpha", properties: sortedEntries(key2) },
+              ],
+              (v) => `${v.label} ${entriesKey(v.properties)}`,
+              Order.String,
+            ),
           )
         }),
       ))
