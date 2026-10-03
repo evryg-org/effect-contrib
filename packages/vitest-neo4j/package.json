@@ -1,6 +1,6 @@
 {
   "name": "@evryg/effect-vitest-neo4j",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "license": "MIT",
   "description": "Vitest global setup and helpers for Neo4j integration tests with Effect",
