@@ -50,7 +50,10 @@
       "@evryg/effect-testcontainers-neo4j": ["./packages/testcontainers-neo4j/src/index.js"],
       "@evryg/effect-neo4j-schema": ["./packages/neo4j-schema/src/index.js"],
       "@evryg/effect-cypher-codegen": ["./packages/cypher-codegen/src/index.js"],
-      "@evryg/effect-bdd": ["./packages/bdd/src/index.js"]
+      "@evryg/effect-bdd": ["./packages/bdd/src/index.js"],
+      "@evryg/effect-op-graph": ["./packages/op-graph/src/index.js"],
+      "@evryg/effect-op-graph/contract": ["./packages/op-graph/src/_testing/GraphOpMaterializerContract.js"],
+      "@evryg/effect-op-graph/contract/laws": ["./packages/op-graph/src/GraphOpMaterializerLaws.js"]
     }
   }
 }

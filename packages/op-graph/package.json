@@ -1,18 +1,49 @@
 {
   "name": "@evryg/effect-op-graph",
   "version": "0.0.0",
-  "private": true,
   "type": "module",
+  "license": "MIT",
+  "description": "Graph mutations as data for Effect: vertex and edge upserts, declaration checks, a materializer port and its contract laws",
+  "homepage": "https://www.evryg.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/evryg-org/effect-contrib.git",
+    "directory": "packages/op-graph"
+  },
+  "bugs": {
+    "url": "https://github.com/evryg-org/effect-contrib/issues"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./contract": "./src/_testing/GraphOpMaterializerContract.ts",
     "./contract/laws": "./src/GraphOpMaterializerLaws.ts"
   },
-  "dependencies": {
-    "effect": "4.0.0-beta.78"
+  "publishConfig": {
+    "access": "public",
+    "directory": "dist",
+    "linkDirectory": false,
+    "provenance": true
+  },
+  "scripts": {
+    "build": "pnpm build-esm && pnpm build-annotate && pnpm build-cjs && build-utils pack-v2 && node scripts/finalize-package.mjs && cp ../../.npmignore dist/",
+    "build-esm": "tsc -b tsconfig.build.json",
+    "build-cjs": "babel build/esm --plugins @babel/transform-export-namespace-from --plugins @babel/transform-modules-commonjs --out-dir build/cjs --source-maps",
+    "build-annotate": "babel build/esm --plugins annotate-pure-calls --out-dir build/esm --source-maps",
+    "check": "tsc -b tsconfig.json",
+    "test": "vitest",
+    "coverage": "vitest --coverage"
+  },
+  "peerDependencies": {
+    "@effect/vitest": "^4.0.0-beta.78",
+    "effect": "^4.0.0-beta.78"
+  },
+  "peerDependenciesMeta": {
+    "@effect/vitest": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@effect/vitest": "4.0.0-beta.78",
-    "vitest": "^4.1.11"
+    "effect": "4.0.0-beta.78"
   }
 }

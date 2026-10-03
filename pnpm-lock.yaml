@@ -262,6 +262,16 @@ importers:
         version: 3.23.2
     publishDirectory: dist
 
+  packages/op-graph:
+    devDependencies:
+      '@effect/vitest':
+        specifier: 4.0.0-beta.78
+        version: 4.0.0-beta.78(effect@4.0.0-beta.78)(vitest@3.2.4)
+      effect:
+        specifier: 4.0.0-beta.78
+        version: 4.0.0-beta.78
+    publishDirectory: dist
+
   packages/testcontainers:
     devDependencies:
       effect:

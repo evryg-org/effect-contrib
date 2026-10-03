@@ -1,11 +1,15 @@
 {
-  "extends": "./tsconfig.src.json",
+  "extends": "../../tsconfig.base.json",
+  "include": [
+    "src/**/*.test.ts",
+    "src/**/*.test-d.ts"
+  ],
+  "references": [
+    { "path": "tsconfig.src.json" }
+  ],
   "compilerOptions": {
-    "noEmit": true,
+    "tsBuildInfoFile": ".tsbuildinfo/test.tsbuildinfo",
     "rootDir": "src",
-    "tsBuildInfoFile": "outputs/tsc-tests/test.tsbuildinfo"
-  },
-  "include": ["src/**/*.test.ts"],
-  "exclude": [],
-  "references": [{ "path": "./tsconfig.src.json" }]
+    "noEmit": true
+  }
 }
