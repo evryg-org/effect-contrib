@@ -6,22 +6,32 @@ import { CypherLexer } from "../internal/generated-parser/CypherLexer.js"
 import {
   CypherParser,
   type ExpressionContext,
+  type FilterExpressionContext,
+  FilterWithContext,
+  ListComprehensionContext,
   ListExpressionContext,
-  MatchStContext,
+  type MatchStContext,
+  MultiPartQContext,
   NodePatternContext,
   ParameterContext,
   PatternElemContext,
+  type ProjectionBodyContext,
+  PropertyExpressionContext,
   type QueryCallStContext,
   ReadingStatementContext,
+  ReduceExpressionContext,
   RelationDetailContext,
   type RelationshipPatternContext,
+  ReturnStContext,
   SetItemContext,
-  UnwindStContext,
+  SinglePartQContext,
+  SingleQueryContext,
+  type UnwindStContext,
   UpdatingStatementContext,
   WithStContext
 } from "../internal/generated-parser/CypherParser.js"
 import { type CypherType, EdgeType, ScalarType, UnknownType, VertexType, VertexUnionType } from "../types/CypherType.js"
-import { inferExpressionType, type TypeEnv } from "./InferType.js"
+import { accessGraphElementProperty, inferExpressionType, isGraphElementType, type TypeEnv } from "./InferType.js"
 
 // ── Public types ──
 
@@ -605,6 +615,132 @@ function resolveProjection(
   })
 }
 
+// ── Property-access typing ──
+//
+//   env(x) ∈ { Vertex(L), Edge(E), VertexUnion(Ls) }   ⟹   x.p is typed by accessGraphElementProperty
+//
+// in every clause, under the environment in effect at that clause. Any other binding (unbound,
+// unlabeled, scalar, map, list) is left as is: nothing is known about its properties.
+
+const opaque = { type: new UnknownType({}), nullable: false }
+
+function checkPropertyExpression(propExpr: PropertyExpressionContext, env: TypeEnv, schema: GraphSchema): void {
+  const symbol = propExpr.atom().symbol()
+  const firstName = propExpr.propertyPostfix()[0]?.name()
+  if (!symbol || !firstName) return
+  const binding = env.get(symbol.getText())?.type
+  if (binding && isGraphElementType(binding)) accessGraphElementProperty(binding, firstName.getText(), schema)
+}
+
+/** `x IN list WHERE pred`, then `bodies`, with `x` (and `extra`) scoped to the predicate and bodies. */
+function checkFilterScope(
+  filter: FilterExpressionContext,
+  bodies: ReadonlyArray<antlr.ParserRuleContext | null>,
+  env: TypeEnv,
+  schema: GraphSchema,
+  extra: ReadonlyArray<string> = []
+): void {
+  checkPropertyAccesses(filter.expression(), env, schema)
+  const inner: TypeEnv = new Map([
+    ...env,
+    ...[...extra, filter.symbol().getText()].map((name) => [name, opaque] as const)
+  ])
+  for (const scoped of [filter.where(), ...bodies]) {
+    if (scoped) checkPropertyAccesses(scoped, inner, schema)
+  }
+}
+
+function checkPropertyAccesses(node: antlr.ParserRuleContext, env: TypeEnv, schema: GraphSchema): void {
+  if (node instanceof ListComprehensionContext) {
+    return checkFilterScope(node.filterExpression(), [node.expression()], env, schema)
+  }
+  if (node instanceof FilterWithContext) return checkFilterScope(node.filterExpression(), [], env, schema)
+  if (node instanceof ReduceExpressionContext) {
+    const [init, body] = node.expression()
+    checkPropertyAccesses(init, env, schema)
+    return checkFilterScope(node.filterExpression(), [body], env, schema, [node.symbol().getText()])
+  }
+  if (node instanceof PropertyExpressionContext) checkPropertyExpression(node, env, schema)
+  for (let i = 0; i < node.getChildCount(); i++) {
+    const child = node.getChild(i)
+    if (child instanceof antlr.ParserRuleContext) checkPropertyAccesses(child, env, schema)
+  }
+}
+
+/** Projection items see the incoming scope; ORDER BY also sees the projected aliases, which shadow it. */
+function checkProjectionBody(body: ProjectionBodyContext, env: TypeEnv, schema: GraphSchema): void {
+  checkPropertyAccesses(body.projectionItems(), env, schema)
+  for (const paging of [body.skipSt(), body.limitSt()]) {
+    if (paging) checkPropertyAccesses(paging, env, schema)
+  }
+  const orderSt = body.orderSt()
+  if (orderSt) {
+    const projected = computeEnvFromProjection(body, env, schema)
+    checkPropertyAccesses(orderSt, new Map([...env, ...projected]), schema)
+  }
+}
+
+/** Threads the type environment through a query's clauses, typing every property access on the way.
+ *  Returns the environment the final RETURN projects from. */
+function typeClauses(clauses: ReadonlyArray<antlr.ParseTree>, env: TypeEnv, schema: GraphSchema): TypeEnv {
+  return clauses.reduce((current, clause) => typeClause(clause, current, schema), env)
+}
+
+function typeClause(clause: antlr.ParseTree, env: TypeEnv, schema: GraphSchema): TypeEnv {
+  if (
+    clause instanceof SingleQueryContext || clause instanceof MultiPartQContext || clause instanceof SinglePartQContext
+  ) {
+    return typeClauses(clause.children, env, schema)
+  }
+  if (clause instanceof ReadingStatementContext) return typeReadingStatement(clause, env, schema)
+  if (clause instanceof UpdatingStatementContext) return typeUpdatingStatement(clause, env, schema)
+  if (clause instanceof WithStContext) {
+    const body = clause.projectionBody()
+    checkProjectionBody(body, env, schema)
+    const projected = computeEnvFromProjection(body, env, schema)
+    const where = clause.where()
+    if (where) checkPropertyAccesses(where, projected, schema)
+    return projected
+  }
+  if (clause instanceof ReturnStContext) checkProjectionBody(clause.projectionBody(), env, schema)
+  return env
+}
+
+function typeReadingStatement(reading: ReadingStatementContext, env: TypeEnv, schema: GraphSchema): TypeEnv {
+  const matchSt = reading.matchSt()
+  if (matchSt) {
+    const extended = extendEnvFromMatch(env, matchSt, schema)
+    checkPropertyAccesses(matchSt, extended, schema)
+    return extended
+  }
+  const unwindSt = reading.unwindSt()
+  if (unwindSt) {
+    checkPropertyAccesses(unwindSt.expression(), env, schema)
+    return extendEnvFromUnwind(env, unwindSt, schema)
+  }
+  const queryCallSt = reading.queryCallSt()
+  if (queryCallSt) {
+    checkPropertyAccesses(queryCallSt.parenExpressionChain(), env, schema)
+    const extended = extendEnvFromQueryCall(env, queryCallSt, schema)
+    const where = queryCallSt.yieldItems()?.where()
+    if (where) checkPropertyAccesses(where, extended, schema)
+    return extended
+  }
+  return env
+}
+
+function typeUpdatingStatement(updating: UpdatingStatementContext, env: TypeEnv, schema: GraphSchema): TypeEnv {
+  const foreachSt = updating.foreachSt()
+  if (foreachSt) {
+    checkPropertyAccesses(foreachSt.expression(), env, schema)
+    typeClauses(foreachSt.updatingStatement(), new Map([...env, [foreachSt.symbol().getText(), opaque]]), schema)
+    return env
+  }
+  const extended = extendEnvFromCreate(env, updating)
+  checkPropertyAccesses(updating, extended, schema)
+  return extended
+}
+
 // ── Param extraction ──
 
 interface ParamUsage {
@@ -784,51 +920,8 @@ function extractParams(tree: ReturnType<typeof parse>, schema: GraphSchema): Arr
 export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis => {
   const tree = parse(cypher)
   const singleQuery = tree.query().regularQuery()!.singleQuery()
-  const multi = singleQuery.multiPartQ()
-  const single = multi?.singlePartQ() ?? singleQuery.singlePartQ()!
-
-  let env: TypeEnv = new Map()
-
-  if (multi) {
-    // Walk children in order: MATCH extends env, WITH recomputes env
-    const children = multi.children ?? []
-    for (const child of children) {
-      if (child instanceof ReadingStatementContext) {
-        const matchSt = child.matchSt()
-        if (matchSt) env = extendEnvFromMatch(env, matchSt, schema)
-        const unwindSt = child.unwindSt()
-        if (unwindSt) env = extendEnvFromUnwind(env, unwindSt, schema)
-        const queryCallSt = child.queryCallSt()
-        if (queryCallSt) env = extendEnvFromQueryCall(env, queryCallSt, schema)
-      } else if (child instanceof UnwindStContext) {
-        env = extendEnvFromUnwind(env, child, schema)
-      } else if (child instanceof MatchStContext) {
-        env = extendEnvFromMatch(env, child, schema)
-      } else if (child instanceof WithStContext) {
-        env = computeEnvFromProjection(child.projectionBody(), env, schema)
-      } else if (child instanceof UpdatingStatementContext) {
-        env = extendEnvFromCreate(env, child)
-      }
-    }
-  }
-
-  // Process singlePartQ reading statements (MATCH, OPTIONAL MATCH)
-  if (single) {
-    const readings = single.readingStatement() ?? []
-    for (const reading of readings) {
-      const matchSt = reading.matchSt()
-      if (matchSt) env = extendEnvFromMatch(env, matchSt, schema)
-      const unwindSt = reading.unwindSt()
-      if (unwindSt) env = extendEnvFromUnwind(env, unwindSt, schema)
-      const queryCallSt = reading.queryCallSt()
-      if (queryCallSt) env = extendEnvFromQueryCall(env, queryCallSt, schema)
-    }
-    // Updating statements (CREATE/MERGE) follow reading statements in a singlePartQ;
-    // bind their pattern variables so a trailing RETURN can resolve them.
-    for (const updatingSt of single.updatingStatement() ?? []) {
-      env = extendEnvFromCreate(env, updatingSt)
-    }
-  }
+  const single = singleQuery.multiPartQ()?.singlePartQ() ?? singleQuery.singlePartQ()!
+  const env = typeClauses([singleQuery], new Map(), schema)
 
   // Resolve RETURN columns
   const returnSt = single?.returnSt()

@@ -15,13 +15,16 @@ import type {
 } from "../internal/generated-parser/CypherParser.js"
 import {
   type CypherType,
+  type EdgeType,
   ListType,
   LiteralType,
   MapType,
   NeverType,
   NullableType,
   ScalarType,
-  UnknownType
+  UnknownType,
+  type VertexType,
+  type VertexUnionType
 } from "../types/CypherType.js"
 
 /**
@@ -381,6 +384,85 @@ function inferAtomicType(
   return inferPropertyExpressionType(propExpr, env, schema)
 }
 
+/**
+ * @since 0.9.0
+ * @category models
+ */
+export type GraphElementType = VertexType | EdgeType | VertexUnionType
+
+/**
+ * @since 0.9.0
+ * @category guards
+ */
+export const isGraphElementType = (t: CypherType): t is GraphElementType =>
+  t._tag === "VertexType" || t._tag === "EdgeType" || t._tag === "VertexUnionType"
+
+/**
+ * The type of `x.p` for `x` bound to a node, a relationship or a union of labels. A property the
+ * bound label (edge type, union member) does not declare is a `CypherTypeError`.
+ *
+ * @since 0.9.0
+ * @category inference
+ */
+export function accessGraphElementProperty(
+  owner: GraphElementType,
+  propName: string,
+  schema: GraphSchema
+): CypherType {
+  if (owner._tag === "VertexType") {
+    const lookup = lookupVertexPropertyType(schema, owner.label, propName)
+    if (lookup) return lookup.mandatory ? lookup.type : NullableType(lookup.type)
+    const available = schema.vertexProperties
+      .filter((p) => p.labels.includes(owner.label))
+      .map((p) => p.propertyName)
+    throw new CypherTypeError(
+      `Property '${propName}' not found on label '${owner.label}'. Available: [${available.join(", ")}]`
+    )
+  }
+  if (owner._tag === "EdgeType") {
+    // Handle union edge types (e.g., "EXTENDS|IMPLEMENTS|USES")
+    const edgeTypes = owner.edgeType.replace(/[:`]/g, "").split("|")
+    let lookup: { type: CypherType; mandatory: boolean } | undefined
+    for (const et of edgeTypes) {
+      lookup = lookupEdgePropertyType(schema, et, propName)
+      if (lookup) break
+    }
+    if (lookup) return lookup.mandatory ? lookup.type : NullableType(lookup.type)
+    const normalized = edgeTypes.join("|")
+    const available = schema.edgeProperties
+      .filter((p) => edgeTypes.some((et) => p.edgeType.replace(/[:`]/g, "") === et))
+      .map((p) => p.propertyName)
+    throw new CypherTypeError(
+      `Property '${propName}' not found on edge type '${normalized}'. Available: [${
+        [...new Set(available)].join(", ")
+      }]`
+    )
+  }
+  // ── VertexUnionType property access: 3-case typing rule ──
+  //
+  //   env(x) = VertexUnionType([L1, L2, ..., Ln])
+  //
+  //   Case 1: ∀i. schema(Li, p) = (T, mandatory=true)
+  //     ⟹ x.p : T                        (mandatory on all → non-nullable)
+  //
+  //   Case 2: ∃i. schema(Li, p) = (T, _) ∧ ¬(∀i mandatory)
+  //     ⟹ x.p : NullableType(T)          (missing on some → Cypher returns null)
+  //
+  //   Case 3: ¬∃i. schema(Li, p) defined
+  //     ⟹ CypherTypeError                 (property on NO member → likely bug)
+  //
+  const found = owner.labels
+    .map((label) => lookupVertexPropertyType(schema, label, propName))
+    .filter((result) => result !== undefined)
+  if (found.length === 0) {
+    throw new CypherTypeError(
+      `Property '${propName}' not found on any member of VertexUnionType([${owner.labels.join(", ")}])`
+    )
+  }
+  const allMandatory = found.length === owner.labels.length && found.every((result) => result.mandatory)
+  return allMandatory ? found[0].type : NullableType(found[0].type)
+}
+
 function inferPropertyExpressionType(
   propExpr: PropertyExpressionContext,
   env: TypeEnv,
@@ -412,69 +494,8 @@ function inferPropertyExpressionType(
       continue
     }
     const propName = nameCtx.getText()
-    if (current._tag === "VertexType") {
-      const vertexType = current
-      const lookup = lookupVertexPropertyType(schema, vertexType.label, propName)
-      if (lookup) {
-        current = lookup.mandatory ? lookup.type : NullableType(lookup.type)
-      } else {
-        const available = schema.vertexProperties
-          .filter((p) => p.labels.includes(vertexType.label))
-          .map((p) => p.propertyName)
-        throw new CypherTypeError(
-          `Property '${propName}' not found on label '${vertexType.label}'. Available: [${available.join(", ")}]`
-        )
-      }
-    } else if (current._tag === "EdgeType") {
-      // Handle union edge types (e.g., "EXTENDS|IMPLEMENTS|USES")
-      const edgeTypes = current.edgeType.replace(/[:`]/g, "").split("|")
-      let lookup: { type: CypherType; mandatory: boolean } | undefined
-      for (const et of edgeTypes) {
-        lookup = lookupEdgePropertyType(schema, et, propName)
-        if (lookup) break
-      }
-      if (lookup) {
-        current = lookup.mandatory ? lookup.type : NullableType(lookup.type)
-      } else {
-        const normalized = edgeTypes.join("|")
-        const available = schema.edgeProperties
-          .filter((p) => edgeTypes.some((et) => p.edgeType.replace(/[:`]/g, "") === et))
-          .map((p) => p.propertyName)
-        throw new CypherTypeError(
-          `Property '${propName}' not found on edge type '${normalized}'. Available: [${
-            [...new Set(available)].join(", ")
-          }]`
-        )
-      }
-    } else if (current._tag === "VertexUnionType") {
-      // ── VertexUnionType property access: 3-case typing rule ──
-      //
-      //   env(x) = VertexUnionType([L1, L2, ..., Ln])
-      //
-      //   Case 1: ∀i. schema(Li, p) = (T, mandatory=true)
-      //     ⟹ x.p : T                        (mandatory on all → non-nullable)
-      //
-      //   Case 2: ∃i. schema(Li, p) = (T, _) ∧ ¬(∀i mandatory)
-      //     ⟹ x.p : NullableType(T)          (missing on some → Cypher returns null)
-      //
-      //   Case 3: ¬∃i. schema(Li, p) defined
-      //     ⟹ CypherTypeError                 (property on NO member → likely bug)
-      //
-      const lookups = current.labels.map((label) => ({
-        label,
-        result: lookupVertexPropertyType(schema, label, propName)
-      }))
-      const found = lookups.filter((l) => l.result !== undefined)
-      if (found.length === 0) {
-        const allLabels = current.labels.join(", ")
-        throw new CypherTypeError(
-          `Property '${propName}' not found on any member of VertexUnionType([${allLabels}])`
-        )
-      }
-      const allMandatory = found.length === current.labels.length
-        && found.every((l) => l.result!.mandatory)
-      const resolvedType = found[0].result!.type
-      current = allMandatory ? resolvedType : NullableType(resolvedType)
+    if (isGraphElementType(current)) {
+      current = accessGraphElementProperty(current, propName, schema)
     } else if (current._tag === "MapType") {
       const field = current.fields.find((f) => f.name === propName)
       if (!field) {
