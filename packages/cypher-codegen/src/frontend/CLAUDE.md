@@ -30,6 +30,17 @@ Same rule applies for `EdgeType` via `lookupEdgePropertyType`.
 
 If `env(x).nullable = true`, the entire result is wrapped in `NullableType` regardless of `mandatory`.
 
+The rule is checked at **every** access, not only in projections: the analyzer threads `env` through
+the clauses (`typeClauses`) and types each `x.p` whose `x` is bound to a node, a relationship or a
+label union under the environment in effect at that clause. That covers WHERE, SET (including
+`ON CREATE` / `ON MATCH`), REMOVE, ORDER BY (which also sees the projected aliases), UNWIND, CALL
+arguments, CASE scrutinees and guards, and every UNION branch. Writes that name a property without a
+dot count as accesses too: pattern maps `(x:L {p: v})` / `[r:E {p: v}]` and `SET x = {p: v}` /
+`SET x += {p: v}`. Binders scope their variable to their own body, bound to the element type:
+`[x IN l ...]`, `ANY/ALL/NONE/SINGLE(x IN l ...)`, `reduce(acc = i, x IN l | ...)`, `FOREACH`, pattern
+comprehensions, and `EXISTS { ... }` / `COUNT { ... }` (typed as queries over the enclosing scope).
+Unbound, unlabeled and parameter-map (`$props`) targets stay unchecked.
+
 ### Functions
 
 | Function                            | Rule                                              |

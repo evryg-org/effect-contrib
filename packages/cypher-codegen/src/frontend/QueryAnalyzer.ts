@@ -708,7 +708,7 @@ function relationshipPatternElement(detail: RelationDetailContext, env: TypeEnv)
   return symbol ? env.get(symbol.getText())?.type : undefined
 }
 
-/** `x IN list WHERE pred`, then `bodies`, with `x` (and `extra`) scoped to the predicate and bodies. */
+/** `x IN list WHERE pred`, then `bodies`: `list` is typed in `outer`, the predicate and bodies in `env` plus `x`. */
 function checkFilterScope(
   filter: FilterExpressionContext,
   bodies: ReadonlyArray<antlr.ParserRuleContext | null>,

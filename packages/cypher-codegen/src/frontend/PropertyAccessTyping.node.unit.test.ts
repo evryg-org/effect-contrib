@@ -111,8 +111,10 @@ describe("property access typing — pattern property maps", () => {
   it.each([
     "MATCH (p:Person)-[r:ACTED_IN {salary: 1}]->(m:Movie) RETURN m.title AS title",
     "MATCH (p:Person) CREATE (p)-[:ACTED_IN {salary: 1}]->(:Movie {title: $title})"
-  ])("rejects an undeclared relationship property: %s", (cypher) =>
-    rejects(cypher, "Property 'salary' not found on edge type 'ACTED_IN'"))
+  ])(
+    "rejects an undeclared relationship property: %s",
+    (cypher) => rejects(cypher, "Property 'salary' not found on edge type 'ACTED_IN'")
+  )
 
   it.each([
     "MATCH (p:Person {name: $name})-[r:ACTED_IN {role: $role}]->(m:Movie {released: 1999}) RETURN m.title AS title",
