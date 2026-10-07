@@ -22,12 +22,14 @@ import {
   type QueryCallStContext,
   ReadingStatementContext,
   ReduceExpressionContext,
+  type RegularQueryContext,
   RelationDetailContext,
   type RelationshipPatternContext,
   ReturnStContext,
   SetItemContext,
   SinglePartQContext,
   SingleQueryContext,
+  SubqueryBodyContext,
   type UnwindStContext,
   UpdatingStatementContext,
   WithStContext
@@ -725,6 +727,7 @@ function checkPropertyAccesses(node: antlr.ParserRuleContext, env: TypeEnv, sche
     }
     return
   }
+  if (node instanceof SubqueryBodyContext) return typeSubqueryBody(node, env, schema)
   if (node instanceof PropertyExpressionContext) checkPropertyExpression(node, env, schema)
   if (node instanceof NodePatternContext) {
     checkPatternPropertyMap(nodePatternElement(node, env), node.properties(), schema)
@@ -755,6 +758,29 @@ function checkProjectionBody(body: ProjectionBodyContext, env: TypeEnv, schema: 
  *  Returns the environment the final RETURN projects from. */
 function typeClauses(clauses: ReadonlyArray<antlr.ParseTree>, env: TypeEnv, schema: GraphSchema): TypeEnv {
   return clauses.reduce((current, clause) => typeClause(clause, current, schema), env)
+}
+
+/** Every branch of a UNION starts from the same scope. */
+function typeRegularQuery(regular: RegularQueryContext, env: TypeEnv, schema: GraphSchema): TypeEnv {
+  const [first, ...unions] = [regular.singleQuery(), ...regular.unionSt().map((union) => union.singleQuery())]
+  for (const branch of unions) typeClauses([branch], env, schema)
+  return typeClauses([first], env, schema)
+}
+
+/** EXISTS { ... } and COUNT { ... } see the enclosing scope and extend it with what their own patterns bind. */
+function typeSubqueryBody(body: SubqueryBodyContext, env: TypeEnv, schema: GraphSchema): void {
+  const regular = body.regularQuery()
+  if (regular) {
+    typeRegularQuery(regular, env, schema)
+    return
+  }
+  const patternWhere = body.patternWhere()
+  if (patternWhere) {
+    const inner = extendEnvFromPattern(env, patternWhere.pattern().patternPart(), schema, false)
+    checkPropertyAccesses(patternWhere, inner, schema)
+    return
+  }
+  typeClauses(body.readingStatement(), env, schema)
 }
 
 function typeClause(clause: antlr.ParseTree, env: TypeEnv, schema: GraphSchema): TypeEnv {
