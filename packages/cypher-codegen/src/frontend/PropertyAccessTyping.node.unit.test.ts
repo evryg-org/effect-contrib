@@ -121,3 +121,27 @@ describe("property access typing — pattern property maps", () => {
     "CREATE (p:Person {name: $name, born: $born})"
   ])("accepts declared properties: %s", accepts)
 })
+
+describe("property access typing — comprehensions, quantifiers, reduce and FOREACH", () => {
+  it.each([
+    "MATCH (p:Person) WITH collect(p) AS people RETURN [x IN people WHERE x.salary > 0 | x.name] AS names",
+    "MATCH (p:Person) WITH collect(p) AS people WHERE any(x IN people WHERE x.salary > 0) RETURN size(people) AS n",
+    "MATCH (p:Person) WITH collect(p) AS people WHERE reduce(t = 0, x IN people | t + x.salary) > 0 RETURN 1 AS one",
+    "MATCH (p:Person) WITH collect(p) AS people FOREACH (x IN people | SET x.salary = 1)"
+  ])("rejects an undeclared property on an iterated element: %s", (cypher) => rejects(cypher, undeclaredOnPerson))
+
+  it("rejects an undeclared property on a pattern comprehension element", () =>
+    rejects(
+      "MATCH (p:Person) WHERE size([(p)-[:ACTED_IN]->(m:Movie) WHERE m.budget > 0 | m.title]) > 0 RETURN p.name AS name",
+      undeclaredOnMovie
+    ))
+
+  it.each([
+    "MATCH (p:Person) WITH collect(p) AS people RETURN [x IN people WHERE x.born > 1970 | x.name] AS names",
+    "MATCH (p:Person), (m:Movie) WITH p, collect(m) AS movies RETURN [p IN movies | p.title] AS titles",
+    "MATCH (p:Person) WITH collect(p) AS people RETURN reduce(s = '', x IN people | s + x.name) AS names",
+    "MATCH (p:Person) WHERE size([(p)-[r:ACTED_IN]->(m:Movie) WHERE m.released > 1999 | r.role]) > 0 RETURN 1 AS one",
+    "MATCH (p:Person) RETURN [k IN keys(p) WHERE k <> 'name'] AS others",
+    "MATCH (p:Person) WITH collect(p) AS people FOREACH (x IN people | SET x.born = 1970)"
+  ])("accepts declared properties: %s", accepts)
+})
