@@ -145,3 +145,17 @@ describe("property access typing — comprehensions, quantifiers, reduce and FOR
     "MATCH (p:Person) WITH collect(p) AS people FOREACH (x IN people | SET x.born = 1970)"
   ])("accepts declared properties: %s", accepts)
 })
+
+describe("property access typing — EXISTS and COUNT subqueries", () => {
+  it.each([
+    "MATCH (p:Person) WHERE EXISTS { MATCH (p)-[:ACTED_IN]->(m:Movie) WHERE m.budget > 0 } RETURN p.name AS name",
+    "MATCH (p:Person) WHERE EXISTS { (p)-[:ACTED_IN]->(m:Movie) WHERE m.budget > 0 } RETURN p.name AS name",
+    "MATCH (p:Person) WHERE COUNT { MATCH (p)-[:ACTED_IN]->(m:Movie) WHERE m.budget > 0 } > 1 RETURN p.name AS name",
+    "MATCH (p:Person) WHERE EXISTS { MATCH (p)-[:ACTED_IN]->(m:Movie) RETURN m.budget AS budget } RETURN p.name AS name"
+  ])("rejects an undeclared property on a subquery variable: %s", (cypher) => rejects(cypher, undeclaredOnMovie))
+
+  it.each([
+    "MATCH (p:Person) WHERE EXISTS { MATCH (p)-[:ACTED_IN]->(m:Movie) WHERE m.released > p.born } RETURN p.name AS name",
+    "MATCH (p:Person) WHERE COUNT { (p)-[r:ACTED_IN]->(:Movie) WHERE r.role = 'lead' } > 1 RETURN p.name AS name"
+  ])("accepts declared properties: %s", accepts)
+})
