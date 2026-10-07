@@ -49,3 +49,14 @@ describe("property access typing — SET", () => {
     "MATCH (p:Person) SET p:Director RETURN p.name AS name"
   ])("accepts declared properties: %s", accepts)
 })
+
+describe("property access typing — ON CREATE SET / ON MATCH SET", () => {
+  it.each([
+    "MERGE (p:Person {name: $name}) ON CREATE SET p.salary = $salary",
+    "MERGE (p:Person {name: $name}) ON MATCH SET p.salary = $salary RETURN p.name AS name",
+    "MERGE (p:Person {name: $name}) ON CREATE SET p.born = $born ON MATCH SET p.born = p.salary"
+  ])("rejects an undeclared property: %s", (cypher) => rejects(cypher, undeclaredOnPerson))
+
+  it("accepts declared properties", () =>
+    accepts("MERGE (p:Person {name: $name}) ON CREATE SET p.born = $born ON MATCH SET p.born = p.born + 1"))
+})
