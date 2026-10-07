@@ -72,3 +72,17 @@ describe("property access typing — REMOVE", () => {
     "MATCH (p:Person) REMOVE p:Director"
   ])("accepts declared properties: %s", accepts)
 })
+
+describe("property access typing — ORDER BY", () => {
+  it.each([
+    "MATCH (p:Person) RETURN p.name AS name ORDER BY p.salary",
+    "MATCH (p:Person) RETURN p.name AS name ORDER BY name, p.salary DESC",
+    "MATCH (p:Person) WITH p ORDER BY p.salary LIMIT 10 RETURN p.name AS name"
+  ])("rejects an undeclared property: %s", (cypher) => rejects(cypher, undeclaredOnPerson))
+
+  it.each([
+    "MATCH (p:Person) RETURN p.name AS name ORDER BY p.born DESC, name",
+    "MATCH (p:Person) WITH p.born AS p ORDER BY p RETURN p AS born",
+    "MATCH (p:Person), (m:Movie) WITH m AS p ORDER BY p.title RETURN p.title AS title"
+  ])("accepts declared properties: %s", accepts)
+})
