@@ -16,6 +16,7 @@ import {
   ParameterContext,
   PatternElemContext,
   type ProjectionBodyContext,
+  type PropertiesContext,
   PropertyExpressionContext,
   type QueryCallStContext,
   ReadingStatementContext,
@@ -632,6 +633,32 @@ function checkPropertyExpression(propExpr: PropertyExpressionContext, env: TypeE
   if (binding && isGraphElementType(binding)) accessGraphElementProperty(binding, firstName.getText(), schema)
 }
 
+/** `(x:L {p: v})` and `[r:E {p: v}]` access `p` on the element they match, exactly as `x.p` does. */
+function checkPatternPropertyMap(
+  owner: CypherType | undefined,
+  properties: PropertiesContext | null,
+  schema: GraphSchema
+): void {
+  if (!owner || !isGraphElementType(owner)) return
+  for (const pair of properties?.mapLit()?.mapPair() ?? []) {
+    accessGraphElementProperty(owner, pair.name().getText(), schema)
+  }
+}
+
+function nodePatternElement(node: NodePatternContext, env: TypeEnv): CypherType | undefined {
+  const labels = node.nodeLabels()
+  if (labels) return new VertexType({ label: labels.getText().replace(/^:/, "") })
+  const symbol = node.symbol()
+  return symbol ? env.get(symbol.getText())?.type : undefined
+}
+
+function relationshipPatternElement(detail: RelationDetailContext, env: TypeEnv): CypherType | undefined {
+  const relTypes = detail.relationshipTypes()
+  if (relTypes) return new EdgeType({ edgeType: relTypes.getText().replace(/^:/, "") })
+  const symbol = detail.symbol()
+  return symbol ? env.get(symbol.getText())?.type : undefined
+}
+
 /** `x IN list WHERE pred`, then `bodies`, with `x` (and `extra`) scoped to the predicate and bodies. */
 function checkFilterScope(
   filter: FilterExpressionContext,
@@ -661,6 +688,12 @@ function checkPropertyAccesses(node: antlr.ParserRuleContext, env: TypeEnv, sche
     return checkFilterScope(node.filterExpression(), [body], env, schema, [node.symbol().getText()])
   }
   if (node instanceof PropertyExpressionContext) checkPropertyExpression(node, env, schema)
+  if (node instanceof NodePatternContext) {
+    checkPatternPropertyMap(nodePatternElement(node, env), node.properties(), schema)
+  }
+  if (node instanceof RelationDetailContext) {
+    checkPatternPropertyMap(relationshipPatternElement(node, env), node.properties(), schema)
+  }
   for (let i = 0; i < node.getChildCount(); i++) {
     const child = node.getChild(i)
     if (child instanceof antlr.ParserRuleContext) checkPropertyAccesses(child, env, schema)
