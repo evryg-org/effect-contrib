@@ -36,3 +36,16 @@ describe("property access typing — WHERE", () => {
     "MATCH (p:Person) WITH p.name AS name WHERE name STARTS WITH 'A' RETURN name"
   ])("accepts declared properties: %s", accepts)
 })
+
+describe("property access typing — SET", () => {
+  it.each([
+    "MATCH (p:Person) SET p.salary = $salary",
+    "MATCH (p:Person) SET p.name = $name, p.salary = 1 RETURN p.name AS name",
+    "MATCH (p:Person) SET p.born = p.salary"
+  ])("rejects an undeclared property: %s", (cypher) => rejects(cypher, undeclaredOnPerson))
+
+  it.each([
+    "MATCH (p:Person) SET p.born = $born",
+    "MATCH (p:Person) SET p:Director RETURN p.name AS name"
+  ])("accepts declared properties: %s", accepts)
+})
