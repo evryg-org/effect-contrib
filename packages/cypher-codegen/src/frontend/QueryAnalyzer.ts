@@ -14,6 +14,7 @@ import {
   MultiPartQContext,
   NodePatternContext,
   ParameterContext,
+  PatternComprehensionContext,
   PatternElemContext,
   type ProjectionBodyContext,
   type PropertiesContext,
@@ -32,7 +33,13 @@ import {
   WithStContext
 } from "../internal/generated-parser/CypherParser.js"
 import { type CypherType, EdgeType, ScalarType, UnknownType, VertexType, VertexUnionType } from "../types/CypherType.js"
-import { accessGraphElementProperty, inferExpressionType, isGraphElementType, type TypeEnv } from "./InferType.js"
+import {
+  accessGraphElementProperty,
+  CypherTypeError,
+  inferExpressionType,
+  isGraphElementType,
+  type TypeEnv
+} from "./InferType.js"
 
 // ── Public types ──
 
@@ -228,14 +235,21 @@ function scalarToArrayType(scalar: Neo4jType): Neo4jType {
 // ── TypeEnv helpers ──
 
 function extendEnvFromMatch(env: TypeEnv, matchSt: MatchStContext, schema: GraphSchema): TypeEnv {
-  const isOptional = matchSt.OPTIONAL() !== null
+  return extendEnvFromPattern(
+    env,
+    matchSt.patternWhere()?.pattern()?.patternPart() ?? [],
+    schema,
+    matchSt.OPTIONAL() !== null
+  )
+}
+
+function extendEnvFromPattern(
+  env: TypeEnv,
+  patterns: ReadonlyArray<antlr.ParserRuleContext>,
+  schema: GraphSchema,
+  isOptional: boolean
+): TypeEnv {
   const newEnv = new Map(env)
-
-  // Walk all node patterns in this MATCH
-  const patternWhere = matchSt.patternWhere()
-  if (!patternWhere) return newEnv
-
-  const patterns = patternWhere.pattern()?.patternPart() ?? []
 
   // Pass 1: bind labeled nodes and edges
   for (const part of patterns) {
@@ -623,7 +637,21 @@ function resolveProjection(
 // in every clause, under the environment in effect at that clause. Any other binding (unbound,
 // unlabeled, scalar, map, list) is left as is: nothing is known about its properties.
 
-const opaque = { type: new UnknownType({}), nullable: false }
+/** The type a binder gives its variable; an expression the inference cannot type binds an opaque variable. */
+function bindingOf(expr: ExpressionContext, env: TypeEnv, schema: GraphSchema): CypherType {
+  try {
+    return inferExpressionType(expr, env, schema)
+  } catch (error) {
+    if (error instanceof CypherTypeError) return new UnknownType({})
+    throw error
+  }
+}
+
+function elementBindingOf(list: ExpressionContext, env: TypeEnv, schema: GraphSchema) {
+  const listType = bindingOf(list, env, schema)
+  const unwrapped = listType._tag === "NullableType" ? listType.inner : listType
+  return { type: unwrapped._tag === "ListType" ? unwrapped.element : new UnknownType({}), nullable: false }
+}
 
 function checkPropertyExpression(propExpr: PropertyExpressionContext, env: TypeEnv, schema: GraphSchema): void {
   const symbol = propExpr.atom().symbol()
@@ -665,12 +693,12 @@ function checkFilterScope(
   bodies: ReadonlyArray<antlr.ParserRuleContext | null>,
   env: TypeEnv,
   schema: GraphSchema,
-  extra: ReadonlyArray<string> = []
+  outer: TypeEnv = env
 ): void {
-  checkPropertyAccesses(filter.expression(), env, schema)
+  checkPropertyAccesses(filter.expression(), outer, schema)
   const inner: TypeEnv = new Map([
     ...env,
-    ...[...extra, filter.symbol().getText()].map((name) => [name, opaque] as const)
+    [filter.symbol().getText(), elementBindingOf(filter.expression(), outer, schema)]
   ])
   for (const scoped of [filter.where(), ...bodies]) {
     if (scoped) checkPropertyAccesses(scoped, inner, schema)
@@ -685,7 +713,17 @@ function checkPropertyAccesses(node: antlr.ParserRuleContext, env: TypeEnv, sche
   if (node instanceof ReduceExpressionContext) {
     const [init, body] = node.expression()
     checkPropertyAccesses(init, env, schema)
-    return checkFilterScope(node.filterExpression(), [body], env, schema, [node.symbol().getText()])
+    const accumulator = { type: bindingOf(init, env, schema), nullable: false }
+    const withAccumulator: TypeEnv = new Map([...env, [node.symbol().getText(), accumulator]])
+    return checkFilterScope(node.filterExpression(), [body], withAccumulator, schema, env)
+  }
+  if (node instanceof PatternComprehensionContext) {
+    const chain = node.relationshipsChainPattern()
+    const inner = extendEnvFromPattern(env, [chain], schema, false)
+    for (const scoped of [chain, node.where(), node.expression()]) {
+      if (scoped) checkPropertyAccesses(scoped, inner, schema)
+    }
+    return
   }
   if (node instanceof PropertyExpressionContext) checkPropertyExpression(node, env, schema)
   if (node instanceof NodePatternContext) {
@@ -766,7 +804,8 @@ function typeUpdatingStatement(updating: UpdatingStatementContext, env: TypeEnv,
   const foreachSt = updating.foreachSt()
   if (foreachSt) {
     checkPropertyAccesses(foreachSt.expression(), env, schema)
-    typeClauses(foreachSt.updatingStatement(), new Map([...env, [foreachSt.symbol().getText(), opaque]]), schema)
+    const element = elementBindingOf(foreachSt.expression(), env, schema)
+    typeClauses(foreachSt.updatingStatement(), new Map([...env, [foreachSt.symbol().getText(), element]]), schema)
     return env
   }
   const extended = extendEnvFromCreate(env, updating)
