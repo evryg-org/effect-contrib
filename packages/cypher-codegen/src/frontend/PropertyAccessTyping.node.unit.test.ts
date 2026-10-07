@@ -97,3 +97,27 @@ describe("property access typing — CASE", () => {
   it("accepts declared properties", () =>
     accepts("MATCH (p:Person) RETURN CASE p.born WHEN 1970 THEN p.name ELSE 'other' END AS band"))
 })
+
+describe("property access typing — pattern property maps", () => {
+  it.each([
+    "MATCH (p:Person {salary: $salary}) RETURN p.name AS name",
+    "MATCH (:Person {salary: 1})-[:ACTED_IN]->(m:Movie) RETURN m.title AS title",
+    "MATCH (p:Person) MATCH (p {salary: 1}) RETURN p.name AS name",
+    "CREATE (p:Person {name: $name, salary: $salary})",
+    "MERGE (p:Person {salary: $salary}) RETURN p.name AS name",
+    "MATCH (p:Person) WHERE (p)-[:ACTED_IN]->(:Person {salary: 1}) RETURN p.name AS name"
+  ])("rejects an undeclared node property: %s", (cypher) => rejects(cypher, undeclaredOnPerson))
+
+  it.each([
+    "MATCH (p:Person)-[r:ACTED_IN {salary: 1}]->(m:Movie) RETURN m.title AS title",
+    "MATCH (p:Person) CREATE (p)-[:ACTED_IN {salary: 1}]->(:Movie {title: $title})"
+  ])("rejects an undeclared relationship property: %s", (cypher) =>
+    rejects(cypher, "Property 'salary' not found on edge type 'ACTED_IN'"))
+
+  it.each([
+    "MATCH (p:Person {name: $name})-[r:ACTED_IN {role: $role}]->(m:Movie {released: 1999}) RETURN m.title AS title",
+    "MATCH (p:Person $props) RETURN p.name AS name",
+    "MATCH (n {anything: 1}) RETURN n.anything AS anything",
+    "CREATE (p:Person {name: $name, born: $born})"
+  ])("accepts declared properties: %s", accepts)
+})
