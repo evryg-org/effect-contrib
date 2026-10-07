@@ -10,6 +10,7 @@ import {
   FilterWithContext,
   ListComprehensionContext,
   ListExpressionContext,
+  MapLitContext,
   type MatchStContext,
   MultiPartQContext,
   NodePatternContext,
@@ -663,6 +664,24 @@ function checkPropertyExpression(propExpr: PropertyExpressionContext, env: TypeE
   if (binding && isGraphElementType(binding)) accessGraphElementProperty(binding, firstName.getText(), schema)
 }
 
+/** An expression that is nothing but a map literal: a chain of single-child nodes ending in one. */
+function bareMapLiteral(node: antlr.ParserRuleContext): MapLitContext | undefined {
+  if (node instanceof MapLitContext) return node
+  const only = node.getChildCount() === 1 ? node.getChild(0) : null
+  return only instanceof antlr.ParserRuleContext ? bareMapLiteral(only) : undefined
+}
+
+/** `SET x = {p: v}` and `SET x += {p: v}` write `p` on `x`, exactly as `SET x.p = v` does. */
+function checkSetFromMapLiteral(item: SetItemContext, env: TypeEnv, schema: GraphSchema): void {
+  const target = item.propertyExpression()
+  const symbol = item.symbol() ?? (target?.propertyPostfix().length === 0 ? target.atom().symbol() : null)
+  const value = item.expression()
+  const map = value ? bareMapLiteral(value) : undefined
+  const owner = symbol ? env.get(symbol.getText())?.type : undefined
+  if (!map || !owner || !isGraphElementType(owner)) return
+  for (const pair of map.mapPair()) accessGraphElementProperty(owner, pair.name().getText(), schema)
+}
+
 /** `(x:L {p: v})` and `[r:E {p: v}]` access `p` on the element they match, exactly as `x.p` does. */
 function checkPatternPropertyMap(
   owner: CypherType | undefined,
@@ -729,6 +748,7 @@ function checkPropertyAccesses(node: antlr.ParserRuleContext, env: TypeEnv, sche
   }
   if (node instanceof SubqueryBodyContext) return typeSubqueryBody(node, env, schema)
   if (node instanceof PropertyExpressionContext) checkPropertyExpression(node, env, schema)
+  if (node instanceof SetItemContext) checkSetFromMapLiteral(node, env, schema)
   if (node instanceof NodePatternContext) {
     checkPatternPropertyMap(nodePatternElement(node, env), node.properties(), schema)
   }
