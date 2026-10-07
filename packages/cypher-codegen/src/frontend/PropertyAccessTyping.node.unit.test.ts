@@ -86,3 +86,14 @@ describe("property access typing — ORDER BY", () => {
     "MATCH (p:Person), (m:Movie) WITH m AS p ORDER BY p.title RETURN p.title AS title"
   ])("accepts declared properties: %s", accepts)
 })
+
+describe("property access typing — CASE", () => {
+  it.each([
+    "MATCH (p:Person) RETURN CASE WHEN p.salary > 0 THEN 'paid' ELSE 'unpaid' END AS band",
+    "MATCH (p:Person) RETURN CASE p.salary WHEN 0 THEN 'none' ELSE 'some' END AS band",
+    "MATCH (p:Person) WHERE CASE WHEN p.born > 1970 THEN p.salary ELSE 0 END > 0 RETURN p.name AS name"
+  ])("rejects an undeclared property: %s", (cypher) => rejects(cypher, undeclaredOnPerson))
+
+  it("accepts declared properties", () =>
+    accepts("MATCH (p:Person) RETURN CASE p.born WHEN 1970 THEN p.name ELSE 'other' END AS band"))
+})
