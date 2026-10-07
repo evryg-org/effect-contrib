@@ -159,3 +159,13 @@ describe("property access typing — EXISTS and COUNT subqueries", () => {
     "MATCH (p:Person) WHERE COUNT { (p)-[r:ACTED_IN]->(:Movie) WHERE r.role = 'lead' } > 1 RETURN p.name AS name"
   ])("accepts declared properties: %s", accepts)
 })
+
+describe("property access typing — UNION branches", () => {
+  it.each([
+    "MATCH (p:Person) RETURN p.name AS name UNION MATCH (p:Person) RETURN p.salary AS name",
+    "MATCH (m:Movie) RETURN m.title AS name UNION ALL MATCH (p:Person) WHERE p.salary > 0 RETURN p.name AS name"
+  ])("rejects an undeclared property in a later branch: %s", (cypher) => rejects(cypher, undeclaredOnPerson))
+
+  it("accepts a branch rebinding a variable to another label", () =>
+    accepts("MATCH (x:Person) RETURN x.name AS name UNION MATCH (x:Movie) RETURN x.title AS name"))
+})
