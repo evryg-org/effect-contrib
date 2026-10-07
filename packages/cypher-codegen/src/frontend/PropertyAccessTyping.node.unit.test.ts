@@ -169,3 +169,17 @@ describe("property access typing — UNION branches", () => {
   it("accepts a branch rebinding a variable to another label", () =>
     accepts("MATCH (x:Person) RETURN x.name AS name UNION MATCH (x:Movie) RETURN x.title AS name"))
 })
+
+describe("property access typing — SET from a map literal", () => {
+  it.each([
+    "MATCH (p:Person) SET p += {salary: $salary}",
+    "MATCH (p:Person) SET p = {name: $name, salary: 1} RETURN p.name AS name",
+    "MERGE (p:Person {name: $name}) ON CREATE SET p += {born: $born, salary: $salary}"
+  ])("rejects an undeclared property: %s", (cypher) => rejects(cypher, undeclaredOnPerson))
+
+  it.each([
+    "MATCH (p:Person) SET p += {born: $born}",
+    "MATCH (p:Person) SET p += $props",
+    "MATCH (p:Person) SET p = {name: $name, born: 1970}"
+  ])("accepts declared properties: %s", accepts)
+})
