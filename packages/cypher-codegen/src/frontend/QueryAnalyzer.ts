@@ -1017,9 +1017,10 @@ function extractParams(tree: ReturnType<typeof parse>, schema: GraphSchema): Arr
  */
 export const analyzeQuery = (cypher: string, schema: GraphSchema): QueryAnalysis => {
   const tree = parse(cypher)
-  const singleQuery = tree.query().regularQuery()!.singleQuery()
+  const regularQuery = tree.query().regularQuery()!
+  const singleQuery = regularQuery.singleQuery()
   const single = singleQuery.multiPartQ()?.singlePartQ() ?? singleQuery.singlePartQ()!
-  const env = typeClauses([singleQuery], new Map(), schema)
+  const env = typeRegularQuery(regularQuery, new Map(), schema)
 
   // Resolve RETURN columns
   const returnSt = single?.returnSt()
