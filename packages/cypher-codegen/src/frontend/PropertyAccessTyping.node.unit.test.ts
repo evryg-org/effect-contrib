@@ -60,3 +60,15 @@ describe("property access typing — ON CREATE SET / ON MATCH SET", () => {
   it("accepts declared properties", () =>
     accepts("MERGE (p:Person {name: $name}) ON CREATE SET p.born = $born ON MATCH SET p.born = p.born + 1"))
 })
+
+describe("property access typing — REMOVE", () => {
+  it.each([
+    "MATCH (p:Person) REMOVE p.salary",
+    "MATCH (p:Person) REMOVE p.born, p.salary RETURN p.name AS name"
+  ])("rejects an undeclared property: %s", (cypher) => rejects(cypher, undeclaredOnPerson))
+
+  it.each([
+    "MATCH (p:Person) REMOVE p.born",
+    "MATCH (p:Person) REMOVE p:Director"
+  ])("accepts declared properties: %s", accepts)
+})
