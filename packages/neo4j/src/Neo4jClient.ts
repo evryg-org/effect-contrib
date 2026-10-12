@@ -1,7 +1,7 @@
 /**
  * @since 0.0.1
  */
-import { Cause, Context, Effect, Layer, Queue, Schema, Stream } from "effect"
+import { Cause, Context, Effect, Formatter, Layer, Queue, Schema, Stream } from "effect"
 import neo4j, { type Driver, type QueryResult, type Record as Neo4jRecord_, type Session } from "neo4j-driver"
 import { Neo4jConfig } from "./Neo4jConfig.js"
 
@@ -14,6 +14,31 @@ import { Neo4jConfig } from "./Neo4jConfig.js"
 export type Neo4jRecord = Neo4jRecord_
 
 // --- Errors ---
+
+const stringField = (cause: unknown, key: "message" | "code"): string | undefined => {
+  try {
+    const value: unknown = typeof cause === "object" && cause !== null ? Reflect.get(cause, key) : undefined
+    return typeof value === "string" ? value : undefined
+  } catch {
+    return undefined
+  }
+}
+
+// Total over any `cause`: reads `message`/`code` structurally, so an Error, a plain
+// object or a null-prototype copy of one all report the same text, and never coerces.
+const describeCause = (cause: unknown): string => {
+  if (typeof cause === "string") return cause
+  const message = stringField(cause, "message")
+  if (message !== undefined) {
+    const code = stringField(cause, "code")
+    return code === undefined || code === "" ? message : `${message} (${code})`
+  }
+  try {
+    return Formatter.format(cause)
+  } catch {
+    return "<unformattable cause>"
+  }
+}
 
 /**
  * @since 0.0.1
@@ -28,10 +53,11 @@ export class Neo4jConnectionError extends Schema.TaggedErrorClass<Neo4jConnectio
    *
    * A structural field like `cause` carries no message of its own, so the
    * inherited `Error#message` is empty by default. This override reports
-   * `cause`'s message instead, matching what a plain `Error` would surface.
+   * `cause`'s message instead, followed by its `code` in parentheses when it
+   * has one. Reading it never throws, whatever `cause` is.
    */
   override get message(): string {
-    return this.cause instanceof Error ? this.cause.message : String(this.cause)
+    return describeCause(this.cause)
   }
 }
 
@@ -48,12 +74,12 @@ export class Neo4jQueryError extends Schema.TaggedErrorClass<Neo4jQueryError>()(
    *
    * A structural field like `cause` carries no message of its own, so the
    * inherited `Error#message` is empty by default. This override reports
-   * `cause`'s message instead, matching what a plain `Error` would surface.
-   * The failing `cypher` remains available as a structured field for callers
-   * that want it.
+   * `cause`'s message instead, followed by its `code` in parentheses when it
+   * has one. Reading it never throws, whatever `cause` is. The failing
+   * `cypher` remains available as a structured field for callers that want it.
    */
   override get message(): string {
-    return this.cause instanceof Error ? this.cause.message : String(this.cause)
+    return describeCause(this.cause)
   }
 }
 
