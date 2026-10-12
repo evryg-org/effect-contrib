@@ -69,3 +69,30 @@ for (const { make, name } of errorClasses) {
     })
   )
 }
+
+const carriers = {
+  error: (message: string, code: string | undefined): unknown =>
+    Object.assign(new Error(message), code === undefined ? {} : { code }),
+  plainObject: (message: string, code: string | undefined): unknown =>
+    code === undefined ? { message } : { code, message },
+  nullPrototypeCopy: (message: string, code: string | undefined): unknown =>
+    Object.assign(Object.create(null), code === undefined ? { message } : { code, message })
+} as const
+
+const arbDescribedCause = fc.record({
+  carrier: fc.constantFrom(...Object.keys(carriers) as Array<keyof typeof carriers>),
+  message: fc.string(),
+  code: fc.option(fc.string({ minLength: 1 }), { nil: undefined })
+})
+
+for (const { make, name } of errorClasses) {
+  law(
+    `Fidelity: ${name}#message`,
+    "contains the cause's string message, and its string code when it has one",
+    fc.property(arbDescribedCause, ({ carrier, code, message }) => {
+      const reported = make(carriers[carrier](message, code)).message
+      expect(reported).toContain(message)
+      if (code !== undefined) expect(reported).toContain(code)
+    })
+  )
+}
