@@ -9,7 +9,7 @@ import type { StartedTestContainer } from "testcontainers"
  * @since 0.0.3
  * @category errors
  */
-export class TestContainerError extends Schema.TaggedErrorClass<TestContainerError>()("TestContainerError", {
+export class TestContainerError extends Schema.TaggedError<TestContainerError>()("TestContainerError", {
   cause: Schema.Defect()
 }) {}
 

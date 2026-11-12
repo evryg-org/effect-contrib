@@ -37,7 +37,9 @@ export class DeclaredVertex extends Schema.Class<DeclaredVertex>("DeclaredVertex
    */
   declaredFields(): DeclaredFields {
     return Record.fromEntries(
-      this.declaration.propertySignatures.map((signature) => [String(signature.name), Schema.make(signature.type)])
+      this.declaration.propertySignatures.map((
+        signature
+      ) => [String(signature.name), Schema.make<Schema.Top>(signature.type)])
     )
   }
 }

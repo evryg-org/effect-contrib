@@ -1,6 +1,5 @@
 import { expect, it } from "@effect/vitest"
-import { Array, Equal, Function, HashMap, Option, Result, Schema } from "effect"
-import { FastCheck as fc } from "effect/testing"
+import { Arbitrary, Array, Equal, Function, HashMap, Option, Result, Schema } from "effect"
 import {
   binaryIdempotenceLaw,
   boundedSemilatticeLaws,
@@ -46,11 +45,17 @@ const SharedSlotSpec = Schema.Struct({
   fields: Schema.Tuple([SyntheticFields, SyntheticFields])
 })
 
-const agreeingSchema = agreeingContributions.map((contributions) =>
-  Result.getOrThrow(assembleGraphSchema(contributions))
+const agreeingSchema = agreeingContributions.pipe(
+  Arbitrary.map((contributions) => Result.getOrThrow(assembleGraphSchema(contributions)))
 )
 
-const anyAssembly = anyContributions.map(assembleGraphSchema)
+const anyAssembly = anyContributions.pipe(Arbitrary.map(assembleGraphSchema))
+
+/** Draws from one of `options`, each equally likely; shrinks toward the first. */
+const oneOf = <A>(...options: Array.NonEmptyReadonlyArray<Arbitrary.Arbitrary<A>>): Arbitrary.Arbitrary<A> =>
+  Arbitrary.schema(Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: options.length - 1 }))).pipe(
+    Arbitrary.flatMap((at) => options[at])
+  )
 
 type Assembly = Result.Result<AssembledGraphSchema, SchemaConflict>
 
@@ -124,7 +129,7 @@ rightAnnihilationLaw({
 confluenceLaw({
   name: "L6 the assembly, and the conflict it reports, do not depend on the order contributions arrive in",
   arbState: anyContributions,
-  arbAction: Schema.toArbitrary(ContributionSpec).map(anyContribution),
+  arbAction: Arbitrary.schema(ContributionSpec).pipe(Arbitrary.map(anyContribution)),
   step: (contributions, contribution) => [...contributions, contribution],
   eq: sameAssembly
 })
@@ -135,7 +140,7 @@ const conflicted = (contributions: ReadonlyArray<GraphSchemaContribution>): bool
 simulationLaw({
   name: "L6 conflict detection is complete: an assembly fails exactly when two of its contributions disagree",
   arbState: anyContributions,
-  arbAction: Schema.toArbitrary(ContributionSpec).map(anyContribution),
+  arbAction: Arbitrary.schema(ContributionSpec).pipe(Arbitrary.map(anyContribution)),
   stepConcrete: (contributions, contribution) => [...contributions, contribution],
   abs: (contributions) => ({ seen: contributions, conflicted: conflicted(contributions) }),
   stepAbstract: ({ conflicted: already, seen }, contribution) => ({
@@ -172,7 +177,7 @@ identityPreservingLaw({
 confluenceLaw({
   name: "L9 the canonical DDL render does not depend on the order contributions arrive in",
   arbState: agreeingContributions,
-  arbAction: Schema.toArbitrary(AgreeingSpec).map(agreeingContribution),
+  arbAction: Arbitrary.schema(AgreeingSpec).pipe(Arbitrary.map(agreeingContribution)),
   step: (contributions, contribution) => [...contributions, contribution],
   eq: (a, b) => {
     expect(Result.getOrThrow(assembleGraphSchema(a)).ddl()).toBe(Result.getOrThrow(assembleGraphSchema(b)).ddl())
@@ -205,7 +210,7 @@ simulationLaw({
   name:
     "L8 locality: a sub-collection's DDL model is the full model restricted to the labels it declares, fulltext intersected",
   arbState: agreeingContributions,
-  arbAction: Schema.toArbitrary(Schema.Array(Schema.Boolean)),
+  arbAction: Arbitrary.schema(Schema.Array(Schema.Boolean)),
   stepConcrete: selected,
   abs: projected,
   stepAbstract: ({ declared, fullText, model }, mask) => {
@@ -248,41 +253,43 @@ const redeclaredBy =
       })
     )
 
-const contributing: fc.Arbitrary<(contributions: ReadonlyArray<GraphSchemaContribution>) => GraphSchemaContribution> =
-  fc.oneof(
-    Schema.toArbitrary(ContributionSpec).map((spec) => Function.constant(anyContribution(spec))),
-    Schema.toArbitrary(RivalSpec).map(redeclaredBy)
-  )
+const contributing: Arbitrary.Arbitrary<
+  (contributions: ReadonlyArray<GraphSchemaContribution>) => GraphSchemaContribution
+> = oneOf(
+  Arbitrary.schema(ContributionSpec).pipe(Arbitrary.map((spec) => Function.constant(anyContribution(spec)))),
+  Arbitrary.schema(RivalSpec).pipe(Arbitrary.map(redeclaredBy))
+)
 
 invariantPreservationLaw({
   name:
     "single writer: a successful assembly gives each label and slot the one owner of every contribution declaring it",
-  arbState: fc.oneof(anyContributions, agreeingContributions),
+  arbState: oneOf(anyContributions, agreeingContributions),
   arbAction: contributing,
   inv: writtenByTheirDeclarers,
   step: (contributions, contribute) => [...contributions, contribute(contributions)]
 })
 
-it("single writer: two modules declaring one edge slot are refused as sharing it, whatever their fields", () => {
-  fc.assert(
-    fc.property(
-      Schema.toArbitrary(SharedSlotSpec),
-      ({ edgeType, fields, owners: [first, second], pair: [from, to] }) => {
-        fc.pre(first !== second)
-        const declaring = (owner: string, declared: typeof SyntheticFields.Type) =>
-          contributionOf(owner, [edgeSchema({ edgeType, pairs: [[from, to]], fields: declared })])
-        expect(Result.getFailure(assembleGraphSchema([declaring(first, fields[0]), declaring(second, fields[1])])))
-          .toEqual(
-            Option.some(SchemaConflict.cases.SharedEdgeSlot.make({
-              edgeType: EdgeType.make(edgeType),
-              ends: new EdgeEnds({ from: VertexLabel.make(from), to: VertexLabel.make(to) }),
-              owners: ContributingModules.of([ContributingModule.make(first), ContributingModule.make(second)])
-            }))
-          )
-      }
-    )
-  )
-})
+// Two modules: only draws whose owners differ.
+const sharedSlots = Arbitrary.schema(SharedSlotSpec).pipe(
+  Arbitrary.filter(({ owners: [first, second] }) => first !== second)
+)
+
+it.prop(
+  "single writer: two modules declaring one edge slot are refused as sharing it, whatever their fields",
+  [sharedSlots],
+  ([{ edgeType, fields, owners: [first, second], pair: [from, to] }]) => {
+    const declaring = (owner: string, declared: typeof SyntheticFields.Type) =>
+      contributionOf(owner, [edgeSchema({ edgeType, pairs: [[from, to]], fields: declared })])
+    expect(Result.getFailure(assembleGraphSchema([declaring(first, fields[0]), declaring(second, fields[1])])))
+      .toEqual(
+        Option.some(SchemaConflict.cases.SharedEdgeSlot.make({
+          edgeType: EdgeType.make(edgeType),
+          ends: new EdgeEnds({ from: VertexLabel.make(from), to: VertexLabel.make(to) }),
+          owners: ContributingModules.of([ContributingModule.make(first), ContributingModule.make(second)])
+        }))
+      )
+  }
+)
 
 const unitedWriters = (a: GraphWriters, b: GraphWriters): GraphWriters => Option.getOrThrow(a.union(b))
 

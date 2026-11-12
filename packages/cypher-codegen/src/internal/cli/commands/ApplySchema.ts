@@ -2,7 +2,7 @@
 import { Neo4jClient } from "@evryg/effect-neo4j"
 import type { AssembledGraphSchema } from "@evryg/effect-neo4j-schema"
 import { Console, Effect } from "effect"
-import { Command } from "effect/unstable/cli"
+import { Command } from "effect/cli"
 import { neo4jLayer, neo4jOptions } from "./Shared.js"
 
 /**

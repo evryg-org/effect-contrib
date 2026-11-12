@@ -2,7 +2,7 @@
 import { NodeServices } from "@effect/platform-node"
 import { extractSchema, saveSchema } from "@evryg/effect-neo4j-schema"
 import { Console, Effect } from "effect"
-import { Command } from "effect/unstable/cli"
+import { Command } from "effect/cli"
 import { neo4jLayer, neo4jOptions, schemaPathOption } from "./Shared.js"
 
 /**

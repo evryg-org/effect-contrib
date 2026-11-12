@@ -4,8 +4,8 @@
  *
  * @since 0.8.0
  */
-import type { Result } from "effect"
-import { Array, Data, Effect, HashMap, HashSet, Option, Order, Schema, SchemaIssue, SchemaParser } from "effect"
+import type { Option, Result } from "effect"
+import { Array, Data, Effect, HashMap, HashSet, Order, Schema, SchemaIssue, SchemaParser } from "effect"
 import { VertexLabel } from "./GraphVocabulary.js"
 import { compatibleUnion, unlessConflicting } from "./internal/AgreeingUnion.js"
 import { SchemaConflict } from "./SchemaConflict.js"
@@ -47,7 +47,7 @@ export class VertexAnnotations<A> extends Data.Class {
             SchemaParser.decodeUnknownEffect(Schema.HashMap(VertexLabel, element))(input.byLabel, options),
             (byLabel) => new VertexAnnotations(byLabel)
           )
-          : Effect.fail(new SchemaIssue.InvalidType(ast, Option.some(input))),
+          : Effect.fail(new SchemaIssue.InvalidType(ast, input, { ...options, reportInput: true })),
       { expected: "VertexAnnotations" }
     )
   }

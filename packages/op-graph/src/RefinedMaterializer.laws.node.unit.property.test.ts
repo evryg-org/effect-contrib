@@ -1,11 +1,10 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Array, Effect, Function, Layer, Ref, Result, Schema, Stream } from "effect"
-import { FastCheck as fc } from "effect/testing"
+import { Arbitrary, Array, Effect, Function, Layer, Ref, Result, Schema, Stream } from "effect"
 import { type GraphOp, UpsertVertex } from "./GraphOp.js"
 import { GraphOpMaterializer, MaterializeProgress } from "./GraphOpMaterializer.js"
 import { refinedMaterializer } from "./RefinedMaterializer.js"
 
-class RefusalError extends Schema.TaggedErrorClass<RefusalError>()("RefusalError", { id: Schema.String }) {
+class RefusalError extends Schema.TaggedError<RefusalError>()("RefusalError", { id: Schema.String }) {
   override get message() {
     return `refused ${this.id}`
   }
@@ -17,11 +16,14 @@ type Decorator = (base: Layer.Layer<GraphOpMaterializer>) => Layer.Layer<GraphOp
 
 const idOf = (op: GraphOp): unknown => (op instanceof UpsertVertex ? op.key.id : undefined)
 
-const arbOp: fc.Arbitrary<GraphOp> = fc
-  .tuple(fc.constantFrom("Alpha", "Beta"), fc.constantFrom("a", "b", "c", "d"))
-  .map(([label, id]) => new UpsertVertex({ label, key: { id }, properties: {} }))
+const arbLabel = Arbitrary.schema(Schema.Literals(["Alpha", "Beta"]))
+const arbId = Arbitrary.schema(Schema.Literals(["a", "b", "c", "d"]))
 
-const arbOps = fc.array(arbOp, { maxLength: 6 })
+const arbOp: Arbitrary.Arbitrary<GraphOp> = Arbitrary.all([arbLabel, arbId]).pipe(
+  Arbitrary.map(([label, id]): GraphOp => new UpsertVertex({ label, key: { id }, properties: {} }))
+)
+
+const arbOps = Arbitrary.array(arbOp, { maxLength: 6 })
 
 const refuseOp = (id: string) => (op: GraphOp): Result.Result<GraphOp, RefusalError> =>
   idOf(op) === id ? Result.fail(new RefusalError({ id })) : Result.succeed(op)
@@ -33,13 +35,15 @@ const rewriteLabel = (from: string, to: string): Refine => (ops) =>
     ops.map((op) => (op instanceof UpsertVertex && op.label === from ? new UpsertVertex({ ...op, label: to }) : op))
   )
 
-const arbRefine: fc.Arbitrary<Refine> = fc.oneof(
-  fc.constantFrom("a", "b", "c", "d").map(refuseId),
-  fc.tuple(fc.constantFrom("Alpha", "Beta"), fc.constantFrom("Alpha", "Beta")).map(([from, to]) =>
-    rewriteLabel(from, to)
-  ),
-  fc.constant<Refine>(Result.succeed)
-)
+const refinementsByKind = {
+  refuse: arbId.pipe(Arbitrary.map(refuseId)),
+  rewrite: Arbitrary.all([arbLabel, arbLabel]).pipe(Arbitrary.map(([from, to]) => rewriteLabel(from, to))),
+  identity: Arbitrary.Constant<Refine>(Result.succeed)
+}
+
+const arbRefine: Arbitrary.Arbitrary<Refine> = Arbitrary.schema(
+  Schema.Literals(["refuse", "rewrite", "identity"])
+).pipe(Arbitrary.flatMap((kind) => refinementsByKind[kind]))
 
 const kleisli = (f: Refine, g: Refine): Refine => (ops) => Result.flatMap(f(ops), g)
 
@@ -91,7 +95,7 @@ describe("refinedMaterializer", () => {
 
   it.effect.prop(
     "law: a refusal fails the stream with it and no op reaches the base",
-    [arbOps, fc.constantFrom("a", "b", "c", "d")],
+    [arbOps, arbId],
     ([ops, id]) =>
       Effect.gen(function*() {
         const outcome = yield* observe(decoratorOf(refuseId(id)), ops)

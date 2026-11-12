@@ -51,7 +51,7 @@
     "@effect/dtslint": "^0.1.1",
     "@effect/eslint-plugin": "^0.3.2",
     "@effect/language-service": "^0.86.2",
-    "@effect/vitest": "4.0.0-beta.78",
+    "@effect/vitest": "4.1.4",
     "@eslint/compat": "1.4.1",
     "@eslint/eslintrc": "3.3.5",
     "@eslint/js": "9.39.4",
@@ -88,8 +88,7 @@
     },
     "patchedDependencies": {
       "@changesets/get-github-info@0.6.0": "patches/@changesets__get-github-info@0.6.0.patch",
-      "@changesets/assemble-release-plan@6.0.9": "patches/@changesets__assemble-release-plan@6.0.9.patch",
-      "@effect/vitest@4.0.0-beta.78": "patches/@effect__vitest@4.0.0-beta.78.patch"
+      "@changesets/assemble-release-plan@6.0.9": "patches/@changesets__assemble-release-plan@6.0.9.patch"
     }
   }
 }

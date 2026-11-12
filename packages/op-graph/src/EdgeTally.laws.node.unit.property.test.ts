@@ -1,6 +1,5 @@
-import { describe, expect, it } from "@effect/vitest"
-import { Array } from "effect"
-import { FastCheck as fc } from "effect/testing"
+import { describe, expect, it, type Vitest } from "@effect/vitest"
+import { Arbitrary, Array, Schema } from "effect"
 import { EdgeDropped, EdgeMaterialized, type EdgeOutcome, EdgeShape, EdgeTally } from "./EdgeTally.js"
 
 // EdgeTally is a COUNTER, not a dedup carrier like SetMap: combine adds, so it is a commutative
@@ -19,22 +18,35 @@ const expectTallyEq = (a: EdgeTally, b: EdgeTally): void => {
   expect(tallyEq(a, b)).toBe(true)
 }
 
-const law = <Ts extends Array<unknown>>(suite: string, statement: string, property: fc.IProperty<Ts>): void => {
+const law = <const Arbs extends Vitest.Arbitraries>(
+  suite: string,
+  statement: string,
+  arbitraries: Arbs,
+  property: (values: { [K in keyof Arbs]: Vitest.ArbitraryValue<Arbs[K]> }) => void
+): void => {
   describe(suite, () => {
-    it(statement, () => fc.assert(property))
+    it.prop(statement, arbitraries, property)
   })
 }
 
 // Small constant pools so generated tallies overlap — exercises commutativity/associativity meaningfully.
-const arbShape: fc.Arbitrary<string> = fc.constantFrom("Alpha-[:LINKS]->Beta", "Beta-[:OWNS]->Gamma")
-
-const arbOutcome: fc.Arbitrary<EdgeOutcome> = fc.oneof(
-  arbShape.map((shape) => new EdgeMaterialized({ shape: EdgeShape.make(shape) })),
-  arbShape.map((shape) => new EdgeDropped({ shape: EdgeShape.make(shape) }))
+const arbShape: Arbitrary.Arbitrary<string> = Arbitrary.schema(
+  Schema.Literals(["Alpha-[:LINKS]->Beta", "Beta-[:OWNS]->Gamma"])
 )
 
+// Each shape is as likely to be written as dropped.
+const arbOutcome: Arbitrary.Arbitrary<EdgeOutcome> = Arbitrary.all([arbShape, Arbitrary.schema(Schema.Boolean)]).pipe(
+  Arbitrary.map(([shape, written]): EdgeOutcome =>
+    written
+      ? new EdgeMaterialized({ shape: EdgeShape.make(shape) })
+      : new EdgeDropped({ shape: EdgeShape.make(shape) })
+  )
+)
+
+const arbOutcomes = Arbitrary.array(arbOutcome)
+
 // Built only through EdgeTally.of — the same restriction production code lives under.
-const arbTally: fc.Arbitrary<EdgeTally> = fc.array(arbOutcome).map(EdgeTally.of)
+const arbTally: Arbitrary.Arbitrary<EdgeTally> = arbOutcomes.pipe(Arbitrary.map(EdgeTally.of))
 
 // Laws are stated against the exposed `EdgeTally.Reducer` instance, not the `combine` instance
 // method it wraps -- proving the NATIVE surface consumers reach for (e.g. `.combineAll`) is lawful.
@@ -44,32 +56,32 @@ const id = EdgeTally.Reducer.initialValue
 law(
   "Associativity: EdgeTally.Reducer",
   "op(op(a, b), c) = op(a, op(b, c))",
-  fc.property(arbTally, arbTally, arbTally, (a, b, c) => expectTallyEq(op(op(a, b), c), op(a, op(b, c))))
+  [arbTally, arbTally, arbTally],
+  ([a, b, c]) => expectTallyEq(op(op(a, b), c), op(a, op(b, c)))
 )
-law("Left Identity: EdgeTally.Reducer", "op(id, a) = a", fc.property(arbTally, (a) => expectTallyEq(op(id, a), a)))
-law("Right Identity: EdgeTally.Reducer", "op(a, id) = a", fc.property(arbTally, (a) => expectTallyEq(op(a, id), a)))
+law("Left Identity: EdgeTally.Reducer", "op(id, a) = a", [arbTally], ([a]) => expectTallyEq(op(id, a), a))
+law("Right Identity: EdgeTally.Reducer", "op(a, id) = a", [arbTally], ([a]) => expectTallyEq(op(a, id), a))
 law(
   "Commutativity: EdgeTally.Reducer",
   "op(a, b) = op(b, a)",
-  fc.property(arbTally, arbTally, (a, b) => expectTallyEq(op(a, b), op(b, a)))
+  [arbTally, arbTally],
+  ([a, b]) => expectTallyEq(op(a, b), op(b, a))
 )
 
 law(
   "Homomorphism: EdgeTally.of is an accounting homomorphism",
   "h(opA(a, b)) = opB(h(a), h(b))",
-  fc.property(
-    fc.array(arbOutcome),
-    fc.array(arbOutcome),
-    (a, b) => expectTallyEq(EdgeTally.of(Array.appendAll(a, b)), EdgeTally.of(a).combine(EdgeTally.of(b)))
-  )
+  [arbOutcomes, arbOutcomes],
+  ([a, b]) => expectTallyEq(EdgeTally.of(Array.appendAll(a, b)), EdgeTally.of(a).combine(EdgeTally.of(b)))
 )
 
 law(
   "Homomorphism: opCount is a counting homomorphism into (number, +, 0)",
   "h(opA(a, b)) = opB(h(a), h(b))",
-  fc.property(arbTally, arbTally, (a, b) => {
+  [arbTally, arbTally],
+  ([a, b]) => {
     expect(a.combine(b).opCount()).toBe(a.opCount() + b.opCount())
-  })
+  }
 )
 
 describe("Identity-preserving: EdgeTally.of([]) is EdgeTally.empty", () => {
@@ -82,8 +94,9 @@ const nonNegative = (t: EdgeTally): boolean =>
 law(
   "Invariant Preservation: combine never produces a negative count",
   "∀s. inv(s) ⟹ ∀a. inv(step(s, a))",
-  fc.property(arbTally, arbTally, (s, a) => {
-    fc.pre(nonNegative(s))
+  // The premise inv(s) is a precondition: only states satisfying it are drawn.
+  [arbTally.pipe(Arbitrary.filter(nonNegative)), arbTally],
+  ([s, a]) => {
     expect(nonNegative(s.combine(a))).toBe(true)
-  })
+  }
 )

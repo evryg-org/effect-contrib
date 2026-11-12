@@ -64,7 +64,9 @@ class EdgeFields extends Schema.Class<EdgeFields>("EdgeFields")({
   }
 
   private fieldsOf(project: (ast: SchemaAST.AST) => SchemaAST.AST): DeclaredFields {
-    return Record.fromEntries(HashMap.toEntries(HashMap.map(this.byName, (ast) => Schema.make(project(ast)))))
+    return Record.fromEntries(
+      HashMap.toEntries(HashMap.map(this.byName, (ast) => Schema.make<Schema.Top>(project(ast))))
+    )
   }
 
   neo4jTypes(): ReadonlyArray<readonly [PropertyName, Option.Option<ReadonlyArray<string>>]> {
@@ -389,7 +391,7 @@ export class AssembledGraphSchema extends Schema.Class<AssembledGraphSchema>("As
    */
   schemas(): ReadonlyArray<Schema.Top> {
     return [
-      ...this.orderedVertices().map((vertex) => Schema.make(vertex.declaration)),
+      ...this.orderedVertices().map((vertex) => Schema.make<Schema.Top>(vertex.declaration)),
       ...Record.values(Array.groupBy(this.orderedEdges(), (edge) => edge.slot.edgeType)).map(joinedEdgeSchema)
     ]
   }
@@ -416,7 +418,7 @@ export class AssembledGraphSchema extends Schema.Class<AssembledGraphSchema>("As
 export const assembleGraphSchema = (
   contributions: Iterable<GraphSchemaContribution>
 ): Result.Result<AssembledGraphSchema, SchemaConflict> => {
-  const [edges, vertices] = Array.partition(
+  const [vertices, edges] = Array.partition(
     Array.fromIterable(contributions).flatMap(fragmentsOf),
     (fragment) => Schema.is(DeclaredVertex)(fragment) ? Result.succeed(fragment) : Result.fail(fragment)
   )
