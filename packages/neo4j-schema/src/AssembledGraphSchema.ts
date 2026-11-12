@@ -416,7 +416,7 @@ export class AssembledGraphSchema extends Schema.Class<AssembledGraphSchema>("As
 export const assembleGraphSchema = (
   contributions: Iterable<GraphSchemaContribution>
 ): Result.Result<AssembledGraphSchema, SchemaConflict> => {
-  const [edges, vertices] = Array.partition(
+  const [vertices, edges] = Array.partition(
     Array.fromIterable(contributions).flatMap(fragmentsOf),
     (fragment) => Schema.is(DeclaredVertex)(fragment) ? Result.succeed(fragment) : Result.fail(fragment)
   )
