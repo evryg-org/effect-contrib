@@ -26,6 +26,8 @@ const steppingClock = (step: Duration.Duration): Clock.Clock => {
     currentTimeNanos: Effect.sync(next),
     currentTimeMillisUnsafe: () => Number(next() / 1_000_000n),
     currentTimeMillis: Effect.sync(() => Number(next() / 1_000_000n)),
+    monotonicTimeNanosUnsafe: next,
+    monotonicTimeNanos: Effect.sync(next),
     sleep: () => Effect.void
   }
 }
