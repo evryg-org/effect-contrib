@@ -9,7 +9,7 @@ import { GraphOp, PropertyMap, type UpsertEdge, type UpsertVertex, type VertexRe
  *
  * @since 0.0.1
  */
-export type DeclaredFields = { readonly [key: string]: Schema.Top }
+export type DeclaredFields = { readonly [key: string]: Schema.Constraint }
 
 /**
  * An ordered endpoint pair an edge type is declared to connect, by vertex label.
@@ -167,7 +167,7 @@ type PreparedField = {
 
 type PreparedFields = { readonly [key: string]: PreparedField }
 
-const prepareField = (field: Schema.Top): PreparedField => {
+const prepareField = (field: Schema.Constraint): PreparedField => {
   const decode = Schema.decodeUnknownResult(Schema.make<Schema.Decoder<unknown>>(field.ast))
   return {
     optional: SchemaAST.isOptional(field.ast),
