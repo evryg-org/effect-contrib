@@ -8,7 +8,7 @@ import { DockerComposeEnvironment, type StartedDockerComposeEnvironment } from "
  * @since 0.0.3
  * @category errors
  */
-export class ComposeContainerError extends Schema.TaggedErrorClass<ComposeContainerError>()("ComposeContainerError", {
+export class ComposeContainerError extends Schema.TaggedError<ComposeContainerError>()("ComposeContainerError", {
   cause: Schema.Defect()
 }) {}
 

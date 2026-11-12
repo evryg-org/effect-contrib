@@ -2,7 +2,7 @@
 import { NodeRuntime, NodeServices } from "@effect/platform-node"
 import type { AssembledGraphSchema } from "@evryg/effect-neo4j-schema"
 import { Effect } from "effect"
-import { Command } from "effect/unstable/cli"
+import { Command } from "effect/cli"
 import { makeApplySchemaCommand } from "./internal/cli/commands/ApplySchema.js"
 import { extractSchemaCommand } from "./internal/cli/commands/ExtractSchema.js"
 import { makeGenerateCommand } from "./internal/cli/commands/Generate.js"

@@ -19,7 +19,7 @@ export type Neo4jRecord = Neo4jRecord_
  * @since 0.0.1
  * @category errors
  */
-export class Neo4jConnectionError extends Schema.TaggedErrorClass<Neo4jConnectionError>()("Neo4jConnectionError", {
+export class Neo4jConnectionError extends Schema.TaggedError<Neo4jConnectionError>()("Neo4jConnectionError", {
   uri: Schema.String,
   cause: Schema.Defect()
 }) {
@@ -39,7 +39,7 @@ export class Neo4jConnectionError extends Schema.TaggedErrorClass<Neo4jConnectio
  * @since 0.0.1
  * @category errors
  */
-export class Neo4jQueryError extends Schema.TaggedErrorClass<Neo4jQueryError>()("Neo4jQueryError", {
+export class Neo4jQueryError extends Schema.TaggedError<Neo4jQueryError>()("Neo4jQueryError", {
   cypher: Schema.String,
   cause: Schema.Defect()
 }) {

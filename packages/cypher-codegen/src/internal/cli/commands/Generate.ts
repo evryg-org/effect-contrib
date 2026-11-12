@@ -3,7 +3,7 @@ import { NodeServices } from "@effect/platform-node"
 import type { AssembledGraphSchema } from "@evryg/effect-neo4j-schema"
 import { extractSchema, saveSchema } from "@evryg/effect-neo4j-schema"
 import { Console, Effect } from "effect"
-import { Command } from "effect/unstable/cli"
+import { Command } from "effect/cli"
 import {
   cypherGlobOption,
   generateFromSchema,

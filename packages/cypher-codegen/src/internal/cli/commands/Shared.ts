@@ -2,7 +2,7 @@
 import { Neo4jConfig, UnconfiguredNeo4jClient } from "@evryg/effect-neo4j"
 import type { GraphSchema } from "@evryg/effect-neo4j-schema"
 import { Console, Effect, Layer, Result, Schema } from "effect"
-import { Flag } from "effect/unstable/cli"
+import { Flag } from "effect/cli"
 import { globSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { basename, dirname } from "node:path"
 import { type BarrelEntry, extractParams, generateBarrel } from "../../../backend/CypherCodegen.js"
@@ -15,20 +15,20 @@ import { analyzeQuery, type ResolvedParam } from "../../../frontend/QueryAnalyze
  * @category options
  */
 export const neo4jUriOption = Flag.withDefault(
-  Flag.string("neo4j-uri"),
+  Flag.String("neo4j-uri"),
   process.env.NEO4J_URI ?? "bolt://localhost:7687"
 )
 /**
  * @since 0.0.1
  * @category options
  */
-export const neo4jUserOption = Flag.withDefault(Flag.string("neo4j-user"), process.env.NEO4J_USER ?? "neo4j")
+export const neo4jUserOption = Flag.withDefault(Flag.String("neo4j-user"), process.env.NEO4J_USER ?? "neo4j")
 /**
  * @since 0.0.1
  * @category options
  */
 export const neo4jPasswordOption = Flag.withDefault(
-  Flag.string("neo4j-password"),
+  Flag.String("neo4j-password"),
   process.env.NEO4J_PASSWORD ?? "changeme"
 )
 /**
@@ -36,24 +36,24 @@ export const neo4jPasswordOption = Flag.withDefault(
  * @category options
  */
 export const neo4jDatabaseOption = Flag.withDefault(
-  Flag.string("neo4j-database"),
+  Flag.String("neo4j-database"),
   process.env.NEO4J_DATABASE ?? "neo4j"
 )
 /**
  * @since 0.0.1
  * @category options
  */
-export const schemaPathOption = Flag.withDefault(Flag.string("schema-path"), "data/graph-schema.json")
+export const schemaPathOption = Flag.withDefault(Flag.String("schema-path"), "data/graph-schema.json")
 /**
  * @since 0.0.1
  * @category options
  */
-export const outputOption = Flag.withDefault(Flag.string("output"), "src/generated/queries.ts")
+export const outputOption = Flag.withDefault(Flag.String("output"), "src/generated/queries.ts")
 /**
  * @since 0.0.1
  * @category options
  */
-export const cypherGlobOption = Flag.withDefault(Flag.string("cypher-glob"), "src/**/*.cypher")
+export const cypherGlobOption = Flag.withDefault(Flag.String("cypher-glob"), "src/**/*.cypher")
 
 /**
  * @since 0.0.1
@@ -93,7 +93,7 @@ export function neo4jLayer(
  * @since 0.1.1
  * @category errors
  */
-export class DuplicateCypherFilenamesError extends Schema.TaggedErrorClass<DuplicateCypherFilenamesError>(
+export class DuplicateCypherFilenamesError extends Schema.TaggedError<DuplicateCypherFilenamesError>(
   "@evryg/effect-cypher-codegen/DuplicateCypherFilenamesError"
 )("DuplicateCypherFilenamesError", {
   filenames: Schema.Array(Schema.String)
@@ -107,7 +107,7 @@ export class DuplicateCypherFilenamesError extends Schema.TaggedErrorClass<Dupli
  * @since 0.1.1
  * @category errors
  */
-export class CypherCodegenError extends Schema.TaggedErrorClass<CypherCodegenError>(
+export class CypherCodegenError extends Schema.TaggedError<CypherCodegenError>(
   "@evryg/effect-cypher-codegen/CypherCodegenError"
 )("CypherCodegenError", {
   failures: Schema.Array(Schema.Struct({

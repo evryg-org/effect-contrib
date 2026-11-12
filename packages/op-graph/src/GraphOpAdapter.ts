@@ -29,7 +29,7 @@ export const graphOpAdapter = <A>(
   Schema.declare<A>((_): _ is A => true).pipe(
     Schema.decodeTo(
       graphOpArray,
-      SchemaTransformation.make<typeof graphOpArray.Encoded, A>({
+      SchemaTransformation.makeTransformation<typeof graphOpArray.Encoded, A>({
         decode: SchemaGetter.transform((a) => toOps(a) as typeof graphOpArray.Encoded),
         encode: SchemaGetter.forbidden(() => ONE_WAY_ENCODE_MESSAGE)
       })

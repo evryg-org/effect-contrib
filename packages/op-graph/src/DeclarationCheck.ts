@@ -110,7 +110,7 @@ const describeReason = (reason: ViolationReason): string =>
  * @since 0.0.1
  */
 export class DeclarationViolationError
-  extends Schema.TaggedErrorClass<DeclarationViolationError>()("DeclarationViolationError", {
+  extends Schema.TaggedError<DeclarationViolationError>()("DeclarationViolationError", {
     op: Schema.Literals(["UpsertVertex", "UpsertEdge"]),
     label: Schema.String,
     key: PropertyMap,
@@ -127,7 +127,7 @@ export class DeclarationViolationError
  * @since 0.0.1
  */
 export class DuplicateDeclarationError
-  extends Schema.TaggedErrorClass<DuplicateDeclarationError>()("DuplicateDeclarationError", {
+  extends Schema.TaggedError<DuplicateDeclarationError>()("DuplicateDeclarationError", {
     label: Schema.String
   })
 {
@@ -145,7 +145,7 @@ const perPair = (edge: EdgeDeclaration): ReadonlyArray<EdgeDeclaration> =>
  *
  * @since 0.0.1
  */
-export class ConflictingEdgeDeclarationError extends Schema.TaggedErrorClass<ConflictingEdgeDeclarationError>()(
+export class ConflictingEdgeDeclarationError extends Schema.TaggedError<ConflictingEdgeDeclarationError>()(
   "ConflictingEdgeDeclarationError",
   {
     label: Schema.String,
