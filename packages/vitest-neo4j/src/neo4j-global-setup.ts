@@ -3,7 +3,7 @@ import { ensureSchema, Neo4jConfig, UnconfiguredNeo4jClient } from "@evryg/effec
 import { Neo4jTestContainerLive } from "@evryg/effect-testcontainers-neo4j"
 import { Layer, ManagedRuntime } from "effect"
 import { globSync, readFileSync } from "node:fs"
-import type { GlobalSetupContext } from "vitest/node"
+import type { TestProject } from "vitest/node"
 
 function loadSchemaFiles(): Array<string> {
   return globSync("src/**/schema/*GraphSchema.cypher").sort().flatMap((file) =>
@@ -26,7 +26,7 @@ const runtime = ManagedRuntime.make(TestNeo4jLive)
  * @since 0.0.1
  * @category setup
  */
-export async function setup({ provide }: GlobalSetupContext) {
+export async function setup({ provide }: TestProject) {
   const config = await runtime.runPromise(Neo4jConfig)
   provide("neo4j", { uri: config.uri, password: config.password })
 }

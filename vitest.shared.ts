@@ -1,5 +1,5 @@
 import * as path from "node:path"
-import type { ViteUserConfig } from "vitest/config"
+import type { TestProjectInlineConfiguration, ViteUserConfig } from "vitest/config"
 
 const target = process.env.TEST_DIST !== undefined ? "dist/dist/esm" : "src"
 
@@ -55,3 +55,21 @@ const config: ViteUserConfig = {
 }
 
 export default config
+
+const { exclude: unitExclude, include: unitInclude, ...baseTest } = config.test ?? {}
+
+export const base: ViteUserConfig = { ...config, test: baseTest }
+
+export const unitProject: TestProjectInlineConfiguration = {
+  extends: true,
+  test: { name: "unit", include: unitInclude, exclude: unitExclude }
+}
+
+export const nodeIntegrationProject = (globalSetup: string): TestProjectInlineConfiguration => ({
+  extends: true,
+  test: {
+    name: "node-integration",
+    include: ["src/**/*.node.integration.test.{ts,mts,cts,tsx}"],
+    globalSetup: [globalSetup]
+  }
+})

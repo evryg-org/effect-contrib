@@ -1,0 +1,21 @@
+diff --git a/dist/internal/internal.js b/dist/internal/internal.js
+index a30fc1a0dfed2ef215faa9554a151a53443b05d7..a6801144a50227f8e4e39dab6b0d1f4a4a295afe 100644
+--- a/dist/internal/internal.js
++++ b/dist/internal/internal.js
+@@ -1,7 +1,6 @@
+ /**
+  * @since 4.0.0
+  */
+-import { getCurrentSuite } from "@vitest/runner";
+ import * as Cause from "effect/Cause";
+ import * as Duration from "effect/Duration";
+ import * as Effect from "effect/Effect";
+@@ -168,7 +167,7 @@ export const layer = (layer_, options) => (...args) => {
+     }
+   });
+   if (args.length === 1) {
+-    const currentSuite = getCurrentSuite();
++    const currentSuite = V.TestRunner.getCurrentSuite();
+     const previousTasks = new Set(currentSuite.tasks);
+     args[0](makeIt(V.it));
+     const blockTasks = collectTasks(currentSuite.tasks.filter(task => !previousTasks.has(task)));

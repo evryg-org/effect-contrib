@@ -59,10 +59,10 @@
     "@types/node": "^24.0.0",
     "@typescript-eslint/eslint-plugin": "^8.58.1",
     "@typescript-eslint/parser": "^8.58.1",
-    "@vitest/browser": "^3.2.4",
-    "@vitest/coverage-v8": "^3.2.4",
-    "@vitest/expect": "^3.2.4",
-    "@vitest/web-worker": "^3.2.4",
+    "@vitest/browser": "^5.1.0",
+    "@vitest/coverage-v8": "^5.1.0",
+    "@vitest/expect": "^5.1.0",
+    "@vitest/web-worker": "^5.1.0",
     "ast-types": "^0.14.2",
     "babel-plugin-annotate-pure-calls": "^0.4.0",
     "eslint": "^9.39.4",
@@ -78,7 +78,7 @@
     "prettier": "^3.8.2",
     "typescript": "^5.9.3",
     "vite": "^6.4.2",
-    "vitest": "^3.2.4"
+    "vitest": "^5.1.0"
   },
   "pnpm": {
     "overrides": {
@@ -88,7 +88,8 @@
     },
     "patchedDependencies": {
       "@changesets/get-github-info@0.6.0": "patches/@changesets__get-github-info@0.6.0.patch",
-      "@changesets/assemble-release-plan@6.0.9": "patches/@changesets__assemble-release-plan@6.0.9.patch"
+      "@changesets/assemble-release-plan@6.0.9": "patches/@changesets__assemble-release-plan@6.0.9.patch",
+      "@effect/vitest@4.0.0-beta.78": "patches/@effect__vitest@4.0.0-beta.78.patch"
     }
   }
 }

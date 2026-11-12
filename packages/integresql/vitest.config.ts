@@ -1,17 +1,8 @@
 import { defineConfig, mergeConfig } from "vitest/config"
-import shared from "../../vitest.shared"
+import { base, nodeIntegrationProject, unitProject } from "../../vitest.shared"
 
-export default mergeConfig(shared, defineConfig({
+export default mergeConfig(base, defineConfig({
   test: {
-    projects: [
-      {
-        extends: true,
-        test: {
-          name: "node-integration",
-          include: ["src/**/*.node.integration.test.{ts,mts,cts,tsx}"],
-          globalSetup: ["test/GlobalSetup.ts"]
-        }
-      }
-    ]
+    projects: [unitProject, nodeIntegrationProject("test/GlobalSetup.ts")]
   }
 }))
