@@ -82,7 +82,7 @@ const expectNoParameterLeak = (span: Tracer.Span) => {
   }
 }
 
-describe.sequential("Neo4jClient spans", () => {
+describe("Neo4jClient spans", { concurrent: false }, () => {
   it.effect("query emits a client span with database semantic-convention attributes", () =>
     Effect.gen(function*() {
       const { spans, tracer } = yield* recordSpans

@@ -47,7 +47,7 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/setup
       - run: pnpm codegen
-      - run: pnpm vitest
+      - run: pnpm test-unit
 
   bdd-public-api:
     name: BDD public API and packed exports
