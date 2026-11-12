@@ -6,8 +6,7 @@
  * @since 0.0.1
  */
 import { expect, layer } from "@effect/vitest"
-import { Array, Effect, type Layer, Order, Record, Ref, Result, Schema, Stream } from "effect"
-import { FastCheck } from "effect/testing"
+import { Arbitrary, Array, Effect, type Layer, Order, Record, Ref, Result, Schema, Stream } from "effect"
 import {
   edge,
   entriesKey,
@@ -24,11 +23,11 @@ import { type GraphOpMaterializer, materialize, type MaterializeProgress } from 
 // ── A small draw over one "Alpha" vertex pool linked by "LINKS" edges — bounded ints/strings only,
 // never a generated label or field name (those are interpolated into Cypher by the neo4j adapter).
 const FixtureId = Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 0, maximum: 7 })))
-const FixtureValue = Schema.String.pipe(Schema.check(Schema.isLengthBetween(1, 6)))
+const FixtureValue = Schema.String.pipe(Schema.check(Schema.isBetweenLength(1, 6)))
 
 const FixtureDraw = Schema.Struct({
   vertices: Schema.Array(Schema.Struct({ id: FixtureId, value: FixtureValue })).pipe(
-    Schema.check(Schema.isLengthBetween(1, 5))
+    Schema.check(Schema.isBetweenLength(1, 5))
   ),
   edgeEndpoints: Schema.Array(
     Schema.Struct({
@@ -36,10 +35,10 @@ const FixtureDraw = Schema.Struct({
       to: FixtureId,
       ordinal: Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 0, maximum: 3 })))
     })
-  ).pipe(Schema.check(Schema.isLengthBetween(0, 5)))
+  ).pipe(Schema.check(Schema.isBetweenLength(0, 5)))
 })
 
-const fixtureArbitrary = Schema.toArbitrary(FixtureDraw)
+const fixtureArbitrary = Arbitrary.schema(FixtureDraw)
 
 const distinctById = <T extends { readonly id: number }>(items: ReadonlyArray<T>): ReadonlyArray<T> =>
   Record.toEntries(Record.map(Array.groupBy(items, (item) => String(item.id)), (group) => group[group.length - 1])).map(
@@ -65,10 +64,10 @@ const opsFromDraw = (draw: typeof FixtureDraw.Type): ReadonlyArray<UpsertVertex 
 // without a separator (field = combined[0:1], value = combined[1:]; and field = combined[0:-1],
 // value = combined[-1:]) — the exact shape a hand-rolled `name+value` identity encoding conflates.
 const CollisionDraw = Schema.Array(Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 0, maximum: 25 })))).pipe(
-  Schema.check(Schema.isLengthBetween(3, 6))
+  Schema.check(Schema.isBetweenLength(3, 6))
 )
 
-const collisionArbitrary = Schema.toArbitrary(CollisionDraw)
+const collisionArbitrary = Arbitrary.schema(CollisionDraw)
 
 const combinedOf = (letters: ReadonlyArray<number>): string => letters.map((n) => String.fromCharCode(97 + n)).join("")
 
@@ -93,7 +92,14 @@ const ConservationDraw = Schema.Struct({
   )
 )
 
-const conservationArbitrary = Schema.toArbitrary(ConservationDraw)
+const conservationArbitrary = Arbitrary.schema(ConservationDraw)
+
+/** Runs `f` over `samples` independent draws of `arbitrary`, one after the other. */
+const forEachSample = <A, B, E, R>(
+  arbitrary: Arbitrary.Arbitrary<A>,
+  samples: number,
+  f: (draw: A) => Effect.Effect<B, E, R>
+) => Effect.flatMap(Arbitrary.sampleEffect(arbitrary, { count: samples }), (draws) => Effect.forEach(draws, f))
 
 /**
  * @since 0.0.1
@@ -105,7 +111,7 @@ export const graphOpMaterializerLaws = (
 ): void => {
   layer(under, { timeout: "120 seconds" })(implementationName, (it) => {
     it.effect("P2 — re-applying the same op list is idempotent", () =>
-      Effect.forEach(FastCheck.sample(fixtureArbitrary, samples), (draw) =>
+      forEachSample(fixtureArbitrary, samples, (draw) =>
         Effect.gen(function*() {
           const ops = opsFromDraw(draw)
           const probe = yield* MaterializedGraph
@@ -118,7 +124,7 @@ export const graphOpMaterializerLaws = (
         })))
 
     it.effect("P4 — distinct (label, key) pairs are distinct vertices", () =>
-      Effect.forEach(FastCheck.sample(collisionArbitrary, samples), (letters) =>
+      forEachSample(collisionArbitrary, samples, (letters) =>
         Effect.gen(function*() {
           const combined = combinedOf(letters)
           const [key1, key2] = collisionKeysOf(combined)
@@ -139,7 +145,7 @@ export const graphOpMaterializerLaws = (
         })))
 
     it.effect("P8 — processed is non-decreasing and the final progress totals the op count", () =>
-      Effect.forEach(FastCheck.sample(fixtureArbitrary, samples), (draw) =>
+      forEachSample(fixtureArbitrary, samples, (draw) =>
         Effect.gen(function*() {
           const ops = opsFromDraw(draw)
           const probe = yield* MaterializedGraph
@@ -153,7 +159,7 @@ export const graphOpMaterializerLaws = (
         })))
 
     it.effect("P10 — the tally conserves ops: a dangling edge is tallied dropped even when another op in the same apply fans out", () =>
-      Effect.forEach(FastCheck.sample(conservationArbitrary, samples), (draw) =>
+      forEachSample(conservationArbitrary, samples, (draw) =>
         Effect.gen(function*() {
           const probe = yield* MaterializedGraph
           yield* probe.clear()

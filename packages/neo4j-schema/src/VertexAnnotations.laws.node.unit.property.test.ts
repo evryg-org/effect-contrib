@@ -1,6 +1,5 @@
 import { expect, it } from "@effect/vitest"
-import { Array, Equal, HashMap, Option, Order, Result, Schema, type SchemaAST } from "effect"
-import { FastCheck as fc } from "effect/testing"
+import { Arbitrary, Array, Equal, HashMap, Option, Order, Result, Schema, type SchemaAST } from "effect"
 import { boundedSemilatticeLaws, homomorphismLaw, identityPreservingLaw, simulationLaw } from "../test/Laws.js"
 import { contributionOf, few, selected, SyntheticLabel, SyntheticOwner } from "../test/SyntheticContributions.js"
 import { AssembledGraphSchema, assembleGraphSchema } from "./AssembledGraphSchema.js"
@@ -36,12 +35,12 @@ const ownedVertices = (owner: typeof SyntheticOwner.Type) =>
     ? [colouredVertex("BetaOne", Option.some("blue")), colouredVertex("BetaTwo", Option.some("red"))]
     : [colouredVertex("GammaOne", Option.none())]
 
-const agreeingContributions: fc.Arbitrary<ReadonlyArray<GraphSchemaContribution>> = Schema.toArbitrary(
+const agreeingContributions: Arbitrary.Arbitrary<ReadonlyArray<GraphSchemaContribution>> = Arbitrary.schema(
   few(SyntheticOwner)
-).map((owners) => owners.map((owner) => contributionOf(owner, ownedVertices(owner))))
+).pipe(Arbitrary.map((owners) => owners.map((owner) => contributionOf(owner, ownedVertices(owner)))))
 
-const agreeingSchema = agreeingContributions.map((contributions) =>
-  Result.getOrThrow(assembleGraphSchema(contributions))
+const agreeingSchema = agreeingContributions.pipe(
+  Arbitrary.map((contributions) => Result.getOrThrow(assembleGraphSchema(contributions)))
 )
 
 const colours = (schema: AssembledGraphSchema): VertexAnnotations<Colouring> => schema.project(colourOf)
@@ -82,7 +81,7 @@ const projectedColours = (contributions: ReadonlyArray<GraphSchemaContribution>)
 simulationLaw({
   name: "locality: a sub-collection's annotations are the full annotations restricted to the labels it declares",
   arbState: agreeingContributions,
-  arbAction: Schema.toArbitrary(Schema.Array(Schema.Boolean)),
+  arbAction: Arbitrary.schema(Schema.Array(Schema.Boolean)),
   stepConcrete: selected,
   abs: projectedColours,
   stepAbstract: ({ colours: full, declared }, mask) => {
@@ -97,14 +96,16 @@ simulationLaw({
 
 const LoneVertex = Schema.Struct({ owner: SyntheticOwner, label: SyntheticLabel, paint: Paint })
 
-it("project annotates each declared vertex with what the reader reads off its declaration, and no other label", () => {
-  fc.assert(fc.property(Schema.toArbitrary(LoneVertex), ({ label, owner, paint }) => {
+it.prop(
+  "project annotates each declared vertex with what the reader reads off its declaration, and no other label",
+  [LoneVertex],
+  ([{ label, owner, paint }]) => {
     const lone = Result.getOrThrow(
       assembleGraphSchema([contributionOf(owner, [colouredVertex(label, colouringOf(paint))])])
     )
     sameAnnotations(colours(lone), annotated([[label, paint]]))
-  }))
-})
+  }
+)
 
 type United = Result.Result<VertexAnnotations<Colouring>, SchemaConflict>
 
@@ -118,8 +119,8 @@ const sameOutcome = (a: United, b: United): void => {
 
 boundedSemilatticeLaws({
   name: "union of annotations is a bounded semilattice with no annotations, definedness included",
-  arb: Schema.toArbitrary(few(Schema.Tuple([SyntheticLabel, Paint]))).map((entries): United =>
-    Result.succeed(annotated(entries))
+  arb: Arbitrary.schema(few(Schema.Tuple([SyntheticLabel, Paint]))).pipe(
+    Arbitrary.map((entries): United => Result.succeed(annotated(entries)))
   ),
   op: united,
   id: Result.succeed(VertexAnnotations.empty<Colouring>()),
@@ -128,20 +129,24 @@ boundedSemilatticeLaws({
 
 const DisputedVertex = Schema.Struct({ label: SyntheticLabel, paints: Schema.Tuple([Paint, Paint]) })
 
-it("two annotations of one label unite exactly when they are equal, and otherwise refuse with a conflict naming the label", () => {
-  fc.assert(fc.property(Schema.toArbitrary(DisputedVertex), ({ label, paints: [mine, theirs] }) => {
+it.prop(
+  "two annotations of one label unite exactly when they are equal, and otherwise refuse with a conflict naming the label",
+  [DisputedVertex],
+  ([{ label, paints: [mine, theirs] }]) => {
     expect(annotated([[label, mine]]).union(annotated([[label, theirs]]))).toEqual(
       Equal.equals(colouringOf(mine), colouringOf(theirs))
         ? Result.succeed(annotated([[label, mine]]))
         : Result.fail(SchemaConflict.cases.ConflictingVertexAnnotations.make({ label: VertexLabel.make(label) }))
     )
-  }))
-})
+  }
+)
 
 const IdentifierLabel = Schema.String.check(Schema.isPattern(/^[A-Za-z][A-Za-z0-9_]{0,7}$/))
 
-it("a union refusing several labels names the least of them, whatever order they hash in", () => {
-  fc.assert(fc.property(Schema.toArbitrary(Schema.NonEmptyArray(IdentifierLabel)), (labels) => {
+it.prop(
+  "a union refusing several labels names the least of them, whatever order they hash in",
+  [Schema.NonEmptyArray(IdentifierLabel)],
+  ([labels]) => {
     const painted = (paint: typeof Paint.Type) => annotated(labels.map((label) => [label, paint] as const))
     expect(painted("red").union(painted("blue"))).toEqual(
       Result.fail(
@@ -150,5 +155,5 @@ it("a union refusing several labels names the least of them, whatever order they
         })
       )
     )
-  }))
-})
+  }
+)

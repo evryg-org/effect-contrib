@@ -1,5 +1,4 @@
-import { Array, Function, Option, Record, Schema } from "effect"
-import type { FastCheck as fc } from "effect/testing"
+import { Arbitrary, Array, Function, Option, Record, Schema } from "effect"
 import { AnnotatedGraphSchemas, GraphSchemaContribution } from "../src/GraphSchemaContribution.js"
 import { ContributingModule } from "../src/GraphVocabulary.js"
 import { neo4jEdge, neo4jIndexed, neo4jUnique, neo4jVertex } from "../src/Neo4jSchemaAnnotations.js"
@@ -145,13 +144,13 @@ export const agreeingContribution = (spec: typeof AgreeingSpec.Type): GraphSchem
     )
   ])
 
-export const agreeingContributions: fc.Arbitrary<ReadonlyArray<GraphSchemaContribution>> = Schema.toArbitrary(
+export const agreeingContributions: Arbitrary.Arbitrary<ReadonlyArray<GraphSchemaContribution>> = Arbitrary.schema(
   few(AgreeingSpec)
-).map((specs) => specs.map(agreeingContribution))
+).pipe(Arbitrary.map((specs) => specs.map(agreeingContribution)))
 
-export const anyContributions: fc.Arbitrary<ReadonlyArray<GraphSchemaContribution>> = Schema.toArbitrary(
+export const anyContributions: Arbitrary.Arbitrary<ReadonlyArray<GraphSchemaContribution>> = Arbitrary.schema(
   few(ContributionSpec)
-).map((specs) => specs.map(anyContribution))
+).pipe(Arbitrary.map((specs) => specs.map(anyContribution)))
 
 export const selected = <A>(items: ReadonlyArray<A>, mask: ReadonlyArray<boolean>): ReadonlyArray<A> =>
   Array.filter(items, (_, at) => Option.getOrElse(Array.get(mask, at), Function.constFalse))
