@@ -41,6 +41,10 @@ export {
    */
   PropertyMap,
   /**
+   * @since 0.2.0
+   */
+  PropertyValue,
+  /**
    * @since 0.0.1
    */
   UpsertEdge,
@@ -51,7 +55,11 @@ export {
   /**
    * @since 0.0.1
    */
-  VertexRef
+  VertexRef,
+  /**
+   * @since 0.2.0
+   */
+  WellFormedString
 } from "./GraphOp.js"
 /**
  * @since 0.0.1
