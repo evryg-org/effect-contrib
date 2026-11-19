@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Array, Order, Record, Schema } from "effect"
-import { GraphOp, UpsertEdge, UpsertVertex, VertexRef } from "./GraphOp.js"
+import { GraphOp, PropertyMap, UpsertEdge, UpsertVertex, VertexRef } from "./GraphOp.js"
 
 describe("GraphOp Schema types", () => {
   it("UpsertVertex constructs with the expected fields", () => {
@@ -75,5 +75,35 @@ describe("GraphOp Schema types", () => {
     expect(GraphOp.guards.UpsertVertex(decoded[2])).toBe(true)
     expect((decoded[0] as UpsertVertex).label).toBe("A")
     expect((decoded[2] as UpsertVertex).label).toBe("C")
+  })
+})
+
+// "\uD800" and "\uDC00" are distinct strings, yet a UTF-8 transport carries both as U+FFFD.
+describe("GraphOp strings are well-formed Unicode", () => {
+  const loneSurrogates = ["\uD800", "\uDC00", "a\uD800b"]
+
+  it.each(loneSurrogates)("a vertex refuses %j as a key value, a key name, a property value or a label", (ill) => {
+    expect(() => new UpsertVertex({ label: "Alpha", key: { id: ill }, properties: {} })).toThrow()
+    expect(() => new UpsertVertex({ label: "Alpha", key: { [ill]: "1" }, properties: {} })).toThrow()
+    expect(() => new UpsertVertex({ label: "Alpha", key: { id: "1" }, properties: { value: ill } })).toThrow()
+    expect(() => new UpsertVertex({ label: "Alpha", key: { id: "1" }, properties: { values: ["ok", ill] } })).toThrow()
+    expect(() => new UpsertVertex({ label: ill, key: { id: "1" }, properties: {} })).toThrow()
+  })
+
+  it.each(loneSurrogates)("an edge refuses %j in an endpoint key, its own key or its label", (ill) => {
+    const alpha = new VertexRef({ label: "Alpha", key: { id: "1" } })
+    expect(() => new VertexRef({ label: "Beta", key: { id: ill } })).toThrow()
+    expect(() => new UpsertEdge({ label: "LINKS", from: alpha, to: alpha, key: { ordinal: ill }, properties: {} }))
+      .toThrow()
+    expect(() => new UpsertEdge({ label: ill, from: alpha, to: alpha, key: {}, properties: {} })).toThrow()
+  })
+
+  it("accepts a surrogate pair, which is one well-formed code point", () => {
+    expect(new UpsertVertex({ label: "Alpha", key: { id: "😀" }, properties: {} }).key.id).toBe("😀")
+  })
+
+  it.prop("accepts a string exactly when a UTF-8 round trip leaves it unchanged", [Schema.String], ([value]) => {
+    const roundTripped = new TextDecoder().decode(new TextEncoder().encode(value))
+    expect(Schema.is(PropertyMap)({ id: value })).toBe(roundTripped === value)
   })
 })
