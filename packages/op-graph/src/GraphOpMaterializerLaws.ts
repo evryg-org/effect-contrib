@@ -6,7 +6,7 @@
  * @since 0.0.1
  */
 import { expect, layer } from "@effect/vitest"
-import { Arbitrary, Array, Effect, type Layer, Order, Record, Ref, Result, Schema, Stream } from "effect"
+import { Array, Effect, type Layer, Order, Record, Ref, Result, Schema, Stream } from "effect"
 import {
   edge,
   entriesKey,
@@ -17,13 +17,13 @@ import {
   sortedVertices,
   vertex
 } from "./_testing/GraphOpMaterializerContract.js"
-import type { PropertyMap, UpsertEdge, UpsertVertex } from "./GraphOp.js"
+import { type PropertyMap, type UpsertEdge, type UpsertVertex, WellFormedString } from "./GraphOp.js"
 import { type GraphOpMaterializer, materialize, type MaterializeProgress } from "./GraphOpMaterializer.js"
 
 // ── A small draw over one "Alpha" vertex pool linked by "LINKS" edges — bounded ints/strings only,
 // never a generated label or field name (those are interpolated into Cypher by the neo4j adapter).
 const FixtureId = Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 0, maximum: 7 })))
-const FixtureValue = Schema.String.pipe(Schema.check(Schema.isBetweenLength(1, 6)))
+const FixtureValue = WellFormedString.pipe(Schema.check(Schema.isBetweenLength(1, 6)))
 
 const FixtureDraw = Schema.Struct({
   vertices: Schema.Array(Schema.Struct({ id: FixtureId, value: FixtureValue })).pipe(
@@ -37,8 +37,6 @@ const FixtureDraw = Schema.Struct({
     })
   ).pipe(Schema.check(Schema.isBetweenLength(0, 5)))
 })
-
-const fixtureArbitrary = Arbitrary.schema(FixtureDraw)
 
 const distinctById = <T extends { readonly id: number }>(items: ReadonlyArray<T>): ReadonlyArray<T> =>
   Record.toEntries(Record.map(Array.groupBy(items, (item) => String(item.id)), (group) => group[group.length - 1])).map(
@@ -67,8 +65,6 @@ const CollisionDraw = Schema.Array(Schema.Int.pipe(Schema.check(Schema.isBetween
   Schema.check(Schema.isBetweenLength(3, 6))
 )
 
-const collisionArbitrary = Arbitrary.schema(CollisionDraw)
-
 const combinedOf = (letters: ReadonlyArray<number>): string => letters.map((n) => String.fromCharCode(97 + n)).join("")
 
 const collisionKeysOf = (combined: string): readonly [PropertyMap, PropertyMap] => [
@@ -92,15 +88,6 @@ const ConservationDraw = Schema.Struct({
   )
 )
 
-const conservationArbitrary = Arbitrary.schema(ConservationDraw)
-
-/** Runs `f` over `samples` independent draws of `arbitrary`, one after the other. */
-const forEachSample = <A, B, E, R>(
-  arbitrary: Arbitrary.Arbitrary<A>,
-  samples: number,
-  f: (draw: A) => Effect.Effect<B, E, R>
-) => Effect.flatMap(Arbitrary.sampleEffect(arbitrary, { count: samples }), (draws) => Effect.forEach(draws, f))
-
 /**
  * @since 0.0.1
  */
@@ -109,9 +96,13 @@ export const graphOpMaterializerLaws = (
   under: Layer.Layer<GraphOpMaterializer | MaterializedGraph>,
   samples: number
 ): void => {
+  // Each failure reports its shrunk draw and a replay token, which carries the seed.
+  const runs = { arbitrary: { runs: samples } }
   layer(under, { timeout: "120 seconds" })(implementationName, (it) => {
-    it.effect("P2 — re-applying the same op list is idempotent", () =>
-      forEachSample(fixtureArbitrary, samples, (draw) =>
+    it.effect.prop(
+      "P2 — re-applying the same op list is idempotent",
+      { draw: FixtureDraw },
+      ({ draw }) =>
         Effect.gen(function*() {
           const ops = opsFromDraw(draw)
           const probe = yield* MaterializedGraph
@@ -121,10 +112,14 @@ export const graphOpMaterializerLaws = (
           yield* materialize(ops).pipe(Stream.runDrain)
           const twice = yield* snapshotOf(probe)
           expect(twice).toEqual(once)
-        })))
+        }),
+      runs
+    )
 
-    it.effect("P4 — distinct (label, key) pairs are distinct vertices", () =>
-      forEachSample(collisionArbitrary, samples, (letters) =>
+    it.effect.prop(
+      "P4 — distinct (label, key) pairs are distinct vertices",
+      { letters: CollisionDraw },
+      ({ letters }) =>
         Effect.gen(function*() {
           const combined = combinedOf(letters)
           const [key1, key2] = collisionKeysOf(combined)
@@ -142,10 +137,14 @@ export const graphOpMaterializerLaws = (
               Order.String
             )
           )
-        })))
+        }),
+      runs
+    )
 
-    it.effect("P8 — processed is non-decreasing and the final progress totals the op count", () =>
-      forEachSample(fixtureArbitrary, samples, (draw) =>
+    it.effect.prop(
+      "P8 — processed is non-decreasing and the final progress totals the op count",
+      { draw: FixtureDraw },
+      ({ draw }) =>
         Effect.gen(function*() {
           const ops = opsFromDraw(draw)
           const probe = yield* MaterializedGraph
@@ -156,10 +155,14 @@ export const graphOpMaterializerLaws = (
           const last = events[events.length - 1]
           expect(last.processed).toBe(ops.length)
           expect(last.total).toBe(ops.length)
-        })))
+        }),
+      runs
+    )
 
-    it.effect("P10 — the tally conserves ops: a dangling edge is tallied dropped even when another op in the same apply fans out", () =>
-      forEachSample(conservationArbitrary, samples, (draw) =>
+    it.effect.prop(
+      "P10 — the tally conserves ops: a dangling edge is tallied dropped even when another op in the same apply fans out",
+      { draw: ConservationDraw },
+      ({ draw }) =>
         Effect.gen(function*() {
           const probe = yield* MaterializedGraph
           yield* probe.clear()
@@ -176,6 +179,8 @@ export const graphOpMaterializerLaws = (
           expect(last?.dropped.get("Alpha-[:LINKS]->Beta")).toBe(1)
           const edges = yield* probe.edges("LINKS")
           expect(edges.length).toBe(2)
-        })))
+        }),
+      runs
+    )
   })
 }
